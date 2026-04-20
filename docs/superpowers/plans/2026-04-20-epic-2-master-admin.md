@@ -437,8 +437,6 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-Use the simpler version.
-
 - [ ] **Step 5: Run linters**
 
 ```bash
