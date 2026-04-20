@@ -2,17 +2,16 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any
 
 import structlog
 from aiogram import Bot, Dispatcher
-from aiogram.filters import CommandStart
-from aiogram.types import Message
 
 from src.config import settings
 from src.db.base import SessionMaker
-from src.db.models import Client, Master
+from src.fsm_storage import build_fsm_storage
+from src.handlers import build_root_router
 from src.middlewares.db import DbSessionMiddleware
+from src.middlewares.lang import LangMiddleware
 from src.middlewares.user import UserMiddleware
 
 
@@ -31,26 +30,13 @@ def configure_logging() -> None:
 log: structlog.stdlib.BoundLogger = structlog.get_logger()
 
 
-async def handle_start(
-    message: Message,
-    master: Master | None,
-    client: Client | None,
-    **_: Any,
-) -> None:
-    log.info(
-        "start_received",
-        tg_id=message.from_user.id if message.from_user else None,
-        has_master=master is not None,
-        has_client=client is not None,
-    )
-    await message.answer("hello")
-
-
 def build_dispatcher() -> Dispatcher:
-    dp = Dispatcher()
+    storage = build_fsm_storage()
+    dp = Dispatcher(storage=storage)
     dp.update.middleware(DbSessionMiddleware(SessionMaker))
     dp.update.middleware(UserMiddleware())
-    dp.message.register(handle_start, CommandStart())
+    dp.update.middleware(LangMiddleware())
+    dp.include_router(build_root_router())
     return dp
 
 
