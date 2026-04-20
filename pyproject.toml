@@ -1,0 +1,57 @@
+[project]
+name = "botik"
+version = "0.1.0"
+description = "Telegram booking bot for dentists and stylists (Armenia)"
+requires-python = ">=3.12"
+dependencies = [
+    "aiogram>=3.4,<4",
+    "sqlalchemy[asyncio]>=2.0,<3",
+    "asyncpg>=0.29",
+    "alembic>=1.13",
+    "redis>=5.0",
+    "apscheduler>=3.10,<4",
+    "pydantic>=2.6",
+    "pydantic-settings>=2.2",
+    "structlog>=24.1",
+    "aiogram-i18n>=1.4",
+    "fluent-compiler>=1.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=4.1",
+    "ruff>=0.3",
+    "mypy>=1.9",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+exclude = ["migrations/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "ASYNC", "RUF"]
+ignore = ["B008"]  # aiogram uses default arg instances
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B017"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+exclude = ["migrations/", "build/", "dist/"]
+
+[[tool.mypy.overrides]]
+module = ["apscheduler.*", "aiogram_i18n.*", "fluent_compiler.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-v --strict-markers"
