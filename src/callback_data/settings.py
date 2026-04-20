@@ -7,3 +7,8 @@ from aiogram.filters.callback_data import CallbackData
 
 class SettingsCallback(CallbackData, prefix="set"):
     section: Literal["services", "hours", "breaks"]
+
+
+class WorkHoursDay(CallbackData, prefix="wh"):
+    action: Literal["pick", "day_off", "done"]
+    day: str = ""  # "mon".."sun" for pick/day_off, empty for "done"
