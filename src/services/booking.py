@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta
+from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.models import Appointment, Client, Master, Service
-from src.exceptions import SlotAlreadyTaken
+from src.exceptions import InvalidState, NotFound, SlotAlreadyTaken
 from src.repositories.appointments import AppointmentRepository
 from src.services.availability import calculate_free_slots
 from src.utils.time import now_utc
@@ -87,3 +88,57 @@ class BookingService:
         except IntegrityError as exc:
             await self._session.rollback()
             raise SlotAlreadyTaken(str(start_at)) from exc
+
+    async def confirm(
+        self,
+        appointment_id: UUID,
+        *,
+        master_id: UUID,
+        now: datetime | None = None,
+    ) -> Appointment:
+        n = now if now is not None else now_utc()
+        appt = await self._repo.get(appointment_id, master_id=master_id)
+        if appt is None:
+            raise NotFound(str(appointment_id))
+        if appt.status != "pending":
+            raise InvalidState(f"cannot confirm from status={appt.status!r}")
+        appt.status = "confirmed"
+        appt.confirmed_at = n
+        return appt
+
+    async def reject(
+        self,
+        appointment_id: UUID,
+        *,
+        master_id: UUID,
+        reason: str | None = None,
+    ) -> Appointment:
+        appt = await self._repo.get(appointment_id, master_id=master_id)
+        if appt is None:
+            raise NotFound(str(appointment_id))
+        if appt.status != "pending":
+            raise InvalidState(f"cannot reject from status={appt.status!r}")
+        appt.status = "rejected"
+        if reason:
+            appt.comment = reason if not appt.comment else f"{appt.comment}\n{reason}"
+        return appt
+
+    async def cancel(
+        self,
+        appointment_id: UUID,
+        *,
+        cancelled_by: str,
+        now: datetime | None = None,
+    ) -> Appointment:
+        if cancelled_by not in ("client", "master", "system"):
+            raise ValueError(f"invalid cancelled_by: {cancelled_by!r}")
+        n = now if now is not None else now_utc()
+        appt = await self._repo.get(appointment_id)
+        if appt is None:
+            raise NotFound(str(appointment_id))
+        if appt.status in ("cancelled", "rejected", "completed", "no_show"):
+            raise InvalidState(f"cannot cancel from status={appt.status!r}")
+        appt.status = "cancelled"
+        appt.cancelled_at = n
+        appt.cancelled_by = cancelled_by
+        return appt

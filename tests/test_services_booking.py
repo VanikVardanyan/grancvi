@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, date, datetime, timedelta
+from uuid import uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.db.models import Client, Master, Service
-from src.exceptions import SlotAlreadyTaken
+from src.exceptions import InvalidState, NotFound, SlotAlreadyTaken
 from src.services.booking import BookingService
 
 
@@ -144,3 +145,109 @@ async def test_create_pending_race_one_wins_one_loses(
     losses = [r for r in (a, b) if isinstance(r, SlotAlreadyTaken)]
     assert len(wins) == 1
     assert len(losses) == 1
+
+
+@pytest.mark.asyncio
+async def test_confirm_sets_status_and_confirmed_at(session: AsyncSession) -> None:
+    master, client, service = await _seed(session)
+    await session.commit()
+    svc = BookingService(session)
+    start = datetime(2026, 4, 20, 9, 0, tzinfo=UTC)
+    appt = await svc.create_pending(master=master, client=client, service=service, start_at=start)
+
+    confirmed_at = datetime(2026, 4, 20, 8, 30, tzinfo=UTC)
+    result = await svc.confirm(appt.id, master_id=master.id, now=confirmed_at)
+    assert result.status == "confirmed"
+    assert result.confirmed_at == confirmed_at
+
+
+@pytest.mark.asyncio
+async def test_confirm_missing_raises_not_found(session: AsyncSession) -> None:
+    master, _, _ = await _seed(session)
+    await session.commit()
+    svc = BookingService(session)
+    with pytest.raises(NotFound):
+        await svc.confirm(uuid4(), master_id=master.id)
+
+
+@pytest.mark.asyncio
+async def test_confirm_non_pending_raises_invalid_state(session: AsyncSession) -> None:
+    master, client, service = await _seed(session)
+    await session.commit()
+    svc = BookingService(session)
+    start = datetime(2026, 4, 20, 9, 0, tzinfo=UTC)
+    appt = await svc.create_pending(master=master, client=client, service=service, start_at=start)
+    await svc.confirm(appt.id, master_id=master.id)
+
+    with pytest.raises(InvalidState):
+        await svc.confirm(appt.id, master_id=master.id)
+
+
+@pytest.mark.asyncio
+async def test_reject_sets_status_and_appends_reason(session: AsyncSession) -> None:
+    master, client, service = await _seed(session)
+    await session.commit()
+    svc = BookingService(session)
+    start = datetime(2026, 4, 20, 9, 0, tzinfo=UTC)
+    appt = await svc.create_pending(master=master, client=client, service=service, start_at=start)
+
+    result = await svc.reject(appt.id, master_id=master.id, reason="занят")
+    assert result.status == "rejected"
+    assert result.comment == "занят"
+
+
+@pytest.mark.asyncio
+async def test_reject_non_pending_raises_invalid_state(session: AsyncSession) -> None:
+    master, client, service = await _seed(session)
+    await session.commit()
+    svc = BookingService(session)
+    start = datetime(2026, 4, 20, 9, 0, tzinfo=UTC)
+    appt = await svc.create_pending(master=master, client=client, service=service, start_at=start)
+    await svc.reject(appt.id, master_id=master.id)
+
+    with pytest.raises(InvalidState):
+        await svc.reject(appt.id, master_id=master.id)
+
+
+@pytest.mark.asyncio
+async def test_cancel_by_client_sets_fields(session: AsyncSession) -> None:
+    master, client, service = await _seed(session)
+    await session.commit()
+    svc = BookingService(session)
+    start = datetime(2026, 4, 20, 9, 0, tzinfo=UTC)
+    appt = await svc.create_pending(master=master, client=client, service=service, start_at=start)
+    await svc.confirm(appt.id, master_id=master.id)
+
+    cancelled_at = datetime(2026, 4, 20, 8, 0, tzinfo=UTC)
+    result = await svc.cancel(appt.id, cancelled_by="client", now=cancelled_at)
+    assert result.status == "cancelled"
+    assert result.cancelled_at == cancelled_at
+    assert result.cancelled_by == "client"
+
+
+@pytest.mark.asyncio
+async def test_cancel_invalid_cancelled_by_raises_value_error(
+    session: AsyncSession,
+) -> None:
+    master, client, service = await _seed(session)
+    await session.commit()
+    svc = BookingService(session)
+    start = datetime(2026, 4, 20, 9, 0, tzinfo=UTC)
+    appt = await svc.create_pending(master=master, client=client, service=service, start_at=start)
+    with pytest.raises(ValueError):
+        await svc.cancel(appt.id, cancelled_by="nobody")
+
+
+@pytest.mark.asyncio
+async def test_cancel_terminal_status_raises_invalid_state(
+    session: AsyncSession,
+) -> None:
+    master, client, service = await _seed(session)
+    await session.commit()
+    svc = BookingService(session)
+    start = datetime(2026, 4, 20, 9, 0, tzinfo=UTC)
+    appt = await svc.create_pending(master=master, client=client, service=service, start_at=start)
+    await svc.cancel(appt.id, cancelled_by="client")
+
+    with pytest.raises(InvalidState):
+        await svc.cancel(appt.id, cancelled_by="client")
