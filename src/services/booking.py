@@ -3,11 +3,14 @@ from __future__ import annotations
 from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.db.models import Master, Service
+from src.db.models import Appointment, Client, Master, Service
+from src.exceptions import SlotAlreadyTaken
 from src.repositories.appointments import AppointmentRepository
 from src.services.availability import calculate_free_slots
+from src.utils.time import now_utc
 
 
 class BookingService:
@@ -49,3 +52,38 @@ class BookingService:
             service_duration_min=service.duration_min,
             now=now,
         )
+
+    async def create_pending(
+        self,
+        *,
+        master: Master,
+        client: Client,
+        service: Service,
+        start_at: datetime,
+        now: datetime | None = None,
+    ) -> Appointment:
+        """Create a client-requested appointment in `pending` state.
+
+        Commits on success so the unique-index row lock is released for other
+        writers. On IntegrityError (slot taken between `get_free_slots` and here),
+        rolls back and raises SlotAlreadyTaken — handler should re-render the grid.
+        """
+        n = now if now is not None else now_utc()
+        end_at = start_at + timedelta(minutes=service.duration_min)
+        deadline = n + timedelta(minutes=master.decision_timeout_min)
+        try:
+            appt = await self._repo.create(
+                master_id=master.id,
+                client_id=client.id,
+                service_id=service.id,
+                start_at=start_at,
+                end_at=end_at,
+                status="pending",
+                source="client_request",
+                decision_deadline=deadline,
+            )
+            await self._session.commit()
+            return appt
+        except IntegrityError as exc:
+            await self._session.rollback()
+            raise SlotAlreadyTaken(str(start_at)) from exc
