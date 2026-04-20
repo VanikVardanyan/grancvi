@@ -165,7 +165,7 @@ class _StringsProxy:
             raise AttributeError(key) from exc
 
 
-strings = _StringsProxy()
+strings: Any = _StringsProxy()
 
 
 def get_bundle(lang: str) -> SimpleNamespace:
