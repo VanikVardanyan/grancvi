@@ -5,9 +5,10 @@
 **Goal:** Enable a master (admin) to register via `/start`, manage their services (name + duration), and set weekly work hours. After this epic, a master's profile is complete enough to feed slot-availability computation in Epic 3.
 
 **Architecture:** Layered — `handlers (aiogram Router) → services/repositories → db`. FSM state persists in Redis (RedisStorage). UX choices for this epic:
+- **Language at registration:** master picks ru / hy on the very first step (before name). Saved to `masters.lang`. All subsequent UI respects this setting.
 - **Phone** at registration: any non-empty string, required (cannot skip).
 - **Work hours:** one interval per weekday for MVP (`{"mon": [["10:00","19:00"]]}`). Breaks are a separate flow, also one interval per day. Split-day is deferred (the JSONB shape allows it, but UI only writes one interval).
-- Strings are hardcoded Russian in `src/strings.py` (Fluent i18n is a later epic).
+- **i18n:** `src/strings.py` holds two dicts (`_RU`, `_HY`) and exposes a module-like `strings` proxy that reads a `ContextVar` set by `LangMiddleware`. Handlers keep writing `strings.REGISTER_WELCOME` — the returned value follows the current request's language. Fluent (`.ftl`) migration is deferred to the client-flow epic; this epic ships full ru/hy bilingual UI without it.
 
 **Tech Stack:** aiogram 3 (Router + RedisStorage + CallbackData), SQLAlchemy 2 async, asyncpg, pydantic-settings, structlog, pytest+pytest-asyncio.
 
@@ -19,8 +20,10 @@ Files this epic creates or modifies:
 
 ```
 src/
-  strings.py                          # NEW: hardcoded Russian copy
+  strings.py                          # NEW: ru + hy dicts + ContextVar-backed proxy
   fsm_storage.py                      # NEW: build RedisStorage from settings
+  middlewares/
+    lang.py                           # NEW: resolve request language, set ContextVar
   handlers/
     __init__.py                       # NEW: router composition
     master/
@@ -75,70 +78,231 @@ Prep for the whole epic. Switch `Dispatcher` to `RedisStorage` (FSM storage — 
 
 - [ ] **Step 1: Create `src/strings.py`**
 
+Bilingual strings for Epic 2. Handlers write `strings.REGISTER_WELCOME` and get the text in the language that `LangMiddleware` set on this request's `ContextVar`.
+
 ```python
 from __future__ import annotations
 
-# All user-facing strings for Epic 2. Ready to be replaced by Fluent later.
+from contextvars import ContextVar
+from types import SimpleNamespace
+from typing import Any
 
-REGISTER_WELCOME = "Добро пожаловать! Давайте настроим ваш профиль мастера."
-REGISTER_ASK_NAME = "Как к вам обращаться? (имя, как его увидят клиенты)"
-REGISTER_ASK_PHONE = "Укажите телефон для связи."
-REGISTER_DONE = "Готово! Профиль создан. Что дальше?"
+# Supported languages. `masters.lang` CHECKs against this set.
+SUPPORTED_LANGS: frozenset[str] = frozenset({"ru", "hy"})
+DEFAULT_LANG = "ru"
 
-START_UNKNOWN = "Нужна ссылка от клиники."
-START_WELCOME_BACK = "С возвращением. Что дальше?"
+_current_lang: ContextVar[str] = ContextVar("current_lang", default=DEFAULT_LANG)
 
-MAIN_MENU_TODAY = "📅 Сегодня"
-MAIN_MENU_ADD = "➕ Добавить запись"
-MAIN_MENU_CALENDAR = "🗓 Календарь"
-MAIN_MENU_SETTINGS = "⚙️ Настройки"
 
-STUB_TODAY = "Здесь будет список записей на сегодня (Эпик 5)."
-STUB_ADD = "Здесь будет ручное добавление записи (Эпик 5)."
-STUB_CALENDAR = "Здесь будет календарь (Эпик 5)."
+def set_current_lang(lang: str) -> None:
+    """Called by LangMiddleware for each incoming update."""
+    _current_lang.set(lang if lang in SUPPORTED_LANGS else DEFAULT_LANG)
 
-SETTINGS_MENU_TITLE = "Настройки"
-SETTINGS_BTN_SERVICES = "Услуги"
-SETTINGS_BTN_WORK_HOURS = "Часы работы"
-SETTINGS_BTN_BREAKS = "Перерывы"
 
-SERVICES_EMPTY = "Услуг пока нет. Добавьте первую."
-SERVICES_LIST_TITLE = "Ваши услуги:"
-SERVICES_BTN_ADD = "➕ Добавить услугу"
-SERVICES_BTN_EDIT = "✏️"
-SERVICES_BTN_DELETE = "🗑"
-SERVICES_ADD_ASK_NAME = "Название услуги?"
-SERVICES_ADD_ASK_DURATION = "Длительность в минутах? (целое число)"
-SERVICES_ADD_BAD_DURATION = "Нужно целое число минут больше нуля."
-SERVICES_ADDED = "Услуга добавлена."
-SERVICES_DELETED = "Услуга удалена."
-SERVICES_EDIT_MENU = "Что меняем?"
-SERVICES_EDIT_BTN_NAME = "Название"
-SERVICES_EDIT_BTN_DURATION = "Длительность"
-SERVICES_EDIT_BTN_TOGGLE = "Вкл/выкл"
-SERVICES_EDIT_NAME_PROMPT = "Новое название?"
-SERVICES_EDIT_DURATION_PROMPT = "Новая длительность в минутах?"
-SERVICES_UPDATED = "Услуга обновлена."
+def get_current_lang() -> str:
+    return _current_lang.get()
 
-WORK_HOURS_TITLE = "Часы работы по дням недели:"
-WORK_HOURS_DAY_OFF = "выходной"
-WORK_HOURS_PICK_DAY = "Выберите день:"
-WORK_HOURS_ASK_START = "Начало рабочего дня? Формат HH:MM, например 10:00."
-WORK_HOURS_ASK_END = "Конец рабочего дня? Формат HH:MM, например 19:00."
-WORK_HOURS_BAD_FORMAT = "Не разобрал. Ожидаю HH:MM, например 10:00."
-WORK_HOURS_BAD_ORDER = "Конец должен быть позже начала."
-WORK_HOURS_BTN_DAY_OFF = "Выходной"
-WORK_HOURS_SAVED = "Сохранено."
 
-WEEKDAYS: dict[str, str] = {
-    "mon": "Пн",
-    "tue": "Вт",
-    "wed": "Ср",
-    "thu": "Чт",
-    "fri": "Пт",
-    "sat": "Сб",
-    "sun": "Вс",
+_RU: dict[str, Any] = {
+    "LANG_PICK_PROMPT": "Выберите язык / Ընտրեք լեզուն",
+    "LANG_BTN_RU": "🇷🇺 Русский",
+    "LANG_BTN_HY": "🇦🇲 Հայերեն",
+    "REGISTER_WELCOME": "Добро пожаловать! Давайте настроим ваш профиль мастера.",
+    "REGISTER_ASK_NAME": "Как к вам обращаться? (имя, как его увидят клиенты)",
+    "REGISTER_ASK_PHONE": "Укажите телефон для связи.",
+    "REGISTER_DONE": "Готово! Профиль создан. Что дальше?",
+    "START_UNKNOWN": "Нужна ссылка от клиники.",
+    "START_WELCOME_BACK": "С возвращением. Что дальше?",
+    "MAIN_MENU_TODAY": "📅 Сегодня",
+    "MAIN_MENU_ADD": "➕ Добавить запись",
+    "MAIN_MENU_CALENDAR": "🗓 Календарь",
+    "MAIN_MENU_SETTINGS": "⚙️ Настройки",
+    "STUB_TODAY": "Здесь будет список записей на сегодня (Эпик 5).",
+    "STUB_ADD": "Здесь будет ручное добавление записи (Эпик 5).",
+    "STUB_CALENDAR": "Здесь будет календарь (Эпик 5).",
+    "SETTINGS_MENU_TITLE": "Настройки",
+    "SETTINGS_BTN_SERVICES": "Услуги",
+    "SETTINGS_BTN_WORK_HOURS": "Часы работы",
+    "SETTINGS_BTN_BREAKS": "Перерывы",
+    "SERVICES_EMPTY": "Услуг пока нет. Добавьте первую. Примеры: Чистка, Пломба, Стрижка.",
+    "SERVICES_LIST_TITLE": "Ваши услуги:",
+    "SERVICES_ITEM_FMT": "{name} · {duration} мин",
+    "SERVICES_BTN_ADD": "➕ Добавить услугу",
+    "SERVICES_BTN_EDIT": "✏️",
+    "SERVICES_BTN_DELETE": "🗑",
+    "SERVICES_ADD_ASK_NAME": "Название услуги?",
+    "SERVICES_ADD_ASK_DURATION": "Длительность в минутах? (целое число)",
+    "SERVICES_ADD_BAD_DURATION": "Нужно целое число минут больше нуля.",
+    "SERVICES_ADDED": "Услуга добавлена.",
+    "SERVICES_DELETED": "Услуга удалена.",
+    "SERVICES_EDIT_MENU": "Что меняем?",
+    "SERVICES_EDIT_BTN_NAME": "Название",
+    "SERVICES_EDIT_BTN_DURATION": "Длительность",
+    "SERVICES_EDIT_BTN_TOGGLE": "Вкл/выкл",
+    "SERVICES_EDIT_NAME_PROMPT": "Новое название?",
+    "SERVICES_EDIT_DURATION_PROMPT": "Новая длительность в минутах?",
+    "SERVICES_UPDATED": "Услуга обновлена.",
+    "SERVICES_BTN_BACK": "← назад",
+    "WORK_HOURS_TITLE": "Часы работы по дням недели:",
+    "WORK_HOURS_DAY_OFF": "выходной",
+    "WORK_HOURS_PICK_DAY": "Выберите день:",
+    "WORK_HOURS_ASK_START": "Начало рабочего дня? Формат HH:MM, например 10:00.",
+    "WORK_HOURS_ASK_END": "Конец рабочего дня? Формат HH:MM, например 19:00.",
+    "WORK_HOURS_BAD_FORMAT": "Не разобрал. Ожидаю HH:MM, например 10:00.",
+    "WORK_HOURS_BAD_ORDER": "Конец должен быть позже начала.",
+    "WORK_HOURS_BTN_DAY_OFF": "Выходной",
+    "WORK_HOURS_SAVED": "Сохранено.",
+    "WORK_HOURS_BTN_DONE": "Готово",
+    "WEEKDAYS": {
+        "mon": "Пн",
+        "tue": "Вт",
+        "wed": "Ср",
+        "thu": "Чт",
+        "fri": "Пт",
+        "sat": "Сб",
+        "sun": "Вс",
+    },
+    "CLIENT_STUB": "Привет! Запись через меню клиники появится позже.",
+    "SECTION_COMING_SOON": "Раздел «{section}» — скоро.",
 }
+
+_HY: dict[str, Any] = {
+    "LANG_PICK_PROMPT": "Выберите язык / Ընտրեք լեզուն",
+    "LANG_BTN_RU": "🇷🇺 Русский",
+    "LANG_BTN_HY": "🇦🇲 Հայերեն",
+    "REGISTER_WELCOME": "Բարի գալուստ! Եկեք կարգավորենք ձեր վարպետի պրոֆիլը։",
+    "REGISTER_ASK_NAME": "Ինչպե՞ս դիմել ձեզ։ (անունը, ինչպես կտեսնեն հաճախորդները)",
+    "REGISTER_ASK_PHONE": "Նշեք հեռախոսահամար կապի համար։",
+    "REGISTER_DONE": "Պատրաստ է։ Պրոֆիլը ստեղծված է։ Ի՞նչ ենք անում հետո։",
+    "START_UNKNOWN": "Անհրաժեշտ է հղում կլինիկայից։",
+    "START_WELCOME_BACK": "Բարի վերադարձ։ Ի՞նչ ենք անում հետո։",
+    "MAIN_MENU_TODAY": "📅 Այսօր",
+    "MAIN_MENU_ADD": "➕ Ավելացնել գրանցում",
+    "MAIN_MENU_CALENDAR": "🗓 Օրացույց",
+    "MAIN_MENU_SETTINGS": "⚙️ Կարգավորումներ",
+    "STUB_TODAY": "Այստեղ կլինի այսօրվա գրանցումների ցանկը (Էպիկ 5)։",
+    "STUB_ADD": "Այստեղ կլինի ձեռքով գրանցման ավելացում (Էպիկ 5)։",
+    "STUB_CALENDAR": "Այստեղ կլինի օրացույցը (Էպիկ 5)։",
+    "SETTINGS_MENU_TITLE": "Կարգավորումներ",
+    "SETTINGS_BTN_SERVICES": "Ծառայություններ",
+    "SETTINGS_BTN_WORK_HOURS": "Աշխատանքային ժամեր",
+    "SETTINGS_BTN_BREAKS": "Ընդմիջումներ",
+    "SERVICES_EMPTY": "Ծառայություններ դեռ չկան։ Ավելացրեք առաջինը։ Օրինակ՝ Մաքրում, Պլոմբ, Սափրվել։",
+    "SERVICES_LIST_TITLE": "Ձեր ծառայությունները՝",
+    "SERVICES_ITEM_FMT": "{name} · {duration} րոպե",
+    "SERVICES_BTN_ADD": "➕ Ավելացնել ծառայություն",
+    "SERVICES_BTN_EDIT": "✏️",
+    "SERVICES_BTN_DELETE": "🗑",
+    "SERVICES_ADD_ASK_NAME": "Ծառայության անունը՞",
+    "SERVICES_ADD_ASK_DURATION": "Տևողությունը րոպեներով՞ (ամբողջ թիվ)",
+    "SERVICES_ADD_BAD_DURATION": "Պետք է ամբողջ թիվ զրոյից մեծ։",
+    "SERVICES_ADDED": "Ծառայությունն ավելացված է։",
+    "SERVICES_DELETED": "Ծառայությունը ջնջված է։",
+    "SERVICES_EDIT_MENU": "Ի՞նչ ենք փոխում։",
+    "SERVICES_EDIT_BTN_NAME": "Անուն",
+    "SERVICES_EDIT_BTN_DURATION": "Տևողություն",
+    "SERVICES_EDIT_BTN_TOGGLE": "Միացնել/անջատել",
+    "SERVICES_EDIT_NAME_PROMPT": "Նոր անուն՞",
+    "SERVICES_EDIT_DURATION_PROMPT": "Նոր տևողությունը րոպեներով՞",
+    "SERVICES_UPDATED": "Ծառայությունը թարմացված է։",
+    "SERVICES_BTN_BACK": "← հետ",
+    "WORK_HOURS_TITLE": "Աշխատանքային ժամեր՝ ըստ շաբաթվա օրերի՝",
+    "WORK_HOURS_DAY_OFF": "հանգստյան",
+    "WORK_HOURS_PICK_DAY": "Ընտրեք օրը՝",
+    "WORK_HOURS_ASK_START": "Աշխատանքային օրվա սկիզբը՞ Ֆորմատ HH:MM, օրինակ՝ 10:00։",
+    "WORK_HOURS_ASK_END": "Աշխատանքային օրվա վերջը՞ Ֆորմատ HH:MM, օրինակ՝ 19:00։",
+    "WORK_HOURS_BAD_FORMAT": "Չհասկացա։ Սպասում եմ HH:MM, օրինակ՝ 10:00։",
+    "WORK_HOURS_BAD_ORDER": "Վերջը պետք է լինի սկզբից ուշ։",
+    "WORK_HOURS_BTN_DAY_OFF": "Հանգստյան",
+    "WORK_HOURS_SAVED": "Պահպանված է։",
+    "WORK_HOURS_BTN_DONE": "Պատրաստ է",
+    "WEEKDAYS": {
+        "mon": "Երկ",
+        "tue": "Երք",
+        "wed": "Չրք",
+        "thu": "Հնգ",
+        "fri": "Ուր",
+        "sat": "Շբթ",
+        "sun": "Կիր",
+    },
+    "CLIENT_STUB": "Բարև։ Կլինիկայի մենյուից գրանցումը կավելանա ավելի ուշ։",
+    "SECTION_COMING_SOON": "«{section}» բաժինը շուտով։",
+}
+
+_BUNDLES: dict[str, dict[str, Any]] = {"ru": _RU, "hy": _HY}
+
+
+class _StringsProxy:
+    """Module-like proxy: `strings.REGISTER_WELCOME` resolves against the current lang."""
+
+    def __getattr__(self, key: str) -> Any:
+        bundle = _BUNDLES.get(get_current_lang(), _RU)
+        try:
+            return bundle[key]
+        except KeyError as exc:
+            # Fall back to RU so a missing HY key doesn't crash the bot.
+            if key in _RU:
+                return _RU[key]
+            raise AttributeError(key) from exc
+
+
+strings = _StringsProxy()
+
+
+def get_bundle(lang: str) -> SimpleNamespace:
+    """For tests / ad-hoc access to a language bundle without touching the ContextVar."""
+    return SimpleNamespace(**_BUNDLES.get(lang, _RU))
+```
+
+Handlers still import this as `from src import strings` and write `strings.REGISTER_WELCOME` — no change in usage. Under the hood, each request's ContextVar (set by `LangMiddleware`, added below) picks ru or hy.
+
+- [ ] **Step 1b: Create `src/middlewares/lang.py`**
+
+```python
+from __future__ import annotations
+
+from collections.abc import Awaitable, Callable
+from typing import Any
+
+from aiogram import BaseMiddleware
+from aiogram.types import TelegramObject
+
+from src.db.models import Master
+from src.strings import DEFAULT_LANG, SUPPORTED_LANGS, set_current_lang
+
+
+class LangMiddleware(BaseMiddleware):
+    """Resolve the request language from master.lang / Telegram language_code.
+
+    Order of precedence:
+      1. `data["master"].lang` (registered master) — highest.
+      2. `event.from_user.language_code` if it's in SUPPORTED_LANGS.
+      3. DEFAULT_LANG.
+
+    Must run AFTER UserMiddleware (which populates `data["master"]`).
+    """
+
+    async def __call__(
+        self,
+        handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
+        event: TelegramObject,
+        data: dict[str, Any],
+    ) -> Any:
+        lang = self._resolve(event, data)
+        set_current_lang(lang)
+        data["lang"] = lang
+        return await handler(event, data)
+
+    @staticmethod
+    def _resolve(event: TelegramObject, data: dict[str, Any]) -> str:
+        master = data.get("master")
+        if isinstance(master, Master) and master.lang in SUPPORTED_LANGS:
+            return master.lang
+        tg_user = getattr(event, "from_user", None)
+        code = getattr(tg_user, "language_code", None)
+        if isinstance(code, str) and code in SUPPORTED_LANGS:
+            return code
+        return DEFAULT_LANG
 ```
 
 - [ ] **Step 2: Create `src/fsm_storage.py`**
@@ -211,27 +375,25 @@ async def handle_start(message: Message) -> None:
     await message.answer("hello")
 ```
 
-- [ ] **Step 4: Rewrite `src/main.py` to use RedisStorage + root router**
+- [ ] **Step 4: Rewrite `src/main.py` to use RedisStorage + root router + LangMiddleware**
 
-Replace contents:
+Replace contents (note: `LangMiddleware` runs after `UserMiddleware` so it sees `data["master"]`):
 
 ```python
 from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any
 
 import structlog
 from aiogram import Bot, Dispatcher
-from aiogram.types import Message
 
 from src.config import settings
 from src.db.base import SessionMaker
-from src.db.models import Client, Master
 from src.fsm_storage import build_fsm_storage
 from src.handlers import build_root_router
 from src.middlewares.db import DbSessionMiddleware
+from src.middlewares.lang import LangMiddleware
 from src.middlewares.user import UserMiddleware
 
 
@@ -255,69 +417,7 @@ def build_dispatcher() -> Dispatcher:
     dp = Dispatcher(storage=storage)
     dp.update.middleware(DbSessionMiddleware(SessionMaker))
     dp.update.middleware(UserMiddleware())
-    dp.include_router(build_root_router())
-    return dp
-
-
-async def main() -> None:
-    configure_logging()
-    bot = Bot(token=settings.bot_token)
-    dp = build_dispatcher()
-    log.info("bot_starting")
-    try:
-        await dp.start_polling(bot)
-    finally:
-        await bot.session.close()
-
-
-# Re-exported so Message/Master/Client aren't unused imports — handler modules
-# will import them from here too in later tasks.
-_UNUSED: tuple[Any, ...] = (Message, Master, Client)
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
-```
-
-Note: `Message`, `Master`, `Client` stay imported for type re-use in Task 3 — but to keep mypy/ruff happy RIGHT NOW without a noqa comment, remove them if linters complain. Simpler version (use this one if lint errors):
-
-```python
-from __future__ import annotations
-
-import asyncio
-import logging
-
-import structlog
-from aiogram import Bot, Dispatcher
-
-from src.config import settings
-from src.db.base import SessionMaker
-from src.fsm_storage import build_fsm_storage
-from src.handlers import build_root_router
-from src.middlewares.db import DbSessionMiddleware
-from src.middlewares.user import UserMiddleware
-
-
-def configure_logging() -> None:
-    logging.basicConfig(level=settings.log_level, format="%(message)s")
-    structlog.configure(
-        processors=[
-            structlog.contextvars.merge_contextvars,
-            structlog.processors.add_log_level,
-            structlog.processors.TimeStamper(fmt="iso"),
-            structlog.processors.JSONRenderer(),
-        ],
-    )
-
-
-log: structlog.stdlib.BoundLogger = structlog.get_logger()
-
-
-def build_dispatcher() -> Dispatcher:
-    storage = build_fsm_storage()
-    dp = Dispatcher(storage=storage)
-    dp.update.middleware(DbSessionMiddleware(SessionMaker))
-    dp.update.middleware(UserMiddleware())
+    dp.update.middleware(LangMiddleware())
     dp.include_router(build_root_router())
     return dp
 
@@ -370,8 +470,8 @@ Expected: `bot_starting` JSON line, no exceptions. Send `/start` in Telegram →
 - [ ] **Step 8: Commit**
 
 ```bash
-git add src/strings.py src/fsm_storage.py src/handlers/ src/main.py
-git commit -m "feat(bot): RedisStorage + root router scaffold, extract strings"
+git add src/strings.py src/fsm_storage.py src/middlewares/lang.py src/handlers/ src/main.py
+git commit -m "feat(bot): RedisStorage, root router, ru/hy strings with LangMiddleware"
 ```
 
 ---
@@ -473,8 +573,11 @@ class MasterRepository:
         name: str,
         phone: str | None = None,
         timezone: str = "Asia/Yerevan",
+        lang: str = "ru",
     ) -> Master:
-        master = Master(tg_id=tg_id, name=name, phone=phone, timezone=timezone)
+        master = Master(
+            tg_id=tg_id, name=name, phone=phone, timezone=timezone, lang=lang
+        )
         self._session.add(master)
         await self._session.flush()
         return master
@@ -521,13 +624,14 @@ git commit -m "feat(repo): MasterRepository with get_by_tg_id/create"
 
 Now `/start` behaves conditionally:
 
-1. If a `Master` already exists for this tg_id → show main menu reply keyboard.
-2. Else if tg_id is in `ADMIN_TG_IDS` → start registration FSM (ask name → ask phone → save → show main menu).
+1. If a `Master` already exists for this tg_id → show main menu reply keyboard (in master's saved `lang`).
+2. Else if tg_id is in `ADMIN_TG_IDS` → start registration FSM: language → name → phone → save → show main menu.
 3. Else if a `Client` exists (resolved by UserMiddleware as `data["client"]`) → greet (client flow arrives in Epic 4; for now, temporary polite message).
 4. Else → `START_UNKNOWN`.
 
 **Files:**
 - Create: `src/fsm/__init__.py`, `src/fsm/master_register.py`
+- Create: `src/callback_data/register.py`
 - Create: `src/keyboards/__init__.py`, `src/keyboards/common.py`
 - Modify: `src/handlers/master/start.py`
 
@@ -546,24 +650,45 @@ from aiogram.fsm.state import State, StatesGroup
 
 
 class MasterRegister(StatesGroup):
+    waiting_lang = State()
     waiting_name = State()
     waiting_phone = State()
 ```
 
-- [ ] **Step 3: Create `src/keyboards/__init__.py`**
+- [ ] **Step 3: Create `src/callback_data/register.py`**
+
+```python
+from __future__ import annotations
+
+from typing import Literal
+
+from aiogram.filters.callback_data import CallbackData
+
+
+class LangPickCallback(CallbackData, prefix="lang"):
+    lang: Literal["ru", "hy"]
+```
+
+- [ ] **Step 4: Create `src/keyboards/__init__.py`**
 
 ```python
 from __future__ import annotations
 ```
 
-- [ ] **Step 4: Create `src/keyboards/common.py`**
+- [ ] **Step 5: Create `src/keyboards/common.py`**
 
 ```python
 from __future__ import annotations
 
-from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
+from aiogram.types import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    KeyboardButton,
+    ReplyKeyboardMarkup,
+)
 
 from src import strings
+from src.callback_data.register import LangPickCallback
 
 
 def main_menu() -> ReplyKeyboardMarkup:
@@ -581,9 +706,27 @@ def main_menu() -> ReplyKeyboardMarkup:
         resize_keyboard=True,
         is_persistent=True,
     )
+
+
+def lang_picker() -> InlineKeyboardMarkup:
+    # Both button labels come from either bundle (they're identical emoji-prefixed names).
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=strings.LANG_BTN_RU,
+                    callback_data=LangPickCallback(lang="ru").pack(),
+                ),
+                InlineKeyboardButton(
+                    text=strings.LANG_BTN_HY,
+                    callback_data=LangPickCallback(lang="hy").pack(),
+                ),
+            ]
+        ]
+    )
 ```
 
-- [ ] **Step 5: Rewrite `src/handlers/master/start.py`**
+- [ ] **Step 6: Rewrite `src/handlers/master/start.py`**
 
 ```python
 from __future__ import annotations
@@ -592,15 +735,17 @@ import structlog
 from aiogram import Router
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message
+from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src import strings
+from src.callback_data.register import LangPickCallback
 from src.config import settings
 from src.db.models import Client, Master
 from src.fsm.master_register import MasterRegister
-from src.keyboards.common import main_menu
+from src.keyboards.common import lang_picker, main_menu
 from src.repositories.masters import MasterRepository
+from src.strings import set_current_lang
 
 router = Router(name="master_start")
 log: structlog.stdlib.BoundLogger = structlog.get_logger()
@@ -611,7 +756,6 @@ async def handle_start(
     message: Message,
     master: Master | None,
     client: Client | None,
-    session: AsyncSession,
     state: FSMContext,
 ) -> None:
     tg_id = message.from_user.id if message.from_user else None
@@ -628,17 +772,32 @@ async def handle_start(
         return
 
     if tg_id is not None and tg_id in settings.admin_tg_ids:
-        await state.set_state(MasterRegister.waiting_name)
-        await message.answer(strings.REGISTER_WELCOME)
-        await message.answer(strings.REGISTER_ASK_NAME)
+        await state.set_state(MasterRegister.waiting_lang)
+        await message.answer(strings.LANG_PICK_PROMPT, reply_markup=lang_picker())
         return
 
     if client is not None:
-        # Client flow lands in Epic 4. Temporary ack so testers know they were recognised.
-        await message.answer("Привет! Запись через меню клиники появится позже.")
+        await message.answer(strings.CLIENT_STUB)
         return
 
     await message.answer(strings.START_UNKNOWN)
+
+
+@router.callback_query(LangPickCallback.filter(), MasterRegister.waiting_lang)
+async def register_handle_lang(
+    callback: CallbackQuery,
+    callback_data: LangPickCallback,
+    state: FSMContext,
+) -> None:
+    # Persist the picked language in FSM data, and flip the request's ContextVar so
+    # the very next message we send already uses the chosen bundle.
+    await state.update_data(lang=callback_data.lang)
+    set_current_lang(callback_data.lang)
+    await state.set_state(MasterRegister.waiting_name)
+    await callback.answer()
+    if callback.message is not None and hasattr(callback.message, "answer"):
+        await callback.message.answer(strings.REGISTER_WELCOME)
+        await callback.message.answer(strings.REGISTER_ASK_NAME)
 
 
 @router.message(MasterRegister.waiting_name)
@@ -668,9 +827,12 @@ async def register_handle_phone(
 
     data = await state.get_data()
     name: str = data["name"]
+    lang: str = data.get("lang", "ru")
+    # Keep the ContextVar aligned for the final confirmation message in this request.
+    set_current_lang(lang)
 
     repo = MasterRepository(session)
-    await repo.create(tg_id=message.from_user.id, name=name, phone=phone)
+    await repo.create(tg_id=message.from_user.id, name=name, phone=phone, lang=lang)
 
     await state.clear()
     await message.answer(strings.REGISTER_DONE, reply_markup=main_menu())
@@ -843,6 +1005,7 @@ from __future__ import annotations
 from aiogram import Router
 from aiogram.types import CallbackQuery
 
+from src import strings
 from src.callback_data.settings import SettingsCallback
 
 router = Router(name="master_settings")
@@ -853,7 +1016,7 @@ async def handle_settings_section(
     callback: CallbackQuery, callback_data: SettingsCallback
 ) -> None:
     # Filled in by Tasks 6 (services), 9 (hours). For now acknowledge and stub.
-    await callback.answer(f"Раздел «{callback_data.section}» — скоро.")
+    await callback.answer(strings.SECTION_COMING_SOON.format(section=callback_data.section))
 ```
 
 - [ ] **Step 6: Update `src/handlers/master/__init__.py`**
@@ -1164,7 +1327,7 @@ def services_list(services: list[Service]) -> InlineKeyboardMarkup:
         rows.append(
             [
                 InlineKeyboardButton(
-                    text=f"{svc.name} · {svc.duration_min} мин",
+                    text=strings.SERVICES_ITEM_FMT.format(name=svc.name, duration=svc.duration_min),
                     callback_data=ServiceAction(action="edit", service_id=svc.id).pack(),
                 ),
                 InlineKeyboardButton(
@@ -1216,7 +1379,7 @@ def edit_menu(service_id: UUID) -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(
-                    text="← назад",
+                    text=strings.SERVICES_BTN_BACK,
                     callback_data=ServiceAction(action="back").pack(),
                 )
             ],
@@ -1246,7 +1409,7 @@ def services_list(services: list[Service]) -> InlineKeyboardMarkup:
         rows.append(
             [
                 InlineKeyboardButton(
-                    text=f"{svc.name} · {svc.duration_min} мин",
+                    text=strings.SERVICES_ITEM_FMT.format(name=svc.name, duration=svc.duration_min),
                     callback_data=ServiceAction(action="edit", service_id=svc.id).pack(),
                 ),
                 InlineKeyboardButton(
@@ -1295,7 +1458,7 @@ def edit_menu(service_id: UUID) -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(
-                    text="← назад",
+                    text=strings.SERVICES_BTN_BACK,
                     callback_data=ServiceAction(action="back").pack(),
                 )
             ],
@@ -1440,7 +1603,7 @@ async def handle_settings_section(
         return
 
     # hours / breaks are wired in Tasks 9–10.
-    await callback.answer(f"Раздел «{callback_data.section}» — скоро.")
+    await callback.answer(strings.SECTION_COMING_SOON.format(section=callback_data.section))
 ```
 
 - [ ] **Step 6: Update `src/handlers/master/__init__.py`**
@@ -1989,7 +2152,7 @@ def work_hours_list(work_hours: dict[str, Any]) -> InlineKeyboardMarkup:
             ]
         )
     rows.append(
-        [InlineKeyboardButton(text="Готово", callback_data=WorkHoursDay(action="done").pack())]
+        [InlineKeyboardButton(text=strings.WORK_HOURS_BTN_DONE, callback_data=WorkHoursDay(action="done").pack())]
     )
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
@@ -2070,7 +2233,7 @@ async def handle_settings_section(
         return
 
     # breaks wired later (out of scope for this epic beyond stub)
-    await callback.answer(f"Раздел «{callback_data.section}» — скоро.")
+    await callback.answer(strings.SECTION_COMING_SOON.format(section=callback_data.section))
 
 
 @router.callback_query(WorkHoursDay.filter(F.action == "pick"))
@@ -2113,7 +2276,7 @@ async def cb_day_off(
 @router.callback_query(WorkHoursDay.filter(F.action == "done"))
 async def cb_work_hours_done(callback: CallbackQuery, state: FSMContext) -> None:
     await state.clear()
-    await callback.answer("Сохранено.")
+    await callback.answer(strings.WORK_HOURS_SAVED)
 
 
 @router.message(WorkHoursEdit.waiting_start)
