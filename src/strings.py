@@ -1,4 +1,5 @@
 # ruff: noqa: RUF001
+# cSpell:disable
 from __future__ import annotations
 
 from contextvars import ContextVar
