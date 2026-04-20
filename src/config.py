@@ -74,6 +74,8 @@ class Settings(BaseSettings):
             if not stripped:
                 return []
             return [int(x.strip()) for x in stripped.split(",") if x.strip()]
+        if isinstance(v, int):
+            return [v]
         return v
 
 

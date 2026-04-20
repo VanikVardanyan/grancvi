@@ -11,7 +11,7 @@ def test_settings_loads_required_fields(monkeypatch: pytest.MonkeyPatch) -> None
     monkeypatch.setenv("REDIS_URL", "redis://h:6379/0")
     monkeypatch.setenv("ADMIN_TG_IDS", "111,222,333")
 
-    s = Settings(_env_file=None)  # type: ignore[call-arg]
+    s = Settings(_env_file=None)
 
     assert s.bot_token == "test-token"
     assert s.database_url == "postgresql+asyncpg://u:p@h/d"
@@ -27,6 +27,6 @@ def test_settings_empty_admin_ids(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("REDIS_URL", "y")
     monkeypatch.setenv("ADMIN_TG_IDS", "")
 
-    s = Settings(_env_file=None)  # type: ignore[call-arg]
+    s = Settings(_env_file=None)
 
     assert s.admin_tg_ids == []
