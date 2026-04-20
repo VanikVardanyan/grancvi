@@ -251,3 +251,68 @@ async def test_cancel_terminal_status_raises_invalid_state(
 
     with pytest.raises(InvalidState):
         await svc.cancel(appt.id, cancelled_by="client")
+
+
+@pytest.mark.asyncio
+async def test_create_manual_is_instantly_confirmed(session: AsyncSession) -> None:
+    master, client, service = await _seed(session)
+    await session.commit()
+    svc = BookingService(session)
+    start = datetime(2026, 4, 20, 9, 0, tzinfo=UTC)
+    now = datetime(2026, 4, 20, 7, 0, tzinfo=UTC)
+
+    appt = await svc.create_manual(
+        master=master,
+        client=client,
+        service=service,
+        start_at=start,
+        comment="клиент позвонил",
+        now=now,
+    )
+    assert appt.status == "confirmed"
+    assert appt.source == "master_manual"
+    assert appt.confirmed_at == now
+    assert appt.comment == "клиент позвонил"
+    assert appt.end_at == start + timedelta(minutes=service.duration_min)
+
+
+@pytest.mark.asyncio
+async def test_create_manual_rejects_if_slot_taken(session: AsyncSession) -> None:
+    master, client, service = await _seed(session)
+    await session.commit()
+    svc = BookingService(session)
+    start = datetime(2026, 4, 20, 9, 0, tzinfo=UTC)
+    await svc.create_manual(master=master, client=client, service=service, start_at=start)
+
+    with pytest.raises(SlotAlreadyTaken):
+        await svc.create_manual(master=master, client=client, service=service, start_at=start)
+
+
+@pytest.mark.asyncio
+async def test_create_manual_race_one_wins_one_loses(
+    session: AsyncSession,
+    session_maker: async_sessionmaker[AsyncSession],
+) -> None:
+    master, client, service = await _seed(session)
+    await session.commit()
+    await session.close()
+
+    start = datetime(2026, 4, 20, 9, 0, tzinfo=UTC)
+
+    async def attempt() -> object:
+        async with session_maker() as s:
+            svc = BookingService(s)
+            try:
+                return await svc.create_manual(
+                    master=master, client=client, service=service, start_at=start
+                )
+            except SlotAlreadyTaken as exc:
+                return exc
+
+    a, b = await asyncio.gather(attempt(), attempt())
+    from src.db.models import Appointment
+
+    wins = [r for r in (a, b) if isinstance(r, Appointment)]
+    losses = [r for r in (a, b) if isinstance(r, SlotAlreadyTaken)]
+    assert len(wins) == 1
+    assert len(losses) == 1

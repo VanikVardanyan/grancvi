@@ -142,3 +142,38 @@ class BookingService:
         appt.cancelled_at = n
         appt.cancelled_by = cancelled_by
         return appt
+
+    async def create_manual(
+        self,
+        *,
+        master: Master,
+        client: Client,
+        service: Service,
+        start_at: datetime,
+        comment: str | None = None,
+        now: datetime | None = None,
+    ) -> Appointment:
+        """Master-added appointment — instantly `confirmed`.
+
+        Same commit/rollback behaviour as `create_pending` so the partial unique
+        index enforces mutual exclusion with concurrent client requests.
+        """
+        n = now if now is not None else now_utc()
+        end_at = start_at + timedelta(minutes=service.duration_min)
+        try:
+            appt = await self._repo.create(
+                master_id=master.id,
+                client_id=client.id,
+                service_id=service.id,
+                start_at=start_at,
+                end_at=end_at,
+                status="confirmed",
+                source="master_manual",
+                comment=comment,
+                confirmed_at=n,
+            )
+            await self._session.commit()
+            return appt
+        except IntegrityError as exc:
+            await self._session.rollback()
+            raise SlotAlreadyTaken(str(start_at)) from exc
