@@ -7,8 +7,8 @@ from aiogram.types import (
     ReplyKeyboardMarkup,
 )
 
-from src.strings import strings
 from src.callback_data.register import LangPickCallback
+from src.strings import strings
 
 
 def main_menu() -> ReplyKeyboardMarkup:

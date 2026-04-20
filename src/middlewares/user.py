@@ -4,7 +4,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from aiogram import BaseMiddleware
-from aiogram.types import TelegramObject
+from aiogram.types import TelegramObject, Update
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,7 +26,10 @@ class UserMiddleware(BaseMiddleware):
         data["master"] = None
         data["client"] = None
 
-        tg_user = getattr(event, "from_user", None)
+        # When registered on dp.update.middleware, `event` is Update — from_user
+        # lives on the inner Message/CallbackQuery, not on Update itself.
+        inner = event.event if isinstance(event, Update) else event
+        tg_user = getattr(inner, "from_user", None)
         if tg_user is None:
             return await handler(event, data)
 

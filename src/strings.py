@@ -14,8 +14,13 @@ _current_lang: ContextVar[str] = ContextVar("current_lang", default=DEFAULT_LANG
 
 
 def set_current_lang(lang: str) -> None:
-    """Called by LangMiddleware for each incoming update."""
-    _current_lang.set(lang if lang in SUPPORTED_LANGS else DEFAULT_LANG)
+    """Called by LangMiddleware for each incoming update.
+
+    Forced to RU until the HY bundle is human-translated; infrastructure kept
+    intact so flipping back is a one-line change.
+    """
+    del lang
+    _current_lang.set(DEFAULT_LANG)
 
 
 def get_current_lang() -> str:

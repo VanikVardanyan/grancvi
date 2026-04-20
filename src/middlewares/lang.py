@@ -4,7 +4,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from aiogram import BaseMiddleware
-from aiogram.types import TelegramObject
+from aiogram.types import TelegramObject, Update
 
 from src.db.models import Master
 from src.strings import DEFAULT_LANG, SUPPORTED_LANGS, set_current_lang
@@ -37,7 +37,8 @@ class LangMiddleware(BaseMiddleware):
         master = data.get("master")
         if isinstance(master, Master) and master.lang in SUPPORTED_LANGS:
             return master.lang
-        tg_user = getattr(event, "from_user", None)
+        inner = event.event if isinstance(event, Update) else event
+        tg_user = getattr(inner, "from_user", None)
         code = getattr(tg_user, "language_code", None)
         if isinstance(code, str) and code in SUPPORTED_LANGS:
             return code

@@ -7,14 +7,13 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.strings import strings
 from src.callback_data.register import LangPickCallback
 from src.config import settings
 from src.db.models import Client, Master
 from src.fsm.master_register import MasterRegister
 from src.keyboards.common import lang_picker, main_menu
 from src.repositories.masters import MasterRepository
-from src.strings import set_current_lang
+from src.strings import set_current_lang, strings
 
 router = Router(name="master_start")
 log: structlog.stdlib.BoundLogger = structlog.get_logger()
