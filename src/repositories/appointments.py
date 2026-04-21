@@ -40,6 +40,48 @@ class AppointmentRepository:
         )
         return list((await self._session.scalars(stmt)).all())
 
+    async def list_active_for_month(
+        self,
+        master_id: UUID,
+        *,
+        month_start_utc: datetime,
+        month_end_utc: datetime,
+    ) -> list[Appointment]:
+        """pending + confirmed appointments whose start_at lies in [month_start, month_end) UTC."""
+        stmt = (
+            select(Appointment)
+            .where(
+                Appointment.master_id == master_id,
+                Appointment.status.in_(["pending", "confirmed"]),
+                Appointment.start_at >= month_start_utc,
+                Appointment.start_at < month_end_utc,
+            )
+            .order_by(Appointment.start_at)
+        )
+        return list((await self._session.scalars(stmt)).all())
+
+    async def list_for_client(
+        self,
+        master_id: UUID,
+        client_id: UUID,
+        *,
+        limit: int = 10,
+        exclude_statuses: tuple[str, ...] = ("pending",),
+    ) -> list[Appointment]:
+        """Master-scoped history for one client, newest first, skipping pending by default."""
+        stmt = (
+            select(Appointment)
+            .where(
+                Appointment.master_id == master_id,
+                Appointment.client_id == client_id,
+            )
+            .order_by(Appointment.start_at.desc())
+            .limit(limit)
+        )
+        if exclude_statuses:
+            stmt = stmt.where(Appointment.status.notin_(exclude_statuses))
+        return list((await self._session.scalars(stmt)).all())
+
     async def get(
         self, appointment_id: UUID, *, master_id: UUID | None = None
     ) -> Appointment | None:
