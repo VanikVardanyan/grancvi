@@ -3,8 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.base import StorageKey
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -12,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.callback_data.schedule import DayNavCallback
 from src.db.models import Appointment, Client, Master, Service
-from src.handlers.master.today import cb_day_nav, cmd_today, cmd_tomorrow
+from src.handlers.master.today import _safe_edit, cb_day_nav, cmd_today, cmd_tomorrow
 
 
 @dataclass
@@ -106,6 +108,32 @@ async def test_cb_day_nav_today_rerenders(session: AsyncSession) -> None:
         master=master,
     )
     assert cb.answered
+
+
+@pytest.mark.asyncio
+async def test_safe_edit_swallows_message_not_modified() -> None:
+    class _RaisingMsg:
+        async def edit_text(self, text: str, reply_markup: Any = None, **_: Any) -> None:
+            raise TelegramBadRequest(
+                method=MagicMock(),
+                message="Bad Request: message is not modified",
+            )
+
+    # Should not raise.
+    await _safe_edit(_RaisingMsg(), "hello", MagicMock())  # type: ignore[arg-type]
+
+
+@pytest.mark.asyncio
+async def test_safe_edit_reraises_other_telegram_errors() -> None:
+    class _RaisingMsg:
+        async def edit_text(self, text: str, reply_markup: Any = None, **_: Any) -> None:
+            raise TelegramBadRequest(
+                method=MagicMock(),
+                message="Bad Request: chat not found",
+            )
+
+    with pytest.raises(TelegramBadRequest):
+        await _safe_edit(_RaisingMsg(), "hello", MagicMock())  # type: ignore[arg-type]
 
 
 @pytest.mark.asyncio

@@ -2,27 +2,36 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from typing import Literal
-from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from aiogram import Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.callback_data.schedule import DayNavCallback
-from src.db.models import Client, Master, Service
+from src.db.models import Master
 from src.fsm.master_add import MasterAdd
 from src.keyboards.master_add import recent_clients_kb
 from src.repositories.appointments import AppointmentRepository
 from src.repositories.clients import ClientRepository
+from src.repositories.services import ServiceRepository
 from src.strings import strings
 from src.utils.schedule_format import render_day_schedule
 from src.utils.time import now_utc
 
 router = Router(name="master_today")
+
+
+async def _safe_edit(message: Message, text: str, reply_markup: InlineKeyboardMarkup) -> None:
+    """edit_text that swallows 'message is not modified' errors."""
+    try:
+        await message.edit_text(text, reply_markup=reply_markup)
+    except TelegramBadRequest as exc:
+        if "message is not modified" not in str(exc):
+            raise
 
 
 def _day_nav(kind: Literal["today", "tomorrow"]) -> list[list[InlineKeyboardButton]]:
@@ -73,16 +82,8 @@ async def _render_for(
 
     client_ids = {a.client_id for a in appts}
     service_ids = {a.service_id for a in appts}
-    client_names: dict[UUID, str] = {}
-    service_names: dict[UUID, str] = {}
-    if client_ids:
-        rows = await session.scalars(select(Client).where(Client.id.in_(client_ids)))
-        for c in rows.all():
-            client_names[c.id] = c.name
-    if service_ids:
-        rows = await session.scalars(select(Service).where(Service.id.in_(service_ids)))
-        for s in rows.all():
-            service_names[s.id] = s.name
+    client_names = await ClientRepository(session).get_names_by_ids(client_ids)
+    service_names = await ServiceRepository(session).get_names_by_ids(service_ids)
 
     kind: Literal["today", "tomorrow"] = "today" if offset_days == 0 else "tomorrow"
     return render_day_schedule(
@@ -135,13 +136,13 @@ async def cb_day_nav(
     action = callback_data.action
     if action == "today":
         text, kb = await _render_for(session=session, master=master, offset_days=0)
-        if callback.message is not None and hasattr(callback.message, "edit_text"):
-            await callback.message.edit_text(text, reply_markup=kb)
+        if isinstance(callback.message, Message):
+            await _safe_edit(callback.message, text, kb)
         return
     if action == "tomorrow":
         text, kb = await _render_for(session=session, master=master, offset_days=1)
-        if callback.message is not None and hasattr(callback.message, "edit_text"):
-            await callback.message.edit_text(text, reply_markup=kb)
+        if isinstance(callback.message, Message):
+            await _safe_edit(callback.message, text, kb)
         return
     # Epic 6: re-enabled in Task 11
     # if action == "week":

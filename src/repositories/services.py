@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import cast
 from uuid import UUID
 
@@ -14,6 +15,15 @@ class ServiceRepository:
 
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+
+    async def get_names_by_ids(self, service_ids: Iterable[UUID]) -> dict[UUID, str]:
+        """Return {service_id: name} map for the given IDs (empty input → empty dict)."""
+        ids = list(service_ids)
+        if not ids:
+            return {}
+        stmt = select(Service.id, Service.name).where(Service.id.in_(ids))
+        rows = await self._session.execute(stmt)
+        return {row.id: row.name for row in rows}
 
     async def list_active(self, master_id: UUID) -> list[Service]:
         stmt = (

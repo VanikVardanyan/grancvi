@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from typing import cast
 from uuid import UUID
 
@@ -93,6 +94,15 @@ class ClientRepository:
             .limit(limit)
         )
         return list((await self._session.scalars(stmt)).all())
+
+    async def get_names_by_ids(self, client_ids: Iterable[UUID]) -> dict[UUID, str]:
+        """Return {client_id: name} map for the given IDs (empty input → empty dict)."""
+        ids = list(client_ids)
+        if not ids:
+            return {}
+        stmt = select(Client.id, Client.name).where(Client.id.in_(ids))
+        rows = await self._session.execute(stmt)
+        return {row.id: row.name for row in rows}
 
     async def update_notes(self, client_id: UUID, notes: str | None) -> None:
         """Set `Client.notes`. Empty string or None → stored as NULL."""
