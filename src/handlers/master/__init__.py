@@ -4,6 +4,7 @@ from aiogram import Router
 
 from src.handlers.master.add_manual import router as add_manual_router
 from src.handlers.master.approve import router as approve_router
+from src.handlers.master.mark_past import router as mark_past_router
 from src.handlers.master.menu import router as menu_router
 from src.handlers.master.services import router as services_router
 from src.handlers.master.settings import router as settings_router
@@ -18,5 +19,6 @@ router.include_router(settings_router)
 router.include_router(approve_router)
 router.include_router(add_manual_router)
 router.include_router(today_router)
+router.include_router(mark_past_router)
 
 __all__ = ["router"]
