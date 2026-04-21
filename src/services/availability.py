@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from calendar import monthrange
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -95,3 +96,51 @@ def calculate_free_slots(
             slots = [s for s in slots if s > now_local]
 
     return slots
+
+
+def calculate_day_loads(
+    *,
+    work_hours: dict[str, list[list[str]]],
+    breaks: dict[str, list[list[str]]],
+    booked_by_day: dict[date, list[tuple[datetime, datetime]]],
+    month: date,
+    tz: ZoneInfo,
+    slot_step_min: int,
+    service_duration_min: int,
+    now: datetime,
+) -> dict[date, int]:
+    """Count free slots for every day of `month`.
+
+    Returns {date: count} where count is:
+      -1 — day is off (no work_hours for that weekday) or entirely in the past.
+      0  — fully booked.
+      N  — N free slots of the requested duration still fit that day.
+
+    Pure: reuses `calculate_free_slots` per day; `booked_by_day` pre-groups
+    appointments by local date so callers don't have to re-partition them.
+    """
+    _, days_in_month = monthrange(month.year, month.month)
+    now_date = now.astimezone(tz).date()
+
+    result: dict[date, int] = {}
+    for day_num in range(1, days_in_month + 1):
+        d = date(month.year, month.month, day_num)
+        if d < now_date:
+            result[d] = -1
+            continue
+        weekday = WEEKDAYS[d.weekday()]
+        if not work_hours.get(weekday):
+            result[d] = -1
+            continue
+        slots = calculate_free_slots(
+            work_hours=work_hours,
+            breaks=breaks,
+            booked=booked_by_day.get(d, []),
+            day=d,
+            tz=tz,
+            slot_step_min=slot_step_min,
+            service_duration_min=service_duration_min,
+            now=now if d == now_date else None,
+        )
+        result[d] = len(slots)
+    return result
