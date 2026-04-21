@@ -232,6 +232,14 @@ _RU: dict[str, Any] = {
     "CLIENT_PAGE_NOT_FOUND": "Клиент не найден.",
     "CLIENT_NOTES_PROMPT": "Новые заметки (или отправь `-` чтобы очистить):",
     "CLIENT_NOTES_SAVED": "Сохранено.",
+    # --- Epic 7: reminders ---
+    "REMINDER_CLIENT_DAY_BEFORE": "⏰ Напоминание: завтра в {time} — {service}.\nЖдём вас!",
+    "REMINDER_CLIENT_TWO_HOURS": "⏰ Через 2 часа у вас запись: {service}, {time}.",
+    "REMINDER_MASTER_BEFORE": "⏰ Сейчас {time}: {client_name} — {service}.\n📞 {phone}",
+    "REMINDER_PENDING_EXPIRED": (
+        "К сожалению, мастер не подтвердил вашу заявку на {date} {time} — {service}.\n"
+        "Попробуйте выбрать другое время: /start"
+    ),
 }
 
 _HY: dict[str, Any] = {
@@ -446,6 +454,14 @@ _HY: dict[str, Any] = {
     "CLIENT_PAGE_NOT_FOUND": "Հաճախորդը չի գտնվել։",
     "CLIENT_NOTES_PROMPT": "Նոր նշումներ (կամ ուղարկիր `-` մաքրելու համար)։",
     "CLIENT_NOTES_SAVED": "Պահպանվեց։",
+    # --- Epic 7: reminders (HY — awaiting translation, mirrors RU) ---
+    "REMINDER_CLIENT_DAY_BEFORE": "⏰ Напоминание: завтра в {time} — {service}.\nЖдём вас!",
+    "REMINDER_CLIENT_TWO_HOURS": "⏰ Через 2 часа у вас запись: {service}, {time}.",
+    "REMINDER_MASTER_BEFORE": "⏰ Сейчас {time}: {client_name} — {service}.\n📞 {phone}",
+    "REMINDER_PENDING_EXPIRED": (
+        "К сожалению, мастер не подтвердил вашу заявку на {date} {time} — {service}.\n"
+        "Попробуйте выбрать другое время: /start"
+    ),
 }
 
 _BUNDLES: dict[str, dict[str, Any]] = {"ru": _RU, "hy": _HY}
