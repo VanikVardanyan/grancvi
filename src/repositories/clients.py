@@ -93,3 +93,11 @@ class ClientRepository:
             .limit(limit)
         )
         return list((await self._session.scalars(stmt)).all())
+
+    async def update_notes(self, client_id: UUID, notes: str | None) -> None:
+        """Set `Client.notes`. Empty string or None → stored as NULL."""
+        client = await self.get(client_id)
+        if client is None:
+            return
+        cleaned = notes.strip() if notes else None
+        client.notes = cleaned if cleaned else None
