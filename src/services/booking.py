@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -10,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.db.models import Appointment, Client, Master, Service
 from src.exceptions import InvalidState, NotFound, SlotAlreadyTaken
 from src.repositories.appointments import AppointmentRepository
-from src.services.availability import calculate_free_slots
+from src.services.availability import calculate_day_loads, calculate_free_slots
 from src.utils.time import now_utc
 
 
@@ -177,3 +178,56 @@ class BookingService:
         except IntegrityError as exc:
             await self._session.rollback()
             raise SlotAlreadyTaken(str(start_at)) from exc
+
+    async def get_month_load(
+        self,
+        *,
+        master: Master,
+        service: Service,
+        month: date,
+        now: datetime | None = None,
+    ) -> dict[date, int]:
+        """Return free-slot counts per day of `month` (see calculate_day_loads)."""
+        n = now if now is not None else now_utc()
+        tz = ZoneInfo(master.timezone)
+        month_start_local = datetime(month.year, month.month, 1, tzinfo=tz)
+        month_end_local = datetime(
+            month.year + (month.month // 12),
+            (month.month % 12) + 1,
+            1,
+            tzinfo=tz,
+        )
+        month_start_utc = month_start_local.astimezone(UTC)
+        month_end_utc = month_end_local.astimezone(UTC)
+
+        appts = await self._repo.list_active_for_month(
+            master.id,
+            month_start_utc=month_start_utc,
+            month_end_utc=month_end_utc,
+        )
+
+        booked_by_day: dict[date, list[tuple[datetime, datetime]]] = defaultdict(list)
+        for a in appts:
+            local_day = a.start_at.astimezone(tz).date()
+            booked_by_day[local_day].append((a.start_at, a.end_at))
+
+        return calculate_day_loads(
+            work_hours=master.work_hours,
+            breaks=master.breaks,
+            booked_by_day=dict(booked_by_day),
+            month=month,
+            tz=tz,
+            slot_step_min=master.slot_step_min,
+            service_duration_min=service.duration_min,
+            now=n,
+        )
+
+    async def list_client_history(
+        self,
+        master: Master,
+        client_id: UUID,
+        *,
+        limit: int = 10,
+    ) -> list[Appointment]:
+        """Master-scoped recent history for a client (excludes pending)."""
+        return await self._repo.list_for_client(master.id, client_id, limit=limit)
