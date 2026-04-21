@@ -60,6 +60,32 @@ class AppointmentRepository:
         )
         return list((await self._session.scalars(stmt)).all())
 
+    async def list_for_master_range(
+        self,
+        master_id: UUID,
+        *,
+        start_utc: datetime,
+        end_utc: datetime,
+        statuses: tuple[str, ...] | None = None,
+    ) -> list[Appointment]:
+        """Range query for master-owned appointments, start_at ∈ [start_utc, end_utc).
+
+        Default status filter: ('pending', 'confirmed') — rows that block a slot.
+        Pass an explicit tuple to override (e.g. include 'completed'/'no_show').
+        """
+        effective = statuses if statuses is not None else ("pending", "confirmed")
+        stmt = (
+            select(Appointment)
+            .where(
+                Appointment.master_id == master_id,
+                Appointment.status.in_(effective),
+                Appointment.start_at >= start_utc,
+                Appointment.start_at < end_utc,
+            )
+            .order_by(Appointment.start_at)
+        )
+        return list((await self._session.scalars(stmt)).all())
+
     async def list_for_client(
         self,
         master_id: UUID,
