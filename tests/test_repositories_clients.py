@@ -90,16 +90,16 @@ async def test_upsert_does_not_overwrite_tg_id_with_none(session: AsyncSession) 
     await repo.upsert_by_phone(
         master_id=master.id,
         phone="+37499111222",
-        name="Х",
-        tg_id=555,  # noqa: RUF001
+        name="Х",  # noqa: RUF001
+        tg_id=555,
     )
     await session.commit()
 
     updated = await repo.upsert_by_phone(
         master_id=master.id,
         phone="+37499111222",
-        name="Х",
-        tg_id=None,  # noqa: RUF001
+        name="Х",  # noqa: RUF001
+        tg_id=None,
     )
     await session.commit()
 

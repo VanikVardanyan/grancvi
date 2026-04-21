@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,10 +10,10 @@ from src.repositories.appointments import AppointmentRepository
 
 
 async def _seed(session: AsyncSession) -> tuple[Master, Client, Service]:
-    master = Master(tg_id=8001, name="М")
+    master = Master(tg_id=8001, name="М")  # noqa: RUF001
     session.add(master)
     await session.flush()
-    client = Client(master_id=master.id, name="К", phone="+37499111111")
+    client = Client(master_id=master.id, name="К", phone="+37499111111")  # noqa: RUF001
     session.add(client)
     service = Service(master_id=master.id, name="Услуга", duration_min=60)
     session.add(service)
@@ -29,7 +29,12 @@ async def test_list_active_for_month_empty(session: AsyncSession) -> None:
     repo = AppointmentRepository(session)
     start = datetime(2026, 5, 1, tzinfo=UTC)
     end = datetime(2026, 6, 1, tzinfo=UTC)
-    assert await repo.list_active_for_month(master.id, month_start_utc=start, month_end_utc=end) == []
+    assert (
+        await repo.list_active_for_month(
+            master.id, month_start_utc=start, month_end_utc=end
+        )
+        == []
+    )
 
 
 @pytest.mark.asyncio
@@ -134,7 +139,7 @@ async def test_list_for_client_respects_limit(session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_list_for_client_scoped_by_master(session: AsyncSession) -> None:
-    master_a, client_a, service_a = await _seed(session)
+    master_a, client_a, _service_a = await _seed(session)
     master_b = Master(tg_id=8002, name="Другой")
     session.add(master_b)
     await session.flush()

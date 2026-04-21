@@ -14,13 +14,16 @@ YEREVAN = ZoneInfo("Asia/Yerevan")
 
 async def _seed(session: AsyncSession) -> tuple[Master, Client, Service]:
     master = Master(
-        tg_id=6001, name="М",
+        tg_id=6001,
+        name="М",  # noqa: RUF001
         work_hours={"mon": [["10:00", "19:00"]]},
-        breaks={}, slot_step_min=60, timezone="Asia/Yerevan",
+        breaks={},
+        slot_step_min=60,
+        timezone="Asia/Yerevan",
     )
     session.add(master)
     await session.flush()
-    client = Client(master_id=master.id, name="К", phone="+37499555555")
+    client = Client(master_id=master.id, name="К", phone="+37499555555")  # noqa: RUF001
     session.add(client)
     service = Service(master_id=master.id, name="Услуга", duration_min=60)
     session.add(service)
@@ -35,7 +38,9 @@ async def test_get_month_load_empty_calendar(session: AsyncSession) -> None:
 
     svc = BookingService(session)
     now = datetime(2026, 4, 1, 0, 0, tzinfo=YEREVAN)
-    loads = await svc.get_month_load(master=master, service=service, month=date(2026, 5, 1), now=now)
+    loads = await svc.get_month_load(
+        master=master, service=service, month=date(2026, 5, 1), now=now
+    )
 
     assert loads[date(2026, 5, 4)] == 9
     assert loads[date(2026, 5, 11)] == 9
