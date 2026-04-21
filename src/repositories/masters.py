@@ -20,6 +20,16 @@ class MasterRepository:
             await self._session.scalar(select(Master).where(Master.tg_id == tg_id)),
         )
 
+    async def get_singleton(self) -> Master | None:
+        """Return the single master of v0.1.
+
+        If the invariant is violated, return the earliest-created row so the
+        choice is deterministic. v0.2 (multi-tenant) will replace this with a
+        short_id lookup.
+        """
+        stmt = select(Master).order_by(Master.created_at).limit(1)
+        return cast(Master | None, await self._session.scalar(stmt))
+
     async def create(
         self,
         *,
