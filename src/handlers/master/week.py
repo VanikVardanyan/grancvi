@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.callback_data.schedule import DayNavCallback, DayPickCallback
 from src.db.models import Master
+from src.handlers.master._common import safe_edit
 from src.repositories.appointments import AppointmentRepository
 from src.repositories.clients import ClientRepository
 from src.repositories.services import ServiceRepository
@@ -225,7 +226,5 @@ async def cb_day_pick(
         now=now_utc(),
         day_nav=day_nav,
     )
-    from src.handlers.master.today import _safe_edit  # local import avoids cycle
-
     if isinstance(callback.message, Message):
-        await _safe_edit(callback.message, text, kb)
+        await safe_edit(callback.message, text, kb)

@@ -10,7 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.callback_data.mark_past import MarkPastCallback
 from src.db.models import Master
 from src.exceptions import InvalidState, NotFound
-from src.handlers.master.today import _render_for, _safe_edit
+from src.handlers.master._common import safe_edit
+from src.handlers.master.today import _render_for
 from src.services.booking import BookingService
 from src.strings import strings
 
@@ -50,6 +51,6 @@ async def cb_mark_past(
     text, kb = await _render_for(session=session, master=master, offset_days=0)
     if isinstance(callback.message, Message):
         try:
-            await _safe_edit(callback.message, text, kb)
+            await safe_edit(callback.message, text, kb)
         except TelegramBadRequest as exc:
             log.warning("mark_past edit failed", err=str(exc))

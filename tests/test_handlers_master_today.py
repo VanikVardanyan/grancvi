@@ -14,7 +14,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.callback_data.schedule import DayNavCallback
 from src.db.models import Appointment, Client, Master, Service
-from src.handlers.master.today import _safe_edit, cb_day_nav, cmd_today, cmd_tomorrow
+from src.handlers.master._common import safe_edit
+from src.handlers.master.today import cb_day_nav, cmd_today, cmd_tomorrow
 
 
 @dataclass
@@ -120,7 +121,7 @@ async def test_safe_edit_swallows_message_not_modified() -> None:
             )
 
     # Should not raise.
-    await _safe_edit(_RaisingMsg(), "hello", MagicMock())  # type: ignore[arg-type]
+    await safe_edit(_RaisingMsg(), "hello", MagicMock())  # type: ignore[arg-type]
 
 
 @pytest.mark.asyncio
@@ -133,7 +134,7 @@ async def test_safe_edit_reraises_other_telegram_errors() -> None:
             )
 
     with pytest.raises(TelegramBadRequest):
-        await _safe_edit(_RaisingMsg(), "hello", MagicMock())  # type: ignore[arg-type]
+        await safe_edit(_RaisingMsg(), "hello", MagicMock())  # type: ignore[arg-type]
 
 
 @pytest.mark.asyncio

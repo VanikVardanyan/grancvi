@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.callback_data.master_calendar import MasterCalendarCallback
 from src.callback_data.schedule import DayNavCallback
 from src.db.models import Master
+from src.handlers.master._common import safe_edit
 from src.repositories.appointments import AppointmentRepository
 from src.repositories.clients import ClientRepository
 from src.repositories.services import ServiceRepository
@@ -63,7 +64,7 @@ async def _month_load(*, session: AsyncSession, master: Master, month: date) -> 
     return counts
 
 
-def _month_keyboard(*, month: date, counts: dict[date, int], today: date) -> InlineKeyboardMarkup:
+def _month_keyboard(*, month: date, counts: dict[date, int]) -> InlineKeyboardMarkup:
     year, month_num = month.year, month.month
     month_name = str(strings.MONTH_NAMES[month_num - 1])
 
@@ -130,7 +131,7 @@ async def render_calendar(
     today_local = now_utc().astimezone(tz).date()
     effective_month = month or today_local.replace(day=1)
     counts = await _month_load(session=session, master=master, month=effective_month)
-    kb = _month_keyboard(month=effective_month, counts=counts, today=today_local)
+    kb = _month_keyboard(month=effective_month, counts=counts)
     header_name = str(strings.MONTH_NAMES[effective_month.month - 1])
     text = f"🗓 {header_name} {effective_month.year}"
     return text, kb
@@ -200,8 +201,6 @@ async def cb_master_calendar(
     session: AsyncSession,
     master: Master,
 ) -> None:
-    from src.handlers.master.today import _safe_edit  # local import avoids cycle
-
     await callback.answer()
     if callback_data.action == "noop":
         return
@@ -209,10 +208,10 @@ async def cb_master_calendar(
         month = date(callback_data.year, callback_data.month, 1)
         text, kb = await render_calendar(session=session, master=master, month=month)
         if isinstance(callback.message, Message):
-            await _safe_edit(callback.message, text, kb)
+            await safe_edit(callback.message, text, kb)
         return
     # pick
     d = date(callback_data.year, callback_data.month, callback_data.day)
     text, kb = await _render_day(session=session, master=master, d=d)
     if isinstance(callback.message, Message):
-        await _safe_edit(callback.message, text, kb)
+        await safe_edit(callback.message, text, kb)
