@@ -7,5 +7,5 @@ from aiogram.filters.callback_data import CallbackData
 
 
 class ApprovalCallback(CallbackData, prefix="appr"):
-    action: Literal["confirm", "reject", "history"]
+    action: Literal["confirm", "reject", "history", "cancel"]
     appointment_id: UUID
