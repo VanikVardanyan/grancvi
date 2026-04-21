@@ -176,7 +176,7 @@ class Appointment(Base):
     cancelled_by: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
-REMINDER_KINDS = ("day_before", "two_hours", "master_morning")
+REMINDER_KINDS = ("day_before", "two_hours", "master_before")
 REMINDER_CHANNELS = ("telegram", "sms")
 
 
@@ -185,6 +185,7 @@ class Reminder(Base):
     __table_args__ = (
         CheckConstraint("kind IN " + str(REMINDER_KINDS), name="ck_reminders_kind"),
         CheckConstraint("channel IN " + str(REMINDER_CHANNELS), name="ck_reminders_channel"),
+        UniqueConstraint("appointment_id", "kind", name="uq_reminders_appointment_kind"),
         Index(
             "ix_reminders_pending_send_at",
             "send_at",
