@@ -30,9 +30,7 @@ class _IsMasterOrAdmin(Filter):
     async def __call__(self, message: Message, master: Master | None = None) -> bool:
         if master is not None:
             return True
-        return bool(
-            message.from_user and message.from_user.id in settings.admin_tg_ids
-        )
+        return bool(message.from_user and message.from_user.id in settings.admin_tg_ids)
 
 
 @router.message(CommandStart(), _IsMasterOrAdmin())

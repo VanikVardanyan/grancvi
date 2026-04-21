@@ -1,25 +1,41 @@
 from __future__ import annotations
 
+import re as _re
+from datetime import UTC, date, datetime
 from typing import Any
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import structlog
-from aiogram import F, Router
+from aiogram import Bot, F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.callback_data.calendar import CalendarCallback
 from src.callback_data.client_services import ClientServicePick
 from src.callback_data.master_add import (
+    CustomTimeCallback,
     PhoneDupCallback,
     RecentClientCallback,
+    SkipCommentCallback,
 )
-from src.db.models import Client, Master
+from src.callback_data.slots import SlotCallback
+from src.db.models import Client, Master, Service
+from src.exceptions import SlotAlreadyTaken
 from src.fsm.master_add import MasterAdd
 from src.keyboards.calendar import calendar_keyboard
-from src.keyboards.master_add import phone_dup_kb, recent_clients_kb, search_results_kb
+from src.keyboards.master_add import (
+    client_cancel_kb,
+    confirm_add_kb,
+    phone_dup_kb,
+    recent_clients_kb,
+    search_results_kb,
+    skip_comment_kb,
+    slots_grid_with_custom,
+)
 from src.keyboards.slots import services_pick_kb
 from src.repositories.clients import ClientRepository
 from src.repositories.services import ServiceRepository
@@ -33,6 +49,10 @@ log: structlog.stdlib.BoundLogger = structlog.get_logger()
 
 _MIN_NAME = 2
 _MIN_SEARCH = 2
+
+_CUSTOM_FULL_RE = _re.compile(r"^(\d{1,2})\.(\d{1,2})\s+(\d{1,2}):(\d{2})$")
+_CUSTOM_TIME_RE = _re.compile(r"^(\d{1,2}):(\d{2})$")
+_COMMENT_MAX = 200
 
 
 @router.message(Command("add"))
@@ -149,9 +169,6 @@ async def msg_new_client_phone(
     data = await state.get_data()
     name = data.get("pending_name", "")
     repo = ClientRepository(session)
-    # Check for existing (master_id, phone)
-    from sqlalchemy import select  # local import to keep file imports focused
-
     existing = await session.scalar(
         select(Client).where(Client.master_id == master.id, Client.phone == normalized)
     )
@@ -220,3 +237,318 @@ async def cb_pick_service(
             strings.MANUAL_ASK_DATE,
             reply_markup=calendar_keyboard(month=month, loads=loads, today=today),
         )
+
+
+# --- Part B: date/slot/custom/comment/confirm ---
+
+
+@router.callback_query(CalendarCallback.filter(), MasterAdd.PickingDate)
+async def cb_pick_date(
+    callback: CallbackQuery,
+    callback_data: CalendarCallback,
+    state: FSMContext,
+    session: AsyncSession,
+    master: Master,
+) -> None:
+    await callback.answer()
+    if callback_data.action == "noop":
+        return
+
+    data = await state.get_data()
+    service_id = UUID(data["service_id"])
+    service = await ServiceRepository(session).get(service_id, master_id=master.id)
+    if service is None:
+        await state.clear()
+        return
+
+    tz = ZoneInfo(master.timezone)
+    today = now_utc().astimezone(tz).date()
+    svc = BookingService(session)
+
+    if callback_data.action == "nav":
+        month = date(callback_data.year, callback_data.month, 1)
+        loads = await svc.get_month_load(master=master, service=service, month=month, now=now_utc())
+        if callback.message is not None and hasattr(callback.message, "answer"):
+            await callback.message.answer(
+                strings.MANUAL_ASK_DATE,
+                reply_markup=calendar_keyboard(month=month, loads=loads, today=today),
+            )
+        return
+
+    # pick
+    picked = date(callback_data.year, callback_data.month, callback_data.day)
+    slots = await svc.get_free_slots(master, service, picked, now=now_utc())
+    await state.update_data(date=picked.isoformat())
+    await state.set_state(MasterAdd.PickingSlot)
+    if callback.message is not None and hasattr(callback.message, "answer"):
+        await callback.message.answer(
+            strings.MANUAL_ASK_SLOT, reply_markup=slots_grid_with_custom(slots, tz=tz)
+        )
+
+
+@router.callback_query(SlotCallback.filter(), MasterAdd.PickingSlot)
+async def cb_pick_slot(
+    callback: CallbackQuery,
+    callback_data: SlotCallback,
+    state: FSMContext,
+    session: AsyncSession,
+    master: Master,
+) -> None:
+    await callback.answer()
+    data = await state.get_data()
+    picked = date.fromisoformat(data["date"])
+    tz = ZoneInfo(master.timezone)
+    local_start = datetime(
+        picked.year, picked.month, picked.day, callback_data.hour, callback_data.minute, tzinfo=tz
+    )
+    start_at_utc = local_start.astimezone(UTC)
+    await state.update_data(start_at=start_at_utc.isoformat())
+    await state.set_state(MasterAdd.EnteringComment)
+    if callback.message is not None and hasattr(callback.message, "answer"):
+        await callback.message.answer(strings.MANUAL_ASK_COMMENT, reply_markup=skip_comment_kb())
+
+
+@router.callback_query(CustomTimeCallback.filter(), MasterAdd.PickingSlot)
+async def cb_custom_time(
+    callback: CallbackQuery,
+    callback_data: CustomTimeCallback,
+    state: FSMContext,
+    session: AsyncSession,
+    master: Master,
+) -> None:
+    await callback.answer()
+    await state.set_state(MasterAdd.EnteringCustomTime)
+    if callback.message is not None and hasattr(callback.message, "answer"):
+        await callback.message.answer(strings.MANUAL_CUSTOM_PROMPT)
+
+
+@router.callback_query(F.data == "master_add_back", MasterAdd.PickingSlot)
+async def cb_back_to_date(
+    callback: CallbackQuery, state: FSMContext, session: AsyncSession, master: Master
+) -> None:
+    await callback.answer()
+    data = await state.get_data()
+    service_id = UUID(data["service_id"])
+    service = await ServiceRepository(session).get(service_id, master_id=master.id)
+    if service is None:
+        await state.clear()
+        return
+    tz = ZoneInfo(master.timezone)
+    today = now_utc().astimezone(tz).date()
+    month = today.replace(day=1)
+    loads = await BookingService(session).get_month_load(
+        master=master, service=service, month=month, now=now_utc()
+    )
+    await state.set_state(MasterAdd.PickingDate)
+    if callback.message is not None and hasattr(callback.message, "answer"):
+        await callback.message.answer(
+            strings.MANUAL_ASK_DATE,
+            reply_markup=calendar_keyboard(month=month, loads=loads, today=today),
+        )
+
+
+@router.message(MasterAdd.EnteringCustomTime)
+async def msg_custom_time(
+    message: Message,
+    state: FSMContext,
+    master: Master,
+) -> None:
+    raw = (message.text or "").strip()
+    tz = ZoneInfo(master.timezone)
+    data = await state.get_data()
+    current_date = date.fromisoformat(data["date"]) if data.get("date") else None
+
+    m_full = _CUSTOM_FULL_RE.match(raw)
+    m_time = _CUSTOM_TIME_RE.match(raw)
+
+    if m_full:
+        dd, mm, hh, mi = (int(g) for g in m_full.groups())
+        today = now_utc().astimezone(tz).date()
+        year = today.year
+        try:
+            picked = date(year, mm, dd)
+        except ValueError:
+            await message.answer(strings.MANUAL_CUSTOM_BAD)
+            return
+        # If the resulting date is already in the past, assume next year.
+        if picked < today:
+            try:
+                picked = date(year + 1, mm, dd)
+            except ValueError:
+                await message.answer(strings.MANUAL_CUSTOM_BAD)
+                return
+        hour, minute = hh, mi
+    elif m_time and current_date is not None:
+        hour, minute = (int(g) for g in m_time.groups())
+        picked = current_date
+    else:
+        await message.answer(strings.MANUAL_CUSTOM_BAD)
+        return
+
+    if not (0 <= hour < 24 and 0 <= minute < 60):
+        await message.answer(strings.MANUAL_CUSTOM_BAD)
+        return
+
+    local = datetime(picked.year, picked.month, picked.day, hour, minute, tzinfo=tz)
+    start_at_utc = local.astimezone(UTC)
+    if start_at_utc <= now_utc():
+        await message.answer(strings.MANUAL_CUSTOM_PAST)
+        return
+
+    await state.update_data(date=picked.isoformat(), start_at=start_at_utc.isoformat())
+    await state.set_state(MasterAdd.EnteringComment)
+    await message.answer(strings.MANUAL_ASK_COMMENT, reply_markup=skip_comment_kb())
+
+
+def _render_confirm(
+    *, client: Client, service: Service, start_at: datetime, comment: str | None, tz: ZoneInfo
+) -> str:
+    local = start_at.astimezone(tz)
+    text: str = strings.MANUAL_CONFIRM_CARD.format(
+        client=client.name,
+        phone=client.phone,
+        service=service.name,
+        date=local.strftime("%d.%m.%Y"),
+        time=local.strftime("%H:%M"),
+        notes=(comment or "—"),
+    )
+    return text
+
+
+async def _load_client_service(
+    session: AsyncSession, master: Master, data: dict[str, Any]
+) -> tuple[Client | None, Service | None]:
+    client = await session.get(Client, UUID(data["client_id"]))
+    service = await ServiceRepository(session).get(UUID(data["service_id"]), master_id=master.id)
+    return client, service
+
+
+@router.message(MasterAdd.EnteringComment)
+async def msg_comment(
+    message: Message,
+    state: FSMContext,
+    session: AsyncSession,
+    master: Master,
+) -> None:
+    raw = (message.text or "").strip()[:_COMMENT_MAX]
+    data = await state.get_data()
+    client, service = await _load_client_service(session, master, data)
+    if client is None or service is None:
+        await state.clear()
+        return
+    await state.update_data(comment=raw or None)
+    await state.set_state(MasterAdd.Confirming)
+    tz = ZoneInfo(master.timezone)
+    start_at = datetime.fromisoformat(data["start_at"])
+    await message.answer(
+        _render_confirm(
+            client=client, service=service, start_at=start_at, comment=raw or None, tz=tz
+        ),
+        reply_markup=confirm_add_kb(),
+    )
+
+
+@router.callback_query(SkipCommentCallback.filter(), MasterAdd.EnteringComment)
+async def cb_skip_comment(
+    callback: CallbackQuery,
+    callback_data: SkipCommentCallback,
+    state: FSMContext,
+    session: AsyncSession,
+    master: Master,
+) -> None:
+    await callback.answer()
+    data = await state.get_data()
+    client, service = await _load_client_service(session, master, data)
+    if client is None or service is None:
+        await state.clear()
+        return
+    await state.update_data(comment=None)
+    await state.set_state(MasterAdd.Confirming)
+    tz = ZoneInfo(master.timezone)
+    start_at = datetime.fromisoformat(data["start_at"])
+    if callback.message is not None and hasattr(callback.message, "answer"):
+        await callback.message.answer(
+            _render_confirm(client=client, service=service, start_at=start_at, comment=None, tz=tz),
+            reply_markup=confirm_add_kb(),
+        )
+
+
+@router.callback_query(F.data == "master_add_save", MasterAdd.Confirming)
+async def cb_confirm_save(
+    callback: CallbackQuery,
+    state: FSMContext,
+    session: AsyncSession,
+    master: Master,
+    bot: Bot,
+) -> None:
+    data = await state.get_data()
+    client, service = await _load_client_service(session, master, data)
+    if client is None or service is None:
+        await state.clear()
+        await callback.answer(strings.MANUAL_CANCELED, show_alert=True)
+        return
+
+    start_at = datetime.fromisoformat(data["start_at"])
+    comment: str | None = data.get("comment")
+    svc = BookingService(session)
+    try:
+        appt = await svc.create_manual(
+            master=master, client=client, service=service, start_at=start_at, comment=comment
+        )
+    except SlotAlreadyTaken:
+        await session.refresh(master)
+        await session.refresh(service)
+        await callback.answer(strings.MANUAL_SLOT_TAKEN, show_alert=True)
+        await state.set_state(MasterAdd.PickingSlot)
+        tz = ZoneInfo(master.timezone)
+        picked = start_at.astimezone(tz).date()
+        slots = await svc.get_free_slots(master, service, picked, now=now_utc())
+        if callback.message is not None and hasattr(callback.message, "answer"):
+            await callback.message.answer(
+                strings.MANUAL_ASK_SLOT, reply_markup=slots_grid_with_custom(slots, tz=tz)
+            )
+        return
+
+    await callback.answer(strings.MANUAL_SAVED)
+    if callback.message is not None and hasattr(callback.message, "answer"):
+        await callback.message.answer(strings.MANUAL_SAVED)
+    await state.clear()
+
+    if client.tg_id is not None:
+        tz = ZoneInfo(master.timezone)
+        local = appt.start_at.astimezone(tz)
+        text = strings.CLIENT_NOTIFY_MANUAL.format(
+            date=local.strftime("%d.%m.%Y"),
+            time=local.strftime("%H:%M"),
+            service=service.name,
+        )
+        try:
+            await bot.send_message(
+                chat_id=client.tg_id, text=text, reply_markup=client_cancel_kb(appt.id)
+            )
+        except Exception:
+            log.warning("client_notify_failed", client_tg=client.tg_id)
+    log.info("manual_created", appointment_id=str(appt.id), master_tg=master.tg_id)
+
+
+@router.callback_query(F.data == "master_add_cancel", MasterAdd.Confirming)
+async def cb_confirm_cancel(callback: CallbackQuery, state: FSMContext) -> None:
+    await callback.answer(strings.MANUAL_CANCELED)
+    await state.clear()
+    if callback.message is not None and hasattr(callback.message, "answer"):
+        await callback.message.answer(strings.MANUAL_CANCELED)
+
+
+@router.message(Command("cancel"), MasterAdd.PickingClient)
+@router.message(Command("cancel"), MasterAdd.SearchingClient)
+@router.message(Command("cancel"), MasterAdd.NewClientName)
+@router.message(Command("cancel"), MasterAdd.NewClientPhone)
+@router.message(Command("cancel"), MasterAdd.PickingService)
+@router.message(Command("cancel"), MasterAdd.PickingDate)
+@router.message(Command("cancel"), MasterAdd.PickingSlot)
+@router.message(Command("cancel"), MasterAdd.EnteringCustomTime)
+@router.message(Command("cancel"), MasterAdd.EnteringComment)
+@router.message(Command("cancel"), MasterAdd.Confirming)
+async def cmd_cancel_any(message: Message, state: FSMContext) -> None:
+    await state.clear()
+    await message.answer(strings.MANUAL_CANCELED)
