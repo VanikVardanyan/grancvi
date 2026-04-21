@@ -47,18 +47,20 @@ def calendar_keyboard(
     month: date,
     loads: dict[date, int],
     today: date,
+    allow_past: bool = False,
 ) -> InlineKeyboardMarkup:
     """Render a month grid with emoji-coded availability.
 
     `loads` must contain an entry for every day of `month`; -1 encodes "off",
-    0 = full, 1..4 = tight, ≥5 = free. Past days render as ⚫ without a pick callback.
+    0 = full, 1..4 = tight, ≥5 = free. Past days render as ⚫ without a pick
+    callback unless `allow_past=True` (master calendar view).
     """
     year, month_num = month.year, month.month
     month_name = strings.MONTH_NAMES[month_num - 1]
 
     prev_shift = _shift_month(month, -1)
     next_shift = _shift_month(month, +1)
-    can_prev = _months_between(today.replace(day=1), prev_shift) >= 0
+    can_prev = allow_past or _months_between(today.replace(day=1), prev_shift) >= 0
     can_next = _months_between(today.replace(day=1), next_shift) <= MAX_MONTHS_AHEAD
 
     prev_btn: InlineKeyboardButton
@@ -104,7 +106,8 @@ def calendar_keyboard(
         load = _classify(count)
         emoji = _EMOJI[load]
         label = f"{emoji}{day}"
-        if d < today or load == "off":
+        is_past_locked = d < today and not allow_past
+        if is_past_locked or load == "off":
             cells.append(_noop_button(label, year, month_num))
         else:
             cells.append(
