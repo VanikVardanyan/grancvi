@@ -9,6 +9,7 @@ import pytest
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.base import StorageKey
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import Chat, Message
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,22 +24,36 @@ class _FakeUser:
     id: int
 
 
-@dataclass
-class _FakeMsg:
-    from_user: _FakeUser | None = None
-    answers: list[tuple[str, Any]] = field(default_factory=list)
+class _FakeMsg(Message):
+    """Subclass of aiogram Message so isinstance(..., Message) passes.
 
-    async def answer(self, text: str, reply_markup: Any = None, **_: Any) -> None:
-        self.answers.append((text, reply_markup))
+    Tracks edit_text calls in `edits` and answer calls in `answers`.
+    """
 
-    async def edit_text(self, text: str, reply_markup: Any = None, **_: Any) -> None:
-        self.answers.append((text, reply_markup))
+    @classmethod
+    def make(cls) -> _FakeMsg:
+        inst = cls.model_construct(
+            message_id=1,
+            chat=Chat.model_construct(id=1, type="private"),
+            date=datetime.now(UTC),
+        )
+        object.__setattr__(inst, "answers", [])
+        object.__setattr__(inst, "edits", [])
+        return inst
+
+    async def answer(self, text: str, reply_markup: Any = None, **_: Any) -> Any:  # type: ignore[override]
+        self.answers.append((text, reply_markup))  # type: ignore[attr-defined]
+        return None
+
+    async def edit_text(self, text: str, reply_markup: Any = None, **_: Any) -> Any:  # type: ignore[override]
+        self.edits.append((text, reply_markup))  # type: ignore[attr-defined]
+        return None
 
 
 @dataclass
 class _FakeCb:
     from_user: _FakeUser
-    message: _FakeMsg | None = field(default_factory=_FakeMsg)
+    message: _FakeMsg | None = field(default_factory=lambda: _FakeMsg.make())
     answered: list[tuple[str, bool]] = field(default_factory=list)
 
     async def answer(self, text: str = "", show_alert: bool = False) -> None:
@@ -121,6 +136,8 @@ async def test_cb_mark_past_present_transitions_to_completed(session: AsyncSessi
     assert cb.answered
     text, _ = cb.answered[0]
     assert text == strings.MARK_PAST_OK_COMPLETED
+    assert cb.message is not None
+    assert len(cb.message.edits) == 1
 
 
 @pytest.mark.asyncio
@@ -143,6 +160,8 @@ async def test_cb_mark_past_no_show_transitions(session: AsyncSession) -> None:
     assert cb.answered
     text, _ = cb.answered[0]
     assert text == strings.MARK_PAST_OK_NO_SHOW
+    assert cb.message is not None
+    assert len(cb.message.edits) == 1
 
 
 @pytest.mark.asyncio
@@ -163,6 +182,8 @@ async def test_cb_mark_past_unknown_shows_alert(session: AsyncSession) -> None:
     text, alert = cb.answered[0]
     assert text == strings.MARK_PAST_NOT_AVAILABLE
     assert alert is True
+    assert cb.message is not None
+    assert len(cb.message.edits) == 0
 
 
 @pytest.mark.asyncio
@@ -199,6 +220,8 @@ async def test_cb_mark_past_invalid_state_not_ended_shows_alert(session: AsyncSe
     text, alert = cb.answered[0]
     assert text == strings.MARK_PAST_NOT_ENDED
     assert alert is True
+    assert cb.message is not None
+    assert len(cb.message.edits) == 0
 
 
 @pytest.mark.asyncio
@@ -235,3 +258,5 @@ async def test_cb_mark_past_invalid_state_already_closed_shows_alert(session: As
     text, alert = cb.answered[0]
     assert text == strings.MARK_PAST_ALREADY_CLOSED
     assert alert is True
+    assert cb.message is not None
+    assert len(cb.message.edits) == 0

@@ -16,7 +16,7 @@ from src.strings import strings
 
 router = Router(name="master_mark_past")
 
-_log = structlog.get_logger(__name__)
+log: structlog.stdlib.BoundLogger = structlog.get_logger()
 
 
 @router.callback_query(MarkPastCallback.filter())
@@ -52,4 +52,4 @@ async def cb_mark_past(
         try:
             await _safe_edit(callback.message, text, kb)
         except TelegramBadRequest as exc:
-            _log.warning("mark_past edit failed", err=str(exc))
+            log.warning("mark_past edit failed", err=str(exc))
