@@ -13,7 +13,7 @@ from aiogram.types import (
     InlineKeyboardMarkup,
     Message,
 )
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.callback_data.client_page import (
@@ -90,7 +90,16 @@ def _history_emoji(a: Appointment, now: datetime) -> str:
 
 async def _load_history(
     session: AsyncSession, *, master: Master, client_id: UUID
-) -> list[Appointment]:
+) -> tuple[list[Appointment], int]:
+    count_stmt = (
+        select(func.count())
+        .select_from(Appointment)
+        .where(
+            Appointment.master_id == master.id,
+            Appointment.client_id == client_id,
+        )
+    )
+    total = int((await session.scalar(count_stmt)) or 0)
     stmt = (
         select(Appointment)
         .where(
@@ -98,9 +107,10 @@ async def _load_history(
             Appointment.client_id == client_id,
         )
         .order_by(Appointment.start_at.desc())
-        .limit(_HISTORY_LIMIT)
+        .limit(_HISTORY_LIMIT + 1)
     )
-    return list((await session.scalars(stmt)).all())
+    rows = list((await session.scalars(stmt)).all())
+    return rows, total
 
 
 async def _render_client_page(
@@ -112,16 +122,18 @@ async def _render_client_page(
     notes_text = client.notes if client.notes else strings.CLIENT_PAGE_NOTES_EMPTY
     parts.append(strings.CLIENT_PAGE_NOTES_TITLE.format(notes=notes_text))
 
-    history = await _load_history(session, master=master, client_id=client.id)
+    history, total_count = await _load_history(session, master=master, client_id=client.id)
     if not history:
         parts.append(str(strings.CLIENT_PAGE_HISTORY_EMPTY))
     else:
-        parts.append(strings.CLIENT_PAGE_HISTORY_TITLE.format(count=len(history)))
-        service_ids = {a.service_id for a in history}
+        truncated_extra = max(0, total_count - _HISTORY_LIMIT)
+        visible_history = history[:_HISTORY_LIMIT]
+        parts.append(strings.CLIENT_PAGE_HISTORY_TITLE.format(count=len(visible_history)))
+        service_ids = {a.service_id for a in visible_history}
         service_names = (
             await ServiceRepository(session).get_names_by_ids(service_ids) if service_ids else {}
         )
-        for a in history[:_HISTORY_LIMIT]:
+        for a in visible_history:
             local = a.start_at.astimezone(tz)
             parts.append(
                 "\n"
@@ -134,6 +146,8 @@ async def _render_client_page(
                     suffix=_history_suffix(a, now),
                 )
             )
+        if truncated_extra > 0:
+            parts.append("\n" + strings.CLIENT_PAGE_HISTORY_MORE.format(n=truncated_extra))
 
     return "".join(parts), _client_page_kb(client.id)
 
@@ -224,7 +238,12 @@ async def msg_notes_edit(
     if not client_id_raw:
         await state.clear()
         return
-    client_id = UUID(client_id_raw)
+    try:
+        client_id = UUID(client_id_raw)
+    except ValueError:
+        await state.clear()
+        await message.answer(strings.CLIENT_PAGE_NOT_FOUND)
+        return
     repo = ClientRepository(session)
     client = await repo.get(client_id)
     if client is None or client.master_id != master.id:

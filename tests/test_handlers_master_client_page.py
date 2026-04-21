@@ -283,6 +283,49 @@ async def test_cb_add_appt_bridges_to_picking_service(session: AsyncSession) -> 
 
 
 @pytest.mark.asyncio
+async def test_client_page_shows_more_suffix_when_history_exceeds_limit(
+    session: AsyncSession,
+) -> None:
+    master = await _seed_master(session)
+    client = await _seed_client(session, master)
+    svc = Service(master_id=master.id, name="Стрижка", duration_min=60)
+    session.add(svc)
+    await session.flush()
+
+    now = datetime.now(UTC)
+    for i in range(22):
+        session.add(
+            Appointment(
+                master_id=master.id,
+                client_id=client.id,
+                service_id=svc.id,
+                start_at=now - timedelta(days=i + 1),
+                end_at=now - timedelta(days=i + 1) + timedelta(minutes=60),
+                status="completed",
+                source="master_manual",
+                confirmed_at=now - timedelta(days=i + 2),
+            )
+        )
+    await session.flush()
+    await session.commit()
+
+    state = await _mkctx()
+    cb = _FakeCb(from_user=_FakeUser(id=master.tg_id))
+    await cb_pick_client(
+        callback=cb,  # type: ignore[arg-type]
+        callback_data=ClientPickCallback(client_id=client.id),
+        state=state,
+        session=session,
+        master=master,
+    )
+    text, _ = cb.message.answers[0]
+    from src.strings import strings as _s
+
+    expected_tail = _s.CLIENT_PAGE_HISTORY_MORE.format(n=2)
+    assert expected_tail in text
+
+
+@pytest.mark.asyncio
 async def test_client_page_includes_recent_history(session: AsyncSession) -> None:
     master = Master(
         tg_id=7800,
