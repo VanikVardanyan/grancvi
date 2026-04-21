@@ -225,5 +225,7 @@ async def cb_day_pick(
         now=now_utc(),
         day_nav=day_nav,
     )
-    if callback.message is not None and hasattr(callback.message, "answer"):
-        await callback.message.answer(text, reply_markup=kb)
+    from src.handlers.master.today import _safe_edit  # local import avoids cycle
+
+    if isinstance(callback.message, Message):
+        await _safe_edit(callback.message, text, kb)

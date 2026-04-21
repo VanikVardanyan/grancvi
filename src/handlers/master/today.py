@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.callback_data.schedule import DayNavCallback
 from src.db.models import Master
 from src.fsm.master_add import MasterAdd
+from src.handlers.master.week import render_week
 from src.keyboards.master_add import recent_clients_kb
 from src.repositories.appointments import AppointmentRepository
 from src.repositories.clients import ClientRepository
@@ -145,8 +146,6 @@ async def cb_day_nav(
             await _safe_edit(callback.message, text, kb)
         return
     if action == "week":
-        from src.handlers.master.week import render_week  # local import avoids cycle
-
         text, kb = await render_week(session=session, master=master)
         if isinstance(callback.message, Message):
             await _safe_edit(callback.message, text, kb)

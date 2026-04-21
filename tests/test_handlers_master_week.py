@@ -9,6 +9,7 @@ import pytest
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.base import StorageKey
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import Chat, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.callback_data.schedule import DayPickCallback
@@ -21,19 +22,35 @@ class _FakeUser:
     id: int
 
 
-@dataclass
-class _FakeMsg:
-    from_user: _FakeUser | None = None
-    answers: list[tuple[str, Any]] = field(default_factory=list)
+class _FakeMsg(Message):
+    """Subclass of aiogram Message so isinstance(..., Message) passes.
 
-    async def answer(self, text: str, reply_markup: Any = None, **_: Any) -> None:
-        self.answers.append((text, reply_markup))
+    Tracks both answer() and edit_text() calls in the same `answers` list.
+    """
+
+    @classmethod
+    def make(cls) -> _FakeMsg:
+        inst = cls.model_construct(
+            message_id=1,
+            chat=Chat.model_construct(id=1, type="private"),
+            date=datetime.now(UTC),
+        )
+        object.__setattr__(inst, "answers", [])
+        return inst
+
+    async def answer(self, text: str, reply_markup: Any = None, **_: Any) -> Any:  # type: ignore[override]
+        self.answers.append((text, reply_markup))  # type: ignore[attr-defined]
+        return None
+
+    async def edit_text(self, text: str, reply_markup: Any = None, **_: Any) -> Any:  # type: ignore[override]
+        self.answers.append((text, reply_markup))  # type: ignore[attr-defined]
+        return None
 
 
 @dataclass
 class _FakeCb:
     from_user: _FakeUser
-    message: _FakeMsg = field(default_factory=_FakeMsg)
+    message: _FakeMsg = field(default_factory=lambda: _FakeMsg.make())
     answered: list[str] = field(default_factory=list)
 
     async def answer(self, text: str = "", show_alert: bool = False) -> None:
@@ -68,7 +85,7 @@ async def _seed(session: AsyncSession) -> Master:
 async def test_cmd_week_sends_snapshot(session: AsyncSession) -> None:
     master = await _seed(session)
     state = await _mkctx()
-    msg = _FakeMsg(from_user=_FakeUser(id=master.tg_id))
+    msg = _FakeMsg.make()
     await cmd_week(message=msg, state=state, session=session, master=master)  # type: ignore[arg-type]
     assert msg.answers
     text, kb = msg.answers[0]
