@@ -10,6 +10,7 @@ from src.handlers.master.services import router as services_router
 from src.handlers.master.settings import router as settings_router
 from src.handlers.master.start import router as start_router
 from src.handlers.master.today import router as today_router
+from src.handlers.master.week import router as week_router
 
 router = Router(name="master")
 router.include_router(start_router)
@@ -20,5 +21,6 @@ router.include_router(approve_router)
 router.include_router(add_manual_router)
 router.include_router(today_router)
 router.include_router(mark_past_router)
+router.include_router(week_router)
 
 __all__ = ["router"]

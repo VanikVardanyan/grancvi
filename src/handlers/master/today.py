@@ -144,14 +144,13 @@ async def cb_day_nav(
         if isinstance(callback.message, Message):
             await _safe_edit(callback.message, text, kb)
         return
-    # Epic 6: re-enabled in Task 11
-    # if action == "week":
-    #     from src.handlers.master.week import render_week  # local import avoids cycle
-    #
-    #     text, kb = await render_week(session=session, master=master)
-    #     if callback.message is not None and hasattr(callback.message, "edit_text"):
-    #         await callback.message.edit_text(text, reply_markup=kb)
-    #     return
+    if action == "week":
+        from src.handlers.master.week import render_week  # local import avoids cycle
+
+        text, kb = await render_week(session=session, master=master)
+        if isinstance(callback.message, Message):
+            await _safe_edit(callback.message, text, kb)
+        return
     # Epic 6: re-enabled in Task 12
     # if action == "calendar":
     #     from src.handlers.master.calendar import render_calendar
