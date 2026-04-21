@@ -144,6 +144,32 @@ class BookingService:
         appt.cancelled_by = cancelled_by
         return appt
 
+    async def cancel_by_client(
+        self,
+        appointment_id: UUID,
+        *,
+        tg_id: int,
+        now: datetime | None = None,
+    ) -> tuple[Appointment, Client, Master, Service]:
+        """Client-initiated cancellation. Validates ownership by `tg_id`.
+
+        Returns (appointment, client, master, service) so the handler can build
+        the master notification without additional queries. Models don't
+        declare ORM `relationship()` links, so we load rows via `session.get`.
+        """
+        appt = await self._repo.get(appointment_id)
+        if appt is None:
+            raise NotFound(str(appointment_id))
+        client = await self._session.get(Client, appt.client_id)
+        if client is None or client.tg_id != tg_id:
+            raise NotFound(str(appointment_id))
+        master = await self._session.get(Master, appt.master_id)
+        service = await self._session.get(Service, appt.service_id)
+        if master is None or service is None:
+            raise NotFound(str(appointment_id))
+        await self.cancel(appointment_id, cancelled_by="client", now=now)
+        return appt, client, master, service
+
     async def create_manual(
         self,
         *,
