@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import re
 from typing import cast
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import desc, func, nulls_last, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.db.models import Client
+from src.db.models import Appointment, Client
 
 
 class ClientRepository:
@@ -43,3 +44,52 @@ class ClientRepository:
         if tg_id is not None:
             existing.tg_id = tg_id
         return existing
+
+    async def list_recent_by_master(self, master_id: UUID, *, limit: int = 10) -> list[Client]:
+        """Clients ordered by their most recent appointment with this master.
+
+        Clients without any appointments come last, ordered by `created_at DESC`.
+        """
+        last_appt = func.max(Appointment.start_at).label("last_appt")
+        stmt = (
+            select(Client)
+            .outerjoin(
+                Appointment,
+                (Appointment.client_id == Client.id) & (Appointment.master_id == master_id),
+            )
+            .where(Client.master_id == master_id)
+            .group_by(Client.id)
+            .order_by(nulls_last(desc(last_appt)), desc(Client.created_at))
+            .limit(limit)
+        )
+        return list((await self._session.scalars(stmt)).all())
+
+    async def search_by_master(
+        self, master_id: UUID, query: str, *, limit: int = 10
+    ) -> list[Client]:
+        """Substring search by name (ILIKE) and by digit-only phone.
+
+        Queries shorter than 2 characters return an empty list. `query` is
+        stripped; digits in `query` are matched against the phone stripped
+        of its own non-digit characters.
+        """
+        q = query.strip()
+        if len(q) < 2:
+            return []
+        digits = re.sub(r"\D", "", q)
+
+        phone_digits = func.regexp_replace(Client.phone, r"\D", "", "g")
+        like_pattern = f"%{q}%"
+        digit_pattern = f"%{digits}%"
+
+        conditions = [Client.name.ilike(like_pattern)]
+        if digits:
+            conditions.append(phone_digits.like(digit_pattern))
+
+        stmt = (
+            select(Client)
+            .where(Client.master_id == master_id, or_(*conditions))
+            .order_by(Client.name)
+            .limit(limit)
+        )
+        return list((await self._session.scalars(stmt)).all())
