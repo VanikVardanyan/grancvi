@@ -196,7 +196,11 @@ def test_cancelled_and_rejected_appts_excluded_from_text() -> None:
         now=datetime(2026, 4, 22, 9, tzinfo=_TZ).astimezone(UTC),
         day_nav=[],
     )
-    # Only one appointment line with 12:00.
-    assert "12:00" in text
-    assert "10:00" not in text  # cancelled stripped
-    assert "11:00" not in text  # rejected stripped
+    # Extract the appointments section: from "📋 Записи" line up to (but not
+    # including) the "🆓" free-slots section.
+    assert "📋 Записи" in text
+    appts_section = text.split("📋 Записи", 1)[1].split("🆓", 1)[0]
+    # Only the confirmed 12:00 appointment line should be in the appts section.
+    assert "12:00" in appts_section
+    assert "10:00" not in appts_section  # cancelled stripped
+    assert "11:00" not in appts_section  # rejected stripped
