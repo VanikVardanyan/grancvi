@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
 from aiogram.fsm.context import FSMContext
@@ -12,7 +14,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.callback_data.calendar import CalendarCallback
 from src.callback_data.client_services import ClientServicePick
-from src.db.models import Master, Service
+from src.callback_data.slots import SlotCallback
+from src.db.models import Client, Master, Service
 from src.fsm.client_booking import ClientBooking
 from src.handlers.client.booking import (
     handle_date_pick,
@@ -171,3 +174,214 @@ async def test_date_pick_renders_slots_or_no_slots(session: AsyncSession) -> Non
     assert await state.get_state() == ClientBooking.ChoosingTime.state
     data = await state.get_data()
     assert data["date"] == "2026-05-04"
+
+
+@pytest.mark.asyncio
+async def test_time_pick_saves_start_and_asks_name(session: AsyncSession) -> None:
+    master = Master(
+        tg_id=9100, name="М",
+        work_hours={"mon": [["10:00", "19:00"]]}, breaks={},
+        slot_step_min=60, timezone="Asia/Yerevan",
+    )
+    session.add(master)
+    await session.flush()
+    service = Service(master_id=master.id, name="Стрижка", duration_min=60)
+    session.add(service)
+    await session.commit()
+
+    from src.handlers.client.booking import handle_time_pick
+    msg = _FakeMsg(from_user=_FakeUser(id=77))
+    cb = _FakeCallback(
+        data=SlotCallback(hour=14, minute=0).pack(),
+        from_user=_FakeUser(id=77),
+        message=msg,
+    )
+    state = _make_fsm(77)
+    await state.set_state(ClientBooking.ChoosingTime)
+    await state.update_data(
+        master_id=str(master.id),
+        service_id=str(service.id),
+        date="2026-05-04",
+    )
+
+    cb_data = SlotCallback(hour=14, minute=0)
+    await handle_time_pick(cb, callback_data=cb_data, state=state, session=session)
+
+    assert await state.get_state() == ClientBooking.EnteringName.state
+    data = await state.get_data()
+    assert data["start_at"].startswith("2026-05-04T")
+    assert msg.answers
+    text, _ = msg.answers[-1]
+    assert "зовут" in text.lower() or "имя" in text.lower()
+
+
+@pytest.mark.asyncio
+async def test_name_valid_moves_to_phone(session: AsyncSession) -> None:
+    from src.handlers.client.booking import handle_name
+
+    msg = _FakeMsg(from_user=_FakeUser(id=88))
+    msg.text = "Анна"
+    state = _make_fsm(88)
+    await state.set_state(ClientBooking.EnteringName)
+
+    await handle_name(msg, state=state)
+
+    assert await state.get_state() == ClientBooking.EnteringPhone.state
+    data = await state.get_data()
+    assert data["name"] == "Анна"
+
+
+@pytest.mark.asyncio
+async def test_name_empty_retries_same_state(session: AsyncSession) -> None:
+    from src.handlers.client.booking import handle_name
+
+    msg = _FakeMsg(from_user=_FakeUser(id=89))
+    msg.text = "   "
+    state = _make_fsm(89)
+    await state.set_state(ClientBooking.EnteringName)
+
+    await handle_name(msg, state=state)
+
+    assert await state.get_state() == ClientBooking.EnteringName.state
+    assert msg.answers
+
+
+@pytest.mark.asyncio
+async def test_phone_invalid_retries(session: AsyncSession) -> None:
+    from src.handlers.client.booking import handle_phone
+
+    msg = _FakeMsg(from_user=_FakeUser(id=90))
+    msg.text = "abc"
+    state = _make_fsm(90)
+    await state.set_state(ClientBooking.EnteringPhone)
+
+    await handle_phone(msg, state=state, session=session)
+
+    assert await state.get_state() == ClientBooking.EnteringPhone.state
+
+
+@pytest.mark.asyncio
+async def test_phone_valid_renders_confirm(session: AsyncSession) -> None:
+    from src.handlers.client.booking import handle_phone
+    master = Master(
+        tg_id=9200, name="М",
+        work_hours={"mon": [["10:00", "19:00"]]}, breaks={},
+        slot_step_min=60, timezone="Asia/Yerevan",
+    )
+    session.add(master)
+    await session.flush()
+    service = Service(master_id=master.id, name="Стрижка", duration_min=60)
+    session.add(service)
+    await session.commit()
+
+    msg = _FakeMsg(from_user=_FakeUser(id=91))
+    msg.text = "+374 99 111 222"
+    state = _make_fsm(91)
+    await state.set_state(ClientBooking.EnteringPhone)
+    await state.update_data(
+        master_id=str(master.id),
+        service_id=str(service.id),
+        date="2026-05-04",
+        start_at=datetime(2026, 5, 4, 10, 0, tzinfo=UTC).isoformat(),
+        name="Аня",
+    )
+
+    await handle_phone(msg, state=state, session=session)
+
+    assert await state.get_state() == ClientBooking.Confirming.state
+    data = await state.get_data()
+    assert data["phone"] == "+37499111222"
+    assert msg.answers
+    text, kb = msg.answers[-1]
+    assert "Подтвердить" in text or "проверьте" in text.lower()
+    assert kb is not None
+
+
+@pytest.mark.asyncio
+async def test_confirm_creates_pending_and_notifies_master(
+    session: AsyncSession,
+) -> None:
+    from src.handlers.client.booking import handle_confirm
+    master = Master(
+        tg_id=9300, name="М",
+        work_hours={"mon": [["10:00", "19:00"]]}, breaks={},
+        slot_step_min=60, timezone="Asia/Yerevan",
+    )
+    session.add(master)
+    await session.flush()
+    service = Service(master_id=master.id, name="Стрижка", duration_min=60)
+    session.add(service)
+    await session.commit()
+
+    msg = _FakeMsg(from_user=_FakeUser(id=92))
+    cb = _FakeCallback(data="client_confirm", from_user=_FakeUser(id=92), message=msg)
+    state = _make_fsm(92)
+    await state.set_state(ClientBooking.Confirming)
+    start_at = datetime(2026, 5, 4, 10, 0, tzinfo=UTC)
+    await state.update_data(
+        master_id=str(master.id),
+        service_id=str(service.id),
+        date="2026-05-04",
+        start_at=start_at.isoformat(),
+        name="Аня",
+        phone="+37499111222",
+    )
+
+    bot = AsyncMock()
+    await handle_confirm(cb, state=state, session=session, bot=bot)
+
+    assert await state.get_state() is None
+    bot.send_message.assert_awaited_once()
+    kwargs = bot.send_message.await_args.kwargs
+    assert kwargs["chat_id"] == master.tg_id
+    text, _ = msg.answers[-1]
+    assert "отправлена" in text.lower() or "ждите" in text.lower()
+
+
+@pytest.mark.asyncio
+async def test_confirm_handles_slot_taken(session: AsyncSession) -> None:
+    from src.handlers.client.booking import handle_confirm
+    from src.repositories.appointments import AppointmentRepository
+
+    master = Master(
+        tg_id=9400, name="М",
+        work_hours={"mon": [["10:00", "19:00"]]}, breaks={},
+        slot_step_min=60, timezone="Asia/Yerevan",
+    )
+    session.add(master)
+    await session.flush()
+    service = Service(master_id=master.id, name="Стрижка", duration_min=60)
+    session.add(service)
+    existing_client = Client(master_id=master.id, name="Занимающий", phone="+37499000000")
+    session.add(existing_client)
+    await session.flush()
+    repo = AppointmentRepository(session)
+    start_at = datetime(2026, 5, 4, 6, 0, tzinfo=UTC)  # 10:00 Yerevan
+    await repo.create(
+        master_id=master.id, client_id=existing_client.id, service_id=service.id,
+        start_at=start_at,
+        end_at=start_at + timedelta(minutes=60),
+        status="confirmed", source="client_request",
+    )
+    await session.commit()
+
+    msg = _FakeMsg(from_user=_FakeUser(id=93))
+    cb = _FakeCallback(data="client_confirm", from_user=_FakeUser(id=93), message=msg)
+    state = _make_fsm(93)
+    await state.set_state(ClientBooking.Confirming)
+    await state.update_data(
+        master_id=str(master.id),
+        service_id=str(service.id),
+        date="2026-05-04",
+        start_at=start_at.isoformat(),
+        name="Аня",
+        phone="+37499111222",
+    )
+
+    bot = AsyncMock()
+    await handle_confirm(cb, state=state, session=session, bot=bot)
+
+    assert await state.get_state() == ClientBooking.ChoosingTime.state
+    bot.send_message.assert_not_awaited()
+    texts = [t for t, _ in msg.answers]
+    assert any("заняли" in t.lower() for t in texts)
