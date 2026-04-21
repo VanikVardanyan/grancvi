@@ -89,9 +89,7 @@ def calendar_keyboard(
         next_btn,
     ]
 
-    weekday_row = [
-        _noop_button(label, year, month_num) for label in strings.WEEKDAY_SHORT
-    ]
+    weekday_row = [_noop_button(label, year, month_num) for label in strings.WEEKDAY_SHORT]
 
     rows: list[list[InlineKeyboardButton]] = [header, weekday_row]
     _, days_in_month = monthrange(year, month_num)

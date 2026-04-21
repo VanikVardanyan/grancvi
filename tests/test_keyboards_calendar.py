@@ -64,8 +64,7 @@ def test_day_callback_packs_pick_action() -> None:
         today=date(2026, 4, 21),
     )
     picked = next(
-        b for b in _all_buttons(kb)
-        if b.callback_data and b.callback_data.startswith("cal:pick")
+        b for b in _all_buttons(kb) if b.callback_data and b.callback_data.startswith("cal:pick")
     )
     restored = CalendarCallback.unpack(picked.callback_data)
     assert restored.action == "pick"

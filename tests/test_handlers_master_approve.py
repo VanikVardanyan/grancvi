@@ -47,9 +47,12 @@ class _Cb:
 
 async def _seed(session: AsyncSession) -> tuple[Master, Client, Service]:
     master = Master(
-        tg_id=1111, name="М",
-        work_hours={"mon": [["10:00", "19:00"]]}, breaks={},
-        slot_step_min=60, timezone="Asia/Yerevan",
+        tg_id=1111,
+        name="М",
+        work_hours={"mon": [["10:00", "19:00"]]},
+        breaks={},
+        slot_step_min=60,
+        timezone="Asia/Yerevan",
     )
     session.add(master)
     await session.flush()
@@ -68,10 +71,13 @@ async def test_confirm_happy_path_notifies_client(session: AsyncSession) -> None
     master, client, service = await _seed(session)
     repo = AppointmentRepository(session)
     appt = await repo.create(
-        master_id=master.id, client_id=client.id, service_id=service.id,
+        master_id=master.id,
+        client_id=client.id,
+        service_id=service.id,
         start_at=datetime(2026, 5, 4, 7, 0, tzinfo=UTC),
         end_at=datetime(2026, 5, 4, 8, 0, tzinfo=UTC),
-        status="pending", source="client_request",
+        status="pending",
+        source="client_request",
         decision_deadline=datetime(2026, 5, 4, 9, 0, tzinfo=UTC),
     )
     await session.commit()
@@ -100,7 +106,9 @@ async def test_confirm_already_processed_gives_alert(session: AsyncSession) -> N
     master, client, service = await _seed(session)
     repo = AppointmentRepository(session)
     appt = await repo.create(
-        master_id=master.id, client_id=client.id, service_id=service.id,
+        master_id=master.id,
+        client_id=client.id,
+        service_id=service.id,
         start_at=datetime(2026, 5, 4, 7, 0, tzinfo=UTC),
         end_at=datetime(2026, 5, 4, 8, 0, tzinfo=UTC),
         status="confirmed",
@@ -131,10 +139,13 @@ async def test_reject_updates_status_and_notifies_client(
     master, client, service = await _seed(session)
     repo = AppointmentRepository(session)
     appt = await repo.create(
-        master_id=master.id, client_id=client.id, service_id=service.id,
+        master_id=master.id,
+        client_id=client.id,
+        service_id=service.id,
         start_at=datetime(2026, 5, 4, 7, 0, tzinfo=UTC),
         end_at=datetime(2026, 5, 4, 8, 0, tzinfo=UTC),
-        status="pending", source="client_request",
+        status="pending",
+        source="client_request",
         decision_deadline=datetime(2026, 5, 4, 9, 0, tzinfo=UTC),
     )
     await session.commit()
@@ -160,9 +171,12 @@ async def test_confirm_skips_client_notify_when_tg_id_missing(
     from src.handlers.master.approve import cb_confirm
 
     master = Master(
-        tg_id=1111, name="М",
-        work_hours={"mon": [["10:00", "19:00"]]}, breaks={},
-        slot_step_min=60, timezone="Asia/Yerevan",
+        tg_id=1111,
+        name="М",
+        work_hours={"mon": [["10:00", "19:00"]]},
+        breaks={},
+        slot_step_min=60,
+        timezone="Asia/Yerevan",
     )
     session.add(master)
     await session.flush()
@@ -173,10 +187,13 @@ async def test_confirm_skips_client_notify_when_tg_id_missing(
     await session.flush()
     repo = AppointmentRepository(session)
     appt = await repo.create(
-        master_id=master.id, client_id=client.id, service_id=service.id,
+        master_id=master.id,
+        client_id=client.id,
+        service_id=service.id,
         start_at=datetime(2026, 5, 4, 7, 0, tzinfo=UTC),
         end_at=datetime(2026, 5, 4, 8, 0, tzinfo=UTC),
-        status="pending", source="client_request",
+        status="pending",
+        source="client_request",
         decision_deadline=datetime(2026, 5, 4, 9, 0, tzinfo=UTC),
     )
     await session.commit()
@@ -200,10 +217,13 @@ async def test_history_empty_client(session: AsyncSession) -> None:
     master, client, service = await _seed(session)
     repo = AppointmentRepository(session)
     appt = await repo.create(
-        master_id=master.id, client_id=client.id, service_id=service.id,
+        master_id=master.id,
+        client_id=client.id,
+        service_id=service.id,
         start_at=datetime(2026, 5, 4, 7, 0, tzinfo=UTC),
         end_at=datetime(2026, 5, 4, 8, 0, tzinfo=UTC),
-        status="pending", source="client_request",
+        status="pending",
+        source="client_request",
         decision_deadline=datetime(2026, 5, 4, 9, 0, tzinfo=UTC),
     )
     await session.commit()
@@ -230,17 +250,23 @@ async def test_history_with_long_history_uses_send_message(
     master, client, service = await _seed(session)
     repo = AppointmentRepository(session)
     appt_pending = await repo.create(
-        master_id=master.id, client_id=client.id, service_id=service.id,
+        master_id=master.id,
+        client_id=client.id,
+        service_id=service.id,
         start_at=datetime(2026, 5, 4, 7, 0, tzinfo=UTC),
         end_at=datetime(2026, 5, 4, 8, 0, tzinfo=UTC),
-        status="pending", source="client_request",
+        status="pending",
+        source="client_request",
     )
     for i in range(8):
         await repo.create(
-            master_id=master.id, client_id=client.id, service_id=service.id,
+            master_id=master.id,
+            client_id=client.id,
+            service_id=service.id,
             start_at=datetime(2026, 1, 1 + i, 7, 0, tzinfo=UTC),
             end_at=datetime(2026, 1, 1 + i, 8, 0, tzinfo=UTC),
-            status="confirmed", source="client_request",
+            status="confirmed",
+            source="client_request",
         )
     await session.commit()
 

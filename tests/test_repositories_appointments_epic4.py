@@ -30,10 +30,7 @@ async def test_list_active_for_month_empty(session: AsyncSession) -> None:
     start = datetime(2026, 5, 1, tzinfo=UTC)
     end = datetime(2026, 6, 1, tzinfo=UTC)
     assert (
-        await repo.list_active_for_month(
-            master.id, month_start_utc=start, month_end_utc=end
-        )
-        == []
+        await repo.list_active_for_month(master.id, month_start_utc=start, month_end_utc=end) == []
     )
 
 
@@ -43,34 +40,49 @@ async def test_list_active_for_month_filters_range_and_status(session: AsyncSess
     repo = AppointmentRepository(session)
 
     in_range = await repo.create(
-        master_id=master.id, client_id=client.id, service_id=service.id,
+        master_id=master.id,
+        client_id=client.id,
+        service_id=service.id,
         start_at=datetime(2026, 5, 10, 8, 0, tzinfo=UTC),
         end_at=datetime(2026, 5, 10, 9, 0, tzinfo=UTC),
-        status="confirmed", source="client_request",
+        status="confirmed",
+        source="client_request",
     )
     pending = await repo.create(
-        master_id=master.id, client_id=client.id, service_id=service.id,
+        master_id=master.id,
+        client_id=client.id,
+        service_id=service.id,
         start_at=datetime(2026, 5, 12, 10, 0, tzinfo=UTC),
         end_at=datetime(2026, 5, 12, 11, 0, tzinfo=UTC),
-        status="pending", source="client_request",
+        status="pending",
+        source="client_request",
     )
     cancelled = await repo.create(
-        master_id=master.id, client_id=client.id, service_id=service.id,
+        master_id=master.id,
+        client_id=client.id,
+        service_id=service.id,
         start_at=datetime(2026, 5, 15, 10, 0, tzinfo=UTC),
         end_at=datetime(2026, 5, 15, 11, 0, tzinfo=UTC),
-        status="cancelled", source="client_request",
+        status="cancelled",
+        source="client_request",
     )
     before = await repo.create(
-        master_id=master.id, client_id=client.id, service_id=service.id,
+        master_id=master.id,
+        client_id=client.id,
+        service_id=service.id,
         start_at=datetime(2026, 4, 28, 10, 0, tzinfo=UTC),
         end_at=datetime(2026, 4, 28, 11, 0, tzinfo=UTC),
-        status="confirmed", source="client_request",
+        status="confirmed",
+        source="client_request",
     )
     after = await repo.create(
-        master_id=master.id, client_id=client.id, service_id=service.id,
+        master_id=master.id,
+        client_id=client.id,
+        service_id=service.id,
         start_at=datetime(2026, 6, 3, 10, 0, tzinfo=UTC),
         end_at=datetime(2026, 6, 3, 11, 0, tzinfo=UTC),
-        status="confirmed", source="client_request",
+        status="confirmed",
+        source="client_request",
     )
     await session.commit()
 
@@ -94,22 +106,31 @@ async def test_list_for_client_orders_desc_and_excludes_pending(
     repo = AppointmentRepository(session)
 
     older = await repo.create(
-        master_id=master.id, client_id=client.id, service_id=service.id,
+        master_id=master.id,
+        client_id=client.id,
+        service_id=service.id,
         start_at=datetime(2026, 1, 1, 10, 0, tzinfo=UTC),
         end_at=datetime(2026, 1, 1, 11, 0, tzinfo=UTC),
-        status="confirmed", source="client_request",
+        status="confirmed",
+        source="client_request",
     )
     newer = await repo.create(
-        master_id=master.id, client_id=client.id, service_id=service.id,
+        master_id=master.id,
+        client_id=client.id,
+        service_id=service.id,
         start_at=datetime(2026, 3, 1, 10, 0, tzinfo=UTC),
         end_at=datetime(2026, 3, 1, 11, 0, tzinfo=UTC),
-        status="cancelled", source="client_request",
+        status="cancelled",
+        source="client_request",
     )
     still_pending = await repo.create(
-        master_id=master.id, client_id=client.id, service_id=service.id,
+        master_id=master.id,
+        client_id=client.id,
+        service_id=service.id,
         start_at=datetime(2026, 4, 1, 10, 0, tzinfo=UTC),
         end_at=datetime(2026, 4, 1, 11, 0, tzinfo=UTC),
-        status="pending", source="client_request",
+        status="pending",
+        source="client_request",
     )
     await session.commit()
 
@@ -126,10 +147,13 @@ async def test_list_for_client_respects_limit(session: AsyncSession) -> None:
 
     for i in range(5):
         await repo.create(
-            master_id=master.id, client_id=client.id, service_id=service.id,
+            master_id=master.id,
+            client_id=client.id,
+            service_id=service.id,
             start_at=datetime(2026, 1, i + 1, 10, 0, tzinfo=UTC),
             end_at=datetime(2026, 1, i + 1, 11, 0, tzinfo=UTC),
-            status="confirmed", source="client_request",
+            status="confirmed",
+            source="client_request",
         )
     await session.commit()
 
@@ -151,10 +175,13 @@ async def test_list_for_client_scoped_by_master(session: AsyncSession) -> None:
 
     repo = AppointmentRepository(session)
     await repo.create(
-        master_id=master_b.id, client_id=client_b.id, service_id=service_b.id,
+        master_id=master_b.id,
+        client_id=client_b.id,
+        service_id=service_b.id,
         start_at=datetime(2026, 1, 1, 10, 0, tzinfo=UTC),
         end_at=datetime(2026, 1, 1, 11, 0, tzinfo=UTC),
-        status="confirmed", source="client_request",
+        status="confirmed",
+        source="client_request",
     )
     await session.commit()
 

@@ -113,9 +113,12 @@ async def test_service_pick_saves_id_and_renders_calendar(
     session: AsyncSession,
 ) -> None:
     master = Master(
-        tg_id=9000, name="М",
-        work_hours={"mon": [["10:00", "19:00"]]}, breaks={},
-        slot_step_min=60, timezone="Asia/Yerevan",
+        tg_id=9000,
+        name="М",
+        work_hours={"mon": [["10:00", "19:00"]]},
+        breaks={},
+        slot_step_min=60,
+        timezone="Asia/Yerevan",
     )
     session.add(master)
     await session.flush()
@@ -147,9 +150,12 @@ async def test_service_pick_saves_id_and_renders_calendar(
 @pytest.mark.asyncio
 async def test_date_pick_renders_slots_or_no_slots(session: AsyncSession) -> None:
     master = Master(
-        tg_id=9001, name="М",
-        work_hours={"mon": [["10:00", "19:00"]]}, breaks={},
-        slot_step_min=60, timezone="Asia/Yerevan",
+        tg_id=9001,
+        name="М",
+        work_hours={"mon": [["10:00", "19:00"]]},
+        breaks={},
+        slot_step_min=60,
+        timezone="Asia/Yerevan",
     )
     session.add(master)
     await session.flush()
@@ -179,9 +185,12 @@ async def test_date_pick_renders_slots_or_no_slots(session: AsyncSession) -> Non
 @pytest.mark.asyncio
 async def test_time_pick_saves_start_and_asks_name(session: AsyncSession) -> None:
     master = Master(
-        tg_id=9100, name="М",
-        work_hours={"mon": [["10:00", "19:00"]]}, breaks={},
-        slot_step_min=60, timezone="Asia/Yerevan",
+        tg_id=9100,
+        name="М",
+        work_hours={"mon": [["10:00", "19:00"]]},
+        breaks={},
+        slot_step_min=60,
+        timezone="Asia/Yerevan",
     )
     session.add(master)
     await session.flush()
@@ -190,6 +199,7 @@ async def test_time_pick_saves_start_and_asks_name(session: AsyncSession) -> Non
     await session.commit()
 
     from src.handlers.client.booking import handle_time_pick
+
     msg = _FakeMsg(from_user=_FakeUser(id=77))
     cb = _FakeCallback(
         data=SlotCallback(hour=14, minute=0).pack(),
@@ -263,10 +273,14 @@ async def test_phone_invalid_retries(session: AsyncSession) -> None:
 @pytest.mark.asyncio
 async def test_phone_valid_renders_confirm(session: AsyncSession) -> None:
     from src.handlers.client.booking import handle_phone
+
     master = Master(
-        tg_id=9200, name="М",
-        work_hours={"mon": [["10:00", "19:00"]]}, breaks={},
-        slot_step_min=60, timezone="Asia/Yerevan",
+        tg_id=9200,
+        name="М",
+        work_hours={"mon": [["10:00", "19:00"]]},
+        breaks={},
+        slot_step_min=60,
+        timezone="Asia/Yerevan",
     )
     session.add(master)
     await session.flush()
@@ -302,10 +316,14 @@ async def test_confirm_creates_pending_and_notifies_master(
     session: AsyncSession,
 ) -> None:
     from src.handlers.client.booking import handle_confirm
+
     master = Master(
-        tg_id=9300, name="М",
-        work_hours={"mon": [["10:00", "19:00"]]}, breaks={},
-        slot_step_min=60, timezone="Asia/Yerevan",
+        tg_id=9300,
+        name="М",
+        work_hours={"mon": [["10:00", "19:00"]]},
+        breaks={},
+        slot_step_min=60,
+        timezone="Asia/Yerevan",
     )
     session.add(master)
     await session.flush()
@@ -344,9 +362,12 @@ async def test_confirm_handles_slot_taken(session: AsyncSession) -> None:
     from src.repositories.appointments import AppointmentRepository
 
     master = Master(
-        tg_id=9400, name="М",
-        work_hours={"mon": [["10:00", "19:00"]]}, breaks={},
-        slot_step_min=60, timezone="Asia/Yerevan",
+        tg_id=9400,
+        name="М",
+        work_hours={"mon": [["10:00", "19:00"]]},
+        breaks={},
+        slot_step_min=60,
+        timezone="Asia/Yerevan",
     )
     session.add(master)
     await session.flush()
@@ -358,10 +379,13 @@ async def test_confirm_handles_slot_taken(session: AsyncSession) -> None:
     repo = AppointmentRepository(session)
     start_at = datetime(2026, 5, 4, 6, 0, tzinfo=UTC)  # 10:00 Yerevan
     await repo.create(
-        master_id=master.id, client_id=existing_client.id, service_id=service.id,
+        master_id=master.id,
+        client_id=existing_client.id,
+        service_id=service.id,
         start_at=start_at,
         end_at=start_at + timedelta(minutes=60),
-        status="confirmed", source="client_request",
+        status="confirmed",
+        source="client_request",
     )
     await session.commit()
 

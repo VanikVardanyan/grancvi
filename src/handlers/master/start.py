@@ -26,12 +26,12 @@ async def handle_start(
     client: Client | None,
     state: FSMContext,
 ) -> None:
+    del client  # client flow handled by the client router
     tg_id = message.from_user.id if message.from_user else None
     log.info(
         "start_received",
         tg_id=tg_id,
         has_master=master is not None,
-        has_client=client is not None,
     )
 
     if master is not None:
@@ -43,12 +43,7 @@ async def handle_start(
         await state.set_state(MasterRegister.waiting_lang)
         await message.answer(strings.LANG_PICK_PROMPT, reply_markup=lang_picker())
         return
-
-    if client is not None:
-        await message.answer(strings.CLIENT_STUB)
-        return
-
-    await message.answer(strings.START_UNKNOWN)
+    # Fall through — the client router picks this up.
 
 
 @router.callback_query(LangPickCallback.filter(), MasterRegister.waiting_lang)

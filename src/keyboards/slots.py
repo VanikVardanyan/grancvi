@@ -30,25 +30,15 @@ def slots_grid(slots: list[datetime], *, tz: ZoneInfo) -> InlineKeyboardMarkup:
             current = []
     if current:
         rows.append(current)
-    rows.append(
-        [InlineKeyboardButton(text=strings.CLIENT_BTN_BACK, callback_data="client_back")]
-    )
+    rows.append([InlineKeyboardButton(text=strings.CLIENT_BTN_BACK, callback_data="client_back")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def confirm_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text=strings.CLIENT_BTN_CONFIRM, callback_data="client_confirm"
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text=strings.CLIENT_BTN_CANCEL, callback_data="client_cancel"
-                )
-            ],
+            [InlineKeyboardButton(text=strings.CLIENT_BTN_CONFIRM, callback_data="client_confirm")],
+            [InlineKeyboardButton(text=strings.CLIENT_BTN_CANCEL, callback_data="client_cancel")],
         ]
     )
 

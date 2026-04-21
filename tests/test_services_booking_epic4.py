@@ -54,16 +54,21 @@ async def test_get_month_load_subtracts_existing_bookings(session: AsyncSession)
 
     repo = AppointmentRepository(session)
     await repo.create(
-        master_id=master.id, client_id=client.id, service_id=service.id,
+        master_id=master.id,
+        client_id=client.id,
+        service_id=service.id,
         start_at=datetime(2026, 5, 4, 6, 0, tzinfo=UTC),
         end_at=datetime(2026, 5, 4, 7, 0, tzinfo=UTC),
-        status="confirmed", source="client_request",
+        status="confirmed",
+        source="client_request",
     )
     await session.commit()
 
     svc = BookingService(session)
     loads = await svc.get_month_load(
-        master=master, service=service, month=date(2026, 5, 1),
+        master=master,
+        service=service,
+        month=date(2026, 5, 1),
         now=datetime(2026, 4, 1, 0, 0, tzinfo=YEREVAN),
     )
     assert loads[date(2026, 5, 4)] == 8
@@ -76,10 +81,13 @@ async def test_list_client_history_delegates_to_repo(session: AsyncSession) -> N
 
     repo = AppointmentRepository(session)
     appt = await repo.create(
-        master_id=master.id, client_id=client.id, service_id=service.id,
+        master_id=master.id,
+        client_id=client.id,
+        service_id=service.id,
         start_at=datetime(2026, 3, 1, 7, 0, tzinfo=UTC),
         end_at=datetime(2026, 3, 1, 8, 0, tzinfo=UTC),
-        status="confirmed", source="client_request",
+        status="confirmed",
+        source="client_request",
     )
     await session.commit()
 

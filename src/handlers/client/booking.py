@@ -98,8 +98,11 @@ async def handle_service_pick(
     await callback.answer()
     if callback.message is not None and hasattr(callback.message, "answer"):
         await _render_calendar(
-            target=callback.message, master=master, service=service,
-            state=state, session=session,
+            target=callback.message,
+            master=master,
+            service=service,
+            state=state,
+            session=session,
         )
 
 
@@ -131,8 +134,11 @@ async def handle_date_pick(
         await callback.answer()
         if callback.message is not None and hasattr(callback.message, "answer"):
             await _render_calendar(
-                target=callback.message, master=master, service=service,
-                state=state, session=session,
+                target=callback.message,
+                master=master,
+                service=service,
+                state=state,
+                session=session,
                 month=date(callback_data.year, callback_data.month, 1),
             )
         return
@@ -150,8 +156,11 @@ async def handle_date_pick(
     if not slots:
         await callback.message.answer(strings.CLIENT_NO_SLOTS)
         await _render_calendar(
-            target=callback.message, master=master, service=service,
-            state=state, session=session,
+            target=callback.message,
+            master=master,
+            service=service,
+            state=state,
+            session=session,
             month=picked.replace(day=1),
         )
         return
@@ -184,8 +193,12 @@ async def handle_time_pick(
 
     tz = ZoneInfo(master.timezone)
     local_start = datetime(
-        picked_day.year, picked_day.month, picked_day.day,
-        callback_data.hour, callback_data.minute, tzinfo=tz,
+        picked_day.year,
+        picked_day.month,
+        picked_day.day,
+        callback_data.hour,
+        callback_data.minute,
+        tzinfo=tz,
     )
     start_at_utc = local_start.astimezone(ZoneInfo("UTC"))
 
@@ -269,8 +282,11 @@ async def handle_back_from_time(
     await callback.answer()
     if callback.message is not None and hasattr(callback.message, "answer"):
         await _render_calendar(
-            target=callback.message, master=master, service=service,
-            state=state, session=session,
+            target=callback.message,
+            master=master,
+            service=service,
+            state=state,
+            session=session,
         )
 
 
@@ -304,7 +320,10 @@ async def handle_confirm(
     svc = BookingService(session)
     try:
         appt = await svc.create_pending(
-            master=master, client=client_row, service=service, start_at=start_at_utc,
+            master=master,
+            client=client_row,
+            service=service,
+            start_at=start_at_utc,
         )
     except SlotAlreadyTaken:
         # After rollback all ORM objects are expired; refresh before re-querying.
@@ -314,7 +333,10 @@ async def handle_confirm(
         await state.set_state(ClientBooking.ChoosingTime)
         tz = ZoneInfo(master.timezone)
         slots = await svc.get_free_slots(
-            master, service, start_at_utc.astimezone(tz).date(), now=now_utc(),
+            master,
+            service,
+            start_at_utc.astimezone(tz).date(),
+            now=now_utc(),
         )
         if callback.message is not None and hasattr(callback.message, "answer"):
             await callback.message.answer(strings.CLIENT_SLOT_TAKEN)
