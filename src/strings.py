@@ -150,6 +150,47 @@ _RU: dict[str, Any] = {
         "Декабрь",
     ],
     "WEEKDAY_SHORT": ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
+    # --- Epic 5: master manual add ---
+    "MANUAL_PICK_CLIENT": "Выбери клиента или создай нового:",
+    "MANUAL_NO_RECENT": "Ещё нет клиентов. Нажми ➕ Новый.",
+    "MANUAL_SEARCH_PROMPT": "Введи 2+ символа (имя или телефон):",
+    "MANUAL_SEARCH_EMPTY": "Ничего не нашёл. Попробуй ещё.",
+    "MANUAL_ASK_NAME": "Имя клиента:",
+    "MANUAL_NAME_BAD": "Минимум 2 символа. Попробуй ещё.",
+    "MANUAL_ASK_PHONE": "Телефон клиента (+374XXXXXXXX):",
+    "MANUAL_PHONE_BAD": "Формат: +374XXXXXXXX. Попробуй ещё.",
+    "MANUAL_PHONE_DUP": "По этому номеру уже есть клиент «{name}». Использовать его?",
+    "MANUAL_ASK_SERVICE": "Выбери услугу:",
+    "MANUAL_ASK_DATE": "Выбери дату:",
+    "MANUAL_ASK_SLOT": "Выбери время или введи нестандартное:",
+    "MANUAL_CUSTOM_PROMPT": (
+        "Введи дату и время: ДД.ММ ЧЧ:ММ (или только ЧЧ:ММ для выбранной даты):"
+    ),
+    "MANUAL_CUSTOM_BAD": "Неверный формат. Пример: 25.04 14:30",
+    "MANUAL_CUSTOM_PAST": "Нельзя в прошлое. Выбери другое время.",
+    "MANUAL_ASK_COMMENT": "Комментарий (или нажми ⏭ Пропустить):",
+    "MANUAL_CONFIRM_CARD": (
+        "Подтверди запись:\n👤 {client}\n📞 {phone}\n💇 {service}\n📅 {date} {time}\n📝 {notes}"
+    ),
+    "MANUAL_SAVED": "✅ Запись сохранена.",
+    "MANUAL_CANCELED": "Отменено.",
+    "MANUAL_SLOT_TAKEN": "Этот слот только что занят. Выбери другой.",
+    "MANUAL_BTN_SEARCH": "🔍 Поиск",
+    "MANUAL_BTN_NEW": "➕ Новый",
+    "MANUAL_BTN_SEARCH_CANCEL": "⬅ Отмена поиска",
+    "MANUAL_BTN_DUP_USE": "Да, использовать",
+    "MANUAL_BTN_DUP_RETRY": "Отмена — ввести другой",
+    "MANUAL_BTN_CUSTOM_TIME": "➕ Нестандартное время",
+    "MANUAL_BTN_BACK": "⬅ Назад",
+    "MANUAL_BTN_SKIP": "⏭ Пропустить",
+    "MANUAL_BTN_SAVE": "✅ Сохранить",
+    "MANUAL_BTN_CANCEL": "❌ Отмена",
+    # --- client-side cancellation + notification ---
+    "CLIENT_NOTIFY_MANUAL": "Врач записал вас на {date} {time} — {service}.",
+    "CLIENT_CANCEL_BUTTON": "❌ Отменить запись",
+    "CLIENT_CANCEL_DONE": "Запись отменена.",
+    "CLIENT_CANCEL_UNAVAILABLE": "Запись уже недоступна.",
+    "MASTER_NOTIFY_CLIENT_CANCELED": "Клиент {name} отменил запись: {date} {time} — {service}.",
 }
 
 _HY: dict[str, Any] = {
@@ -275,6 +316,47 @@ _HY: dict[str, Any] = {
         "Декабрь",
     ],
     "WEEKDAY_SHORT": ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
+    # --- Epic 5: master manual add ---
+    "MANUAL_PICK_CLIENT": "Выбери клиента или создай нового:",
+    "MANUAL_NO_RECENT": "Ещё нет клиентов. Нажми ➕ Новый.",
+    "MANUAL_SEARCH_PROMPT": "Введи 2+ символа (имя или телефон):",
+    "MANUAL_SEARCH_EMPTY": "Ничего не нашёл. Попробуй ещё.",
+    "MANUAL_ASK_NAME": "Имя клиента:",
+    "MANUAL_NAME_BAD": "Минимум 2 символа. Попробуй ещё.",
+    "MANUAL_ASK_PHONE": "Телефон клиента (+374XXXXXXXX):",
+    "MANUAL_PHONE_BAD": "Формат: +374XXXXXXXX. Попробуй ещё.",
+    "MANUAL_PHONE_DUP": "По этому номеру уже есть клиент «{name}». Использовать его?",
+    "MANUAL_ASK_SERVICE": "Выбери услугу:",
+    "MANUAL_ASK_DATE": "Выбери дату:",
+    "MANUAL_ASK_SLOT": "Выбери время или введи нестандартное:",
+    "MANUAL_CUSTOM_PROMPT": (
+        "Введи дату и время: ДД.ММ ЧЧ:ММ (или только ЧЧ:ММ для выбранной даты):"
+    ),
+    "MANUAL_CUSTOM_BAD": "Неверный формат. Пример: 25.04 14:30",
+    "MANUAL_CUSTOM_PAST": "Нельзя в прошлое. Выбери другое время.",
+    "MANUAL_ASK_COMMENT": "Комментарий (или нажми ⏭ Пропустить):",
+    "MANUAL_CONFIRM_CARD": (
+        "Подтверди запись:\n👤 {client}\n📞 {phone}\n💇 {service}\n📅 {date} {time}\n📝 {notes}"
+    ),
+    "MANUAL_SAVED": "✅ Запись сохранена.",
+    "MANUAL_CANCELED": "Отменено.",
+    "MANUAL_SLOT_TAKEN": "Этот слот только что занят. Выбери другой.",
+    "MANUAL_BTN_SEARCH": "🔍 Поиск",
+    "MANUAL_BTN_NEW": "➕ Новый",
+    "MANUAL_BTN_SEARCH_CANCEL": "⬅ Отмена поиска",
+    "MANUAL_BTN_DUP_USE": "Да, использовать",
+    "MANUAL_BTN_DUP_RETRY": "Отмена — ввести другой",
+    "MANUAL_BTN_CUSTOM_TIME": "➕ Нестандартное время",
+    "MANUAL_BTN_BACK": "⬅ Назад",
+    "MANUAL_BTN_SKIP": "⏭ Пропустить",
+    "MANUAL_BTN_SAVE": "✅ Сохранить",
+    "MANUAL_BTN_CANCEL": "❌ Отмена",
+    # --- client-side cancellation + notification ---
+    "CLIENT_NOTIFY_MANUAL": "Врач записал вас на {date} {time} — {service}.",
+    "CLIENT_CANCEL_BUTTON": "❌ Отменить запись",
+    "CLIENT_CANCEL_DONE": "Запись отменена.",
+    "CLIENT_CANCEL_UNAVAILABLE": "Запись уже недоступна.",
+    "MASTER_NOTIFY_CLIENT_CANCELED": "Клиент {name} отменил запись: {date} {time} — {service}.",
 }
 
 _BUNDLES: dict[str, dict[str, Any]] = {"ru": _RU, "hy": _HY}
