@@ -151,13 +151,13 @@ async def cb_day_nav(
             await _safe_edit(callback.message, text, kb)
         return
     # Epic 6: re-enabled in Task 12
-    # if action == "calendar":
-    #     from src.handlers.master.calendar import render_calendar
-    #
-    #     text, kb = await render_calendar(session=session, master=master, month=None)
-    #     if callback.message is not None and hasattr(callback.message, "edit_text"):
-    #         await callback.message.edit_text(text, reply_markup=kb)
-    #     return
+    if action == "calendar":
+        from src.handlers.master.calendar import render_calendar
+
+        text, kb = await render_calendar(session=session, master=master, month=None)
+        if isinstance(callback.message, Message):
+            await _safe_edit(callback.message, text, kb)
+        return
     if action == "add":
         await state.clear()
         await state.set_state(MasterAdd.PickingClient)
