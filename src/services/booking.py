@@ -248,6 +248,45 @@ class BookingService:
             now=n,
         )
 
+    async def _mark_past(
+        self,
+        appointment_id: UUID,
+        *,
+        master: Master,
+        new_status: str,
+        now: datetime | None,
+    ) -> Appointment:
+        n = now if now is not None else now_utc()
+        appt = await self._repo.get(appointment_id, master_id=master.id)
+        if appt is None:
+            raise NotFound(str(appointment_id))
+        if appt.status != "confirmed":
+            raise InvalidState(f"cannot {new_status} from status={appt.status!r}")
+        if appt.end_at > n:
+            raise InvalidState("appointment has not ended yet")
+        appt.status = new_status
+        return appt
+
+    async def mark_completed(
+        self,
+        appointment_id: UUID,
+        *,
+        master: Master,
+        now: datetime | None = None,
+    ) -> Appointment:
+        """Promote a confirmed, already-ended appointment to `completed`."""
+        return await self._mark_past(appointment_id, master=master, new_status="completed", now=now)
+
+    async def mark_no_show(
+        self,
+        appointment_id: UUID,
+        *,
+        master: Master,
+        now: datetime | None = None,
+    ) -> Appointment:
+        """Same preconditions as mark_completed; sets status='no_show'."""
+        return await self._mark_past(appointment_id, master=master, new_status="no_show", now=now)
+
     async def list_client_history(
         self,
         master: Master,
