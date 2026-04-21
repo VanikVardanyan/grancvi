@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import structlog
 from aiogram import Router
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, Filter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.callback_data.register import LangPickCallback
 from src.config import settings
-from src.db.models import Client, Master
+from src.db.models import Master
 from src.fsm.master_register import MasterRegister
 from src.keyboards.common import lang_picker, main_menu
 from src.repositories.masters import MasterRepository
@@ -19,14 +19,28 @@ router = Router(name="master_start")
 log: structlog.stdlib.BoundLogger = structlog.get_logger()
 
 
-@router.message(CommandStart())
+class _IsMasterOrAdmin(Filter):
+    """Match only when the sender is the registered master or an admin tg_id.
+
+    Without this gate, the master router's CommandStart() would swallow /start
+    from any user (aiogram dispatches to the first matching handler), so the
+    client router would never get a chance.
+    """
+
+    async def __call__(self, message: Message, master: Master | None = None) -> bool:
+        if master is not None:
+            return True
+        return bool(
+            message.from_user and message.from_user.id in settings.admin_tg_ids
+        )
+
+
+@router.message(CommandStart(), _IsMasterOrAdmin())
 async def handle_start(
     message: Message,
     master: Master | None,
-    client: Client | None,
     state: FSMContext,
 ) -> None:
-    del client  # client flow handled by the client router
     tg_id = message.from_user.id if message.from_user else None
     log.info(
         "start_received",
@@ -39,11 +53,8 @@ async def handle_start(
         await message.answer(strings.START_WELCOME_BACK, reply_markup=main_menu())
         return
 
-    if tg_id is not None and tg_id in settings.admin_tg_ids:
-        await state.set_state(MasterRegister.waiting_lang)
-        await message.answer(strings.LANG_PICK_PROMPT, reply_markup=lang_picker())
-        return
-    # Fall through — the client router picks this up.
+    await state.set_state(MasterRegister.waiting_lang)
+    await message.answer(strings.LANG_PICK_PROMPT, reply_markup=lang_picker())
 
 
 @router.callback_query(LangPickCallback.filter(), MasterRegister.waiting_lang)
