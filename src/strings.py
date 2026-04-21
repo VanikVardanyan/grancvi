@@ -88,6 +88,60 @@ _RU: dict[str, Any] = {
     },
     "CLIENT_STUB": "Привет! Запись через меню клиники появится позже.",
     "SECTION_COMING_SOON": "Раздел «{section}» — скоро.",
+    # --- Epic 4: client booking ---
+    "CLIENT_START_NO_MASTER": "Бот пока не настроен. Попросите мастера запустить его.",
+    "CLIENT_CHOOSE_SERVICE": "Выберите услугу:",
+    "CLIENT_NO_SERVICES": "У мастера пока нет услуг. Попробуйте позже.",
+    "CLIENT_CHOOSE_DATE": "Выберите дату:",
+    "CLIENT_CHOOSE_TIME": "Свободные слоты на {date}:",
+    "CLIENT_NO_SLOTS": "На этот день свободных слотов нет. Выберите другую дату.",
+    "CLIENT_ASK_NAME": "Как вас зовут?",
+    "CLIENT_BAD_NAME": "Пожалуйста, введите имя (1–60 символов).",
+    "CLIENT_ASK_PHONE": "Телефон в формате +374 XX XXX XXX:",
+    "CLIENT_BAD_PHONE": "Не разобрал номер. Пример: +374 99 123 456",
+    "CLIENT_CONFIRM_TITLE": (
+        "📋 Проверьте запись:\n"
+        "🧑\u200d⚕️ Услуга: {service}\n"
+        "📅 {date} в {time}\n"
+        "👤 {name}\n"
+        "📞 {phone}\n\n"
+        "Подтвердить?"
+    ),
+    "CLIENT_BTN_CONFIRM": "✅ Подтвердить",
+    "CLIENT_BTN_CANCEL": "❌ Отменить",
+    "CLIENT_BTN_BACK": "← Назад",
+    "CLIENT_SENT": "Заявка отправлена мастеру. Ждите подтверждения.",
+    "CLIENT_CANCELLED": "Запись отменена.",
+    "CLIENT_SLOT_TAKEN": "Этот слот только что заняли. Выберите другое время.",
+    "CLIENT_APPT_CONFIRMED": "Мастер подтвердил вашу запись на {date} в {time}. До встречи!",
+    "CLIENT_APPT_REJECTED": "К сожалению, мастер отклонил запись на {date} в {time}.",
+    # --- Epic 4: master approval ---
+    "APPT_NOTIFY_MASTER": (
+        "🔔 Новая заявка\n"
+        "🧑 {name}\n"
+        "📞 {phone}\n"
+        "🧑\u200d⚕️ {service} ({duration} мин)\n"
+        "📅 {date} в {time} ({weekday})"
+    ),
+    "APPT_BTN_CONFIRM": "✅ Подтвердить",
+    "APPT_BTN_REJECT": "❌ Отклонить",
+    "APPT_BTN_HISTORY": "📋 История клиента",
+    "APPT_ALREADY_PROCESSED": "Эта заявка уже обработана.",
+    "APPT_CONFIRMED_STAMP": "\n\n✅ Подтверждено в {time}",
+    "APPT_REJECTED_STAMP": "\n\n❌ Отклонено в {time}",
+    "APPT_HISTORY_TITLE": "История клиента {name} (последние {limit}):",
+    "APPT_HISTORY_LINE": "• {date} {time} — {service} — {status}",
+    "APPT_HISTORY_EMPTY": "У клиента пока нет истории записей.",
+    "APPT_STATUS_CONFIRMED": "✅ подтверждено",
+    "APPT_STATUS_CANCELLED": "❌ отменено",
+    "APPT_STATUS_REJECTED": "❌ отклонено",
+    "APPT_STATUS_COMPLETED": "☑️ завершено",
+    "APPT_STATUS_NO_SHOW": "⚠️ не пришёл",
+    "MONTH_NAMES": [
+        "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+        "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь",
+    ],
+    "WEEKDAY_SHORT": ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
 }
 
 _HY: dict[str, Any] = {
@@ -151,6 +205,60 @@ _HY: dict[str, Any] = {
     },
     "CLIENT_STUB": "Барев. Клиникайи менyуиc грancуmн кавелана авели ушов.",
     "SECTION_COMING_SOON": "«{section}» бажины шутов.",
+    # --- Epic 4: client booking ---
+    "CLIENT_START_NO_MASTER": "Бот пока не настроен. Попросите мастера запустить его.",
+    "CLIENT_CHOOSE_SERVICE": "Выберите услугу:",
+    "CLIENT_NO_SERVICES": "У мастера пока нет услуг. Попробуйте позже.",
+    "CLIENT_CHOOSE_DATE": "Выберите дату:",
+    "CLIENT_CHOOSE_TIME": "Свободные слоты на {date}:",
+    "CLIENT_NO_SLOTS": "На этот день свободных слотов нет. Выберите другую дату.",
+    "CLIENT_ASK_NAME": "Как вас зовут?",
+    "CLIENT_BAD_NAME": "Пожалуйста, введите имя (1–60 символов).",
+    "CLIENT_ASK_PHONE": "Телефон в формате +374 XX XXX XXX:",
+    "CLIENT_BAD_PHONE": "Не разобрал номер. Пример: +374 99 123 456",
+    "CLIENT_CONFIRM_TITLE": (
+        "📋 Проверьте запись:\n"
+        "🧑\u200d⚕️ Услуга: {service}\n"
+        "📅 {date} в {time}\n"
+        "👤 {name}\n"
+        "📞 {phone}\n\n"
+        "Подтвердить?"
+    ),
+    "CLIENT_BTN_CONFIRM": "✅ Подтвердить",
+    "CLIENT_BTN_CANCEL": "❌ Отменить",
+    "CLIENT_BTN_BACK": "← Назад",
+    "CLIENT_SENT": "Заявка отправлена мастеру. Ждите подтверждения.",
+    "CLIENT_CANCELLED": "Запись отменена.",
+    "CLIENT_SLOT_TAKEN": "Этот слот только что заняли. Выберите другое время.",
+    "CLIENT_APPT_CONFIRMED": "Мастер подтвердил вашу запись на {date} в {time}. До встречи!",
+    "CLIENT_APPT_REJECTED": "К сожалению, мастер отклонил запись на {date} в {time}.",
+    # --- Epic 4: master approval ---
+    "APPT_NOTIFY_MASTER": (
+        "🔔 Новая заявка\n"
+        "🧑 {name}\n"
+        "📞 {phone}\n"
+        "🧑\u200d⚕️ {service} ({duration} мин)\n"
+        "📅 {date} в {time} ({weekday})"
+    ),
+    "APPT_BTN_CONFIRM": "✅ Подтвердить",
+    "APPT_BTN_REJECT": "❌ Отклонить",
+    "APPT_BTN_HISTORY": "📋 История клиента",
+    "APPT_ALREADY_PROCESSED": "Эта заявка уже обработана.",
+    "APPT_CONFIRMED_STAMP": "\n\n✅ Подтверждено в {time}",
+    "APPT_REJECTED_STAMP": "\n\n❌ Отклонено в {time}",
+    "APPT_HISTORY_TITLE": "История клиента {name} (последние {limit}):",
+    "APPT_HISTORY_LINE": "• {date} {time} — {service} — {status}",
+    "APPT_HISTORY_EMPTY": "У клиента пока нет истории записей.",
+    "APPT_STATUS_CONFIRMED": "✅ подтверждено",
+    "APPT_STATUS_CANCELLED": "❌ отменено",
+    "APPT_STATUS_REJECTED": "❌ отклонено",
+    "APPT_STATUS_COMPLETED": "☑️ завершено",
+    "APPT_STATUS_NO_SHOW": "⚠️ не пришёл",
+    "MONTH_NAMES": [
+        "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+        "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь",
+    ],
+    "WEEKDAY_SHORT": ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
 }
 
 _BUNDLES: dict[str, dict[str, Any]] = {"ru": _RU, "hy": _HY}
