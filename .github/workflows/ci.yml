@@ -1,0 +1,65 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: botik
+          POSTGRES_PASSWORD: botik
+          POSTGRES_DB: botik_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd="pg_isready -U botik"
+          --health-interval=3s
+          --health-timeout=3s
+          --health-retries=20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=3s
+          --health-timeout=3s
+          --health-retries=20
+    env:
+      DATABASE_URL: postgresql+asyncpg://botik:botik@localhost:5432/botik_test
+      REDIS_URL: redis://localhost:6379/0
+      BOT_TOKEN: dummy
+      ADMIN_TG_IDS: "0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.5.4"
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Sync deps
+        run: uv sync --frozen
+
+      - name: Ruff lint
+        run: uv run ruff check .
+
+      - name: Ruff format check
+        run: uv run ruff format --check .
+
+      - name: Mypy
+        run: uv run mypy src/
+
+      - name: Pytest
+        run: uv run pytest -q
