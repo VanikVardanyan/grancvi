@@ -35,11 +35,14 @@ class MasterRepository:
         *,
         tg_id: int,
         name: str,
+        slug: str,
         phone: str | None = None,
         timezone: str = "Asia/Yerevan",
         lang: str = "ru",
     ) -> Master:
-        master = Master(tg_id=tg_id, name=name, phone=phone, timezone=timezone, lang=lang)
+        master = Master(
+            tg_id=tg_id, name=name, slug=slug, phone=phone, timezone=timezone, lang=lang
+        )
         self._session.add(master)
         await self._session.flush()
         return master
