@@ -6,6 +6,7 @@ from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.callback_data.registration import SlugConfirmCallback, SpecialtyHintCallback
+from src.config import settings
 from src.exceptions import InvalidSlug, ReservedSlug, SlugTaken
 from src.fsm.master_register import MasterRegister
 from src.keyboards.common import main_menu
@@ -90,7 +91,7 @@ async def _accept_specialty(
     await state.set_state(MasterRegister.waiting_slug_confirm)
     if message is not None:
         await message.answer(
-            strings.REGISTER_SLUG_CONFIRM_FMT.format(slug=slug),
+            strings.REGISTER_SLUG_CONFIRM_FMT.format(slug=slug, username=settings.bot_username),
             reply_markup=slug_confirm_kb(),
         )
 

@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     )
 
     bot_token: str
+    bot_username: str = "GrancviBot"
     database_url: str
     redis_url: str
     # Env var accepts comma-separated integers: "111,222,333"

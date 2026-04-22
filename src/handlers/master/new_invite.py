@@ -5,6 +5,7 @@ from aiogram.filters import Command
 from aiogram.types import Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.config import settings
 from src.db.models import Master
 from src.services.invite import InviteService
 from src.strings import strings
@@ -20,7 +21,7 @@ async def cmd_new_invite(
 ) -> None:
     svc = InviteService(session)
     invite = await svc.create_invite(actor_tg_id=master.tg_id)
-    link = f"https://t.me/grancvi_bot?start=invite_{invite.code}"
+    link = f"https://t.me/{settings.bot_username}?start=invite_{invite.code}"
     text = strings.INVITE_CREATED_FMT.format(
         code=invite.code,
         link=link,
@@ -42,7 +43,7 @@ async def handle_new_invite_cmd(
         actor_tg = message.from_user.id if message.from_user else 0
         svc = InviteService(session)
         invite = await svc.create_invite(actor_tg_id=actor_tg)
-        link = f"https://t.me/grancvi_bot?start=invite_{invite.code}"
+        link = f"https://t.me/{settings.bot_username}?start=invite_{invite.code}"
         await message.answer(
             strings.INVITE_CREATED_FMT.format(
                 code=invite.code,
