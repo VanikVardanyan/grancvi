@@ -14,6 +14,7 @@ from src.repositories.appointments import AppointmentRepository
 from src.repositories.clients import ClientRepository
 from src.repositories.services import ServiceRepository
 from src.services.booking import BookingService
+from src.services.reminders import ReminderService
 from src.strings import strings
 from src.utils.time import now_utc
 
@@ -72,7 +73,8 @@ async def cb_confirm(
     session: AsyncSession,
     bot: Bot,
 ) -> None:
-    svc = BookingService(session)
+    reminder_svc = ReminderService(session)
+    svc = BookingService(session, reminder_service=reminder_svc)
     try:
         appt = await svc.confirm(callback_data.appointment_id, master_id=master.id)
     except (NotFound, InvalidState):

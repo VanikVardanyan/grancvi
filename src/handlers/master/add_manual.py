@@ -40,6 +40,7 @@ from src.keyboards.slots import services_pick_kb
 from src.repositories.clients import ClientRepository
 from src.repositories.services import ServiceRepository
 from src.services.booking import BookingService
+from src.services.reminders import ReminderService
 from src.strings import strings
 from src.utils.phone import normalize as normalize_phone
 from src.utils.time import now_utc
@@ -490,7 +491,8 @@ async def cb_confirm_save(
 
     start_at = datetime.fromisoformat(data["start_at"])
     comment: str | None = data.get("comment")
-    svc = BookingService(session)
+    reminder_svc = ReminderService(session)
+    svc = BookingService(session, reminder_service=reminder_svc)
     try:
         appt = await svc.create_manual(
             master=master, client=client, service=service, start_at=start_at, comment=comment

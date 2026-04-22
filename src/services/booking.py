@@ -12,6 +12,7 @@ from src.db.models import Appointment, Client, Master, Service
 from src.exceptions import InvalidState, NotFound, SlotAlreadyTaken
 from src.repositories.appointments import AppointmentRepository
 from src.services.availability import calculate_day_loads, calculate_free_slots
+from src.services.reminders import ReminderService
 from src.utils.time import now_utc
 
 
@@ -24,9 +25,15 @@ class BookingService:
     mutate in-place and rely on the DB middleware to commit on success.
     """
 
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        *,
+        reminder_service: ReminderService | None = None,
+    ) -> None:
         self._session = session
         self._repo = AppointmentRepository(session)
+        self._reminder_service = reminder_service
 
     async def get_free_slots(
         self,
@@ -105,6 +112,8 @@ class BookingService:
             raise InvalidState(f"cannot confirm from status={appt.status!r}")
         appt.status = "confirmed"
         appt.confirmed_at = n
+        if self._reminder_service is not None:
+            await self._reminder_service.schedule_for_appointment(appt, now=n)
         return appt
 
     async def reject(
@@ -199,6 +208,9 @@ class BookingService:
                 comment=comment,
                 confirmed_at=n,
             )
+            if self._reminder_service is not None:
+                await self._session.flush()
+                await self._reminder_service.schedule_for_appointment(appt, now=n)
             await self._session.commit()
             return appt
         except IntegrityError as exc:

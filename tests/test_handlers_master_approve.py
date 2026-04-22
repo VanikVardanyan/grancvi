@@ -7,10 +7,11 @@ from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.callback_data.approval import ApprovalCallback
-from src.db.models import Client, Master, Service
+from src.db.models import Client, Master, Reminder, Service
 from src.repositories.appointments import AppointmentRepository
 
 
@@ -278,3 +279,33 @@ async def test_history_with_long_history_uses_send_message(
     await cb_history(cb, callback_data=cb_data, master=master, session=session, bot=bot)
 
     bot.send_message.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_confirm_schedules_three_reminders(session: AsyncSession) -> None:
+    from src.handlers.master.approve import cb_confirm
+
+    master, client, service = await _seed(session)
+    repo = AppointmentRepository(session)
+    appt = await repo.create(
+        master_id=master.id,
+        client_id=client.id,
+        service_id=service.id,
+        start_at=datetime(2030, 5, 4, 12, 0, tzinfo=UTC),
+        end_at=datetime(2030, 5, 4, 13, 0, tzinfo=UTC),
+        status="pending",
+        source="client_request",
+        decision_deadline=datetime(2030, 5, 4, 10, 0, tzinfo=UTC),
+    )
+    await session.commit()
+
+    msg = _Msg(from_user=_User(id=master.tg_id), text="🔔 Новая заявка")
+    cb = _Cb(from_user=_User(id=master.tg_id), message=msg)
+    bot = AsyncMock()
+    cb_data = ApprovalCallback(action="confirm", appointment_id=appt.id)
+
+    await cb_confirm(cb, callback_data=cb_data, master=master, session=session, bot=bot)
+    await session.commit()
+
+    kinds = {r.kind for r in (await session.scalars(select(Reminder))).all()}
+    assert kinds == {"day_before", "two_hours", "master_before"}
