@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 from aiogram import F, Router
+from aiogram.filters import CommandStart
+from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.db.models import Master
 from src.handlers.admin.invites_admin import cmd_admin_invites
 from src.handlers.admin.masters import cmd_admin_masters
 from src.handlers.admin.moderation import cmd_admin_moderation
 from src.handlers.admin.stats import cmd_admin_stats
+from src.keyboards.admin import admin_menu
 from src.keyboards.common import main_menu
 from src.strings import get_bundle, strings
 
@@ -15,6 +19,20 @@ router = Router(name="admin_menu")
 
 _RU = get_bundle("ru")
 _HY = get_bundle("hy")
+
+
+@router.message(CommandStart())
+async def handle_admin_start(
+    message: Message,
+    master: Master | None,
+    state: FSMContext,
+    session: AsyncSession,
+    is_admin: bool = False,
+) -> None:
+    if not is_admin or master is not None:
+        return
+    await state.clear()
+    await message.answer(strings.ADMIN_MENU_TITLE, reply_markup=admin_menu())
 
 
 @router.message(F.text.in_({_RU.ADMIN_MENU_MASTERS, _HY.ADMIN_MENU_MASTERS}))
