@@ -14,6 +14,7 @@ from src.db.base import SessionMaker
 from src.fsm_storage import build_fsm_storage
 from src.handlers import build_root_router
 from src.middlewares.admin import AdminMiddleware
+from src.middlewares.blocked_guard import BlockedMasterGuardMiddleware
 from src.middlewares.db import DbSessionMiddleware
 from src.middlewares.lang import LangMiddleware
 from src.middlewares.user import UserMiddleware
@@ -107,6 +108,7 @@ def build_dispatcher() -> Dispatcher:
     dp = Dispatcher(storage=storage)
     dp.update.middleware(DbSessionMiddleware(SessionMaker))
     dp.update.middleware(UserMiddleware())
+    dp.update.middleware(BlockedMasterGuardMiddleware())
     dp.update.middleware(AdminMiddleware())
     dp.update.middleware(LangMiddleware())
     dp.include_router(build_root_router())
