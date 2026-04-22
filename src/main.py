@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from functools import partial
 
 import structlog
 from aiogram import Bot, Dispatcher
+from apscheduler.triggers.cron import CronTrigger
 
 from src.config import settings
 from src.db.base import SessionMaker
@@ -13,6 +15,8 @@ from src.handlers import build_root_router
 from src.middlewares.db import DbSessionMiddleware
 from src.middlewares.lang import LangMiddleware
 from src.middlewares.user import UserMiddleware
+from src.scheduler.jobs import expire_pending_appointments, send_due_reminders
+from src.scheduler.setup import build_scheduler
 
 
 def configure_logging() -> None:
@@ -44,10 +48,27 @@ async def main() -> None:
     configure_logging()
     bot = Bot(token=settings.bot_token)
     dp = build_dispatcher()
+
+    scheduler = build_scheduler(settings.redis_url)
+    scheduler.add_job(
+        partial(send_due_reminders, bot=bot, session_factory=SessionMaker),
+        trigger=CronTrigger(minute="*"),
+        id="send_due_reminders",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        partial(expire_pending_appointments, bot=bot, session_factory=SessionMaker),
+        trigger=CronTrigger(minute="*/5"),
+        id="expire_pending_appointments",
+        replace_existing=True,
+    )
+
     log.info("bot_starting")
+    scheduler.start()
     try:
         await dp.start_polling(bot)
     finally:
+        scheduler.shutdown(wait=True)
         await bot.session.close()
 
 
