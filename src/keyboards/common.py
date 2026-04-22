@@ -27,6 +27,7 @@ def main_menu() -> ReplyKeyboardMarkup:
                 KeyboardButton(text=strings.MAIN_MENU_CLIENT),
             ],
             [
+                KeyboardButton(text=strings.MAIN_MENU_MY_LINK),
                 KeyboardButton(text=strings.MAIN_MENU_SETTINGS),
             ],
         ],

@@ -28,3 +28,9 @@ def test_main_menu_is_persistent_and_resized() -> None:
     kb = main_menu()
     assert kb.is_persistent is True
     assert kb.resize_keyboard is True
+
+
+def test_main_menu_contains_my_link_button_in_ru() -> None:
+    ru = get_bundle("ru")
+    texts = _all_button_texts()
+    assert ru.MAIN_MENU_MY_LINK in texts
