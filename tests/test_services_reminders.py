@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import select
@@ -98,3 +99,29 @@ async def test_schedule_is_idempotent(session: AsyncSession) -> None:
     assert second == 0
     rows = list((await session.scalars(select(Reminder))).all())
     assert len(rows) == 3
+
+
+@pytest.mark.asyncio
+async def test_suppress_marks_all_unsent(session: AsyncSession) -> None:
+    start = datetime(2026, 5, 4, 12, 0, tzinfo=UTC)
+    now = start - timedelta(days=2)
+    appt = await _seed_appt(session, start_at=start)
+
+    svc = ReminderService(session)
+    await svc.schedule_for_appointment(appt, now=now)
+
+    suppress_now = start - timedelta(hours=23)
+    count = await svc.suppress_for_appointment(appt.id, now=suppress_now)
+
+    assert count == 3
+    rows = list((await session.scalars(select(Reminder))).all())
+    for r in rows:
+        assert r.sent is True
+        assert r.sent_at == suppress_now
+
+
+@pytest.mark.asyncio
+async def test_suppress_no_op_when_no_reminders(session: AsyncSession) -> None:
+    svc = ReminderService(session)
+    count = await svc.suppress_for_appointment(uuid4(), now=datetime.now(UTC))
+    assert count == 0

@@ -33,3 +33,9 @@ class ReminderService:
             if send_at > n:
                 rows.append((appointment.id, kind, send_at))
         return await self._repo.insert_many(rows)
+
+    async def suppress_for_appointment(
+        self, appointment_id: UUID, *, now: datetime | None = None
+    ) -> int:
+        n = now if now is not None else now_utc()
+        return await self._repo.suppress_for_appointment(appointment_id, now=n)
