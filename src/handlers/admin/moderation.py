@@ -1,19 +1,29 @@
 from __future__ import annotations
 
+import structlog
 from aiogram import Bot, Router
 from aiogram.filters import Command, CommandObject
 from aiogram.types import Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.keyboards.admin import admin_menu
 from src.repositories.masters import MasterRepository
 from src.services.moderation import ModerationService
 from src.strings import strings
 
 router = Router(name="admin_moderation")
+log: structlog.stdlib.BoundLogger = structlog.get_logger()
 
 
 async def cmd_admin_moderation(*, message: Message, session: AsyncSession) -> None:
-    await message.answer(strings.ADMIN_MENU_MODERATION)
+    from src.keyboards.admin import masters_list_kb
+
+    repo = MasterRepository(session)
+    masters = await repo.list_all()
+    if not masters:
+        await message.answer(strings.ADMIN_MASTERS_EMPTY)
+        return
+    await message.answer(strings.ADMIN_MASTERS_HEADER, reply_markup=masters_list_kb(masters))
 
 
 async def cmd_block_master(
@@ -31,9 +41,19 @@ async def cmd_block_master(
     svc = ModerationService(session)
     result = await svc.block_master(master.id)
     for info in result.rejected:
-        if info.client_tg_id is not None:
-            await bot.send_message(info.client_tg_id, strings.CLIENT_APPT_REJECTED_BLOCK)
-    await message.answer(strings.ADMIN_BLOCK_DONE_FMT.format(slug=slug, n=len(result.rejected)))
+        if info.client_tg_id is None:
+            continue
+        try:
+            await bot.send_message(
+                chat_id=info.client_tg_id,
+                text=strings.CLIENT_APPT_REJECTED_BLOCK,
+            )
+        except Exception as e:
+            log.warning("notify_failed", tg_id=info.client_tg_id, err=str(e))
+    await message.answer(
+        strings.ADMIN_BLOCK_DONE_FMT.format(slug=slug, n=len(result.rejected)),
+        reply_markup=admin_menu(),
+    )
 
 
 async def cmd_unblock_master(
@@ -49,7 +69,10 @@ async def cmd_unblock_master(
         return
     svc = ModerationService(session)
     await svc.unblock_master(master.id)
-    await message.answer(strings.ADMIN_UNBLOCK_DONE_FMT.format(slug=slug))
+    await message.answer(
+        strings.ADMIN_UNBLOCK_DONE_FMT.format(slug=slug),
+        reply_markup=admin_menu(),
+    )
 
 
 @router.message(Command("block"))
