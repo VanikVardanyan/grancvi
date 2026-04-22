@@ -48,6 +48,25 @@ async def test_client_button_dispatches_to_cmd_client() -> None:
 
 
 @pytest.mark.asyncio
+async def test_my_link_button_dispatches_to_cmd_mylink() -> None:
+    message = AsyncMock()
+    master = AsyncMock(id=uuid4())
+
+    with patch.object(menu_mod, "cmd_mylink", new=AsyncMock()) as mocked:
+        await menu_mod.handle_my_link(message=message, master=master)
+
+    mocked.assert_awaited_once_with(message=message, master=master)
+
+
+@pytest.mark.asyncio
+async def test_my_link_noop_for_non_master() -> None:
+    message = AsyncMock()
+    with patch.object(menu_mod, "cmd_mylink", new=AsyncMock()) as mocked:
+        await menu_mod.handle_my_link(message=message, master=None)
+    mocked.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_new_buttons_noop_for_non_master() -> None:
     message = AsyncMock()
     state = AsyncMock()

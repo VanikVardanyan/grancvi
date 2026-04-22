@@ -6,6 +6,7 @@ from src.handlers.master.add_manual import router as add_manual_router
 from src.handlers.master.approve import router as approve_router
 from src.handlers.master.calendar import router as calendar_router
 from src.handlers.master.client_page import router as client_page_router
+from src.handlers.master.my_link import router as my_link_router
 from src.handlers.master.mark_past import router as mark_past_router
 from src.handlers.master.menu import router as menu_router
 from src.handlers.master.services import router as services_router
@@ -26,5 +27,6 @@ router.include_router(mark_past_router)
 router.include_router(week_router)
 router.include_router(calendar_router)
 router.include_router(client_page_router)
+router.include_router(my_link_router)
 
 __all__ = ["router"]
