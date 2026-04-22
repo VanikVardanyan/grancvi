@@ -168,3 +168,92 @@ async def test_idempotent_second_run_no_resend(
     await send_due_reminders(bot=bot, session_factory=session_maker, now=now)
 
     assert bot.send_message.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_expire_pending_cancels_overdue_and_notifies(
+    session: AsyncSession,
+    session_maker: async_sessionmaker[AsyncSession],
+) -> None:
+    from src.scheduler.jobs import expire_pending_appointments
+
+    master = Master(tg_id=401, name="M", lang="ru", timezone="Asia/Yerevan")
+    session.add(master)
+    await session.flush()
+    client = Client(master_id=master.id, tg_id=402, name="Анна", phone="+37411000401")
+    session.add(client)
+    service = Service(master_id=master.id, name="Стрижка", duration_min=60)
+    session.add(service)
+    await session.flush()
+    start = datetime(2026, 5, 4, 12, 0, tzinfo=UTC)
+    deadline = datetime(2026, 5, 3, 10, 0, tzinfo=UTC)
+    appt = Appointment(
+        master_id=master.id,
+        client_id=client.id,
+        service_id=service.id,
+        start_at=start,
+        end_at=start + timedelta(hours=1),
+        status="pending",
+        source="client_request",
+        decision_deadline=deadline,
+    )
+    session.add(appt)
+    await session.commit()
+
+    bot = AsyncMock()
+    now = deadline + timedelta(hours=1)
+
+    await expire_pending_appointments(bot=bot, session_factory=session_maker, now=now)
+
+    async with session_maker() as s:
+        refreshed = await s.get(Appointment, appt.id)
+        assert refreshed is not None
+        assert refreshed.status == "cancelled"
+        assert refreshed.cancelled_by == "system"
+
+    bot.send_message.assert_awaited_once()
+    kwargs = bot.send_message.await_args.kwargs
+    assert kwargs["chat_id"] == client.tg_id
+    assert "04.05" in kwargs["text"]
+
+
+@pytest.mark.asyncio
+async def test_expire_pending_leaves_fresh_pending(
+    session: AsyncSession,
+    session_maker: async_sessionmaker[AsyncSession],
+) -> None:
+    from src.scheduler.jobs import expire_pending_appointments
+
+    master = Master(tg_id=501, name="M", lang="ru", timezone="Asia/Yerevan")
+    session.add(master)
+    await session.flush()
+    client = Client(master_id=master.id, tg_id=502, name="C", phone="+37411000501")
+    session.add(client)
+    service = Service(master_id=master.id, name="Стрижка", duration_min=60)
+    session.add(service)
+    await session.flush()
+    start = datetime(2026, 5, 4, 12, 0, tzinfo=UTC)
+    deadline = datetime(2026, 5, 3, 10, 0, tzinfo=UTC)
+    appt = Appointment(
+        master_id=master.id,
+        client_id=client.id,
+        service_id=service.id,
+        start_at=start,
+        end_at=start + timedelta(hours=1),
+        status="pending",
+        source="client_request",
+        decision_deadline=deadline,
+    )
+    session.add(appt)
+    await session.commit()
+
+    bot = AsyncMock()
+    now = deadline - timedelta(hours=1)
+
+    await expire_pending_appointments(bot=bot, session_factory=session_maker, now=now)
+
+    async with session_maker() as s:
+        refreshed = await s.get(Appointment, appt.id)
+        assert refreshed is not None
+        assert refreshed.status == "pending"
+    bot.send_message.assert_not_awaited()

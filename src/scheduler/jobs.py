@@ -9,7 +9,9 @@ from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, Teleg
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.db.models import Appointment, Client, Master, Reminder, Service
+from src.repositories.appointments import AppointmentRepository
 from src.repositories.reminders import ReminderRepository
+from src.services.booking import BookingService
 from src.strings import strings
 from src.utils.time import now_utc
 
@@ -110,5 +112,62 @@ async def send_due_reminders(
                 continue
 
             await repo.mark_sent(reminder.id, sent_at=n)
+
+        await session.commit()
+
+
+async def expire_pending_appointments(
+    *,
+    bot: Bot,
+    session_factory: async_sessionmaker[AsyncSession],
+    now: datetime | None = None,
+) -> None:
+    """Cancel pending appointments past decision_deadline and notify the client.
+
+    Master is not notified — their inaction triggered this cancellation.
+    """
+    n = now if now is not None else now_utc()
+    async with session_factory() as session:
+        a_repo = AppointmentRepository(session)
+        pending = await a_repo.get_pending_past_deadline(now=n)
+        if not pending:
+            return
+
+        svc = BookingService(session)
+        for appt in pending:
+            try:
+                await svc.cancel(appt.id, cancelled_by="system", now=n)
+            except Exception as exc:
+                log.error(
+                    "pending_expire_cancel_failed",
+                    appointment_id=str(appt.id),
+                    error=repr(exc),
+                )
+                continue
+
+            client = await session.get(Client, appt.client_id)
+            service = await session.get(Service, appt.service_id)
+            master = await session.get(Master, appt.master_id)
+            if client is None or service is None or master is None:
+                continue
+            if client.tg_id is None:
+                continue
+
+            tz = ZoneInfo(master.timezone)
+            local = appt.start_at.astimezone(tz)
+            text = strings.REMINDER_PENDING_EXPIRED.format(
+                date=local.strftime("%d.%m"),
+                time=local.strftime("%H:%M"),
+                service=service.name,
+            )
+            try:
+                await bot.send_message(chat_id=client.tg_id, text=text)
+            except (TelegramBadRequest, TelegramForbiddenError, TelegramRetryAfter) as exc:
+                log.warning(
+                    "pending_expire_notify_failed",
+                    appointment_id=str(appt.id),
+                    chat_id=client.tg_id,
+                    error=repr(exc),
+                )
 
         await session.commit()
