@@ -1,3 +1,4 @@
+# ruff: noqa: RUF001
 from __future__ import annotations
 
 import asyncio
@@ -63,6 +64,9 @@ _MASTER_COMMANDS: dict[str, list[tuple[str, str]]] = {
         ("add", "Добавить запись вручную"),
         ("client", "🔎 Найти клиента"),
         ("services", "💼 Управление услугами"),
+        ("mylink", "🔗 Моя ссылка"),
+        ("myinvites", "📨 Мои инвайты"),
+        ("new_invite", "Пригласить мастера"),
         ("cancel", "Отменить текущее действие"),
     ],
     "hy": [
@@ -74,16 +78,39 @@ _MASTER_COMMANDS: dict[str, list[tuple[str, str]]] = {
         ("add", "Ավելացնել գրանցում ձեռքով"),
         ("client", "🔎 Գտնել հաճախորդ"),
         ("services", "💼 Ծառայությունների կառավարում"),
+        ("mylink", "🔗 Իմ հղումը"),
+        ("myinvites", "📨 Իմ հրավերները"),
+        ("new_invite", "Հրավիրել վարպետ"),
         ("cancel", "Չեղարկել ընթացիկ գործողությունը"),
+    ],
+}
+
+_ADMIN_EXTRA: dict[str, list[tuple[str, str]]] = {
+    "ru": [
+        ("masters", "👥 Список мастеров"),
+        ("master", "Карточка мастера по slug"),
+        ("stats", "📊 Статистика"),
+        ("invites", "📨 Все инвайты"),
+        ("block", "🚫 Заблокировать мастера"),
+        ("unblock", "✅ Разблокировать мастера"),
+    ],
+    "hy": [
+        ("masters", "👥 Վարպետների ցանկ"),
+        ("master", "Վարպետի քարտ slug-ով"),
+        ("stats", "📊 Վիճակագրություն"),
+        ("invites", "📨 Բոլոր հրավերները"),
+        ("block", "🚫 Արգելափակել վարպետին"),
+        ("unblock", "✅ Վերականգնել վարպետին"),
     ],
 }
 
 
 async def setup_bot_commands(bot: Bot, admin_tg_ids: list[int]) -> None:
-    """Register the Telegram command menu for clients (default) and masters (per-chat).
+    """Register the Telegram command menu by scope.
 
-    Clients see only /start + /cancel. Masters see the full set. Both languages are
-    registered; Telegram picks by the user's `language_code`.
+    Clients see the default scope (/start + /cancel). Admin chat ids get the
+    master command set plus admin-only extras. Telegram picks the language
+    from the user's `language_code`.
     """
     for lang, cmds in _CLIENT_COMMANDS.items():
         await bot.set_my_commands(
@@ -92,9 +119,10 @@ async def setup_bot_commands(bot: Bot, admin_tg_ids: list[int]) -> None:
             language_code=lang,
         )
     for tg_id in admin_tg_ids:
-        for lang, cmds in _MASTER_COMMANDS.items():
+        for lang in ("ru", "hy"):
+            merged = _MASTER_COMMANDS[lang] + _ADMIN_EXTRA[lang]
             await bot.set_my_commands(
-                commands=[BotCommand(command=c, description=d) for c, d in cmds],
+                commands=[BotCommand(command=c, description=d) for c, d in merged],
                 scope=BotCommandScopeChat(chat_id=tg_id),
                 language_code=lang,
             )
