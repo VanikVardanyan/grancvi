@@ -13,6 +13,12 @@ def settings_menu() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
+                    text=strings.SETTINGS_BTN_PROFILE,
+                    callback_data=SettingsCallback(section="profile").pack(),
+                )
+            ],
+            [
+                InlineKeyboardButton(
                     text=strings.SETTINGS_BTN_SERVICES,
                     callback_data=SettingsCallback(section="services").pack(),
                 )
@@ -33,6 +39,18 @@ def settings_menu() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(
                     text=strings.SETTINGS_BTN_LANGUAGE,
                     callback_data=SettingsCallback(section="language").pack(),
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text=strings.SETTINGS_BTN_MY_INVITES,
+                    callback_data=SettingsCallback(section="my_invites").pack(),
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text=strings.SETTINGS_BTN_NEW_INVITE,
+                    callback_data=SettingsCallback(section="new_invite").pack(),
                 )
             ],
         ]
