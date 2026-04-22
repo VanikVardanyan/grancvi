@@ -6,6 +6,7 @@ from functools import partial
 
 import structlog
 from aiogram import Bot, Dispatcher
+from aiogram.types import BotCommand, BotCommandScopeChat, BotCommandScopeDefault
 from apscheduler.triggers.cron import CronTrigger
 
 from src.config import settings
@@ -37,6 +38,64 @@ def _init_sentry_if_configured(dsn: str | None) -> None:
     import sentry_sdk
 
     sentry_sdk.init(dsn=dsn, traces_sample_rate=0.0)
+
+
+_CLIENT_COMMANDS: dict[str, list[tuple[str, str]]] = {
+    "ru": [
+        ("start", "Главное меню"),
+        ("cancel", "Отменить текущее действие"),
+    ],
+    "hy": [
+        ("start", "Գլխավոր ընտրացանկ"),
+        ("cancel", "Չեղարկել ընթացիկ գործողությունը"),
+    ],
+}
+
+_MASTER_COMMANDS: dict[str, list[tuple[str, str]]] = {
+    "ru": [
+        ("start", "Главное меню"),
+        ("today", "📅 Расписание на сегодня"),
+        ("tomorrow", "📋 Расписание на завтра"),
+        ("week", "🗓 Расписание на неделю"),
+        ("calendar", "📆 Календарь на месяц"),
+        ("add", "Добавить запись вручную"),
+        ("client", "🔎 Найти клиента"),
+        ("services", "💼 Управление услугами"),
+        ("cancel", "Отменить текущее действие"),
+    ],
+    "hy": [
+        ("start", "Գլխավոր ընտրացանկ"),
+        ("today", "📅 Այսօրվա գրաֆիկը"),
+        ("tomorrow", "📋 Վաղվա գրաֆիկը"),
+        ("week", "🗓 Շաբաթվա գրաֆիկը"),
+        ("calendar", "📆 Ամսվա օրացույց"),
+        ("add", "Ավելացնել գրանցում ձեռքով"),
+        ("client", "🔎 Գտնել հաճախորդ"),
+        ("services", "💼 Ծառայությունների կառավարում"),
+        ("cancel", "Չեղարկել ընթացիկ գործողությունը"),
+    ],
+}
+
+
+async def setup_bot_commands(bot: Bot, admin_tg_ids: list[int]) -> None:
+    """Register the Telegram command menu for clients (default) and masters (per-chat).
+
+    Clients see only /start + /cancel. Masters see the full set. Both languages are
+    registered; Telegram picks by the user's `language_code`.
+    """
+    for lang, cmds in _CLIENT_COMMANDS.items():
+        await bot.set_my_commands(
+            commands=[BotCommand(command=c, description=d) for c, d in cmds],
+            scope=BotCommandScopeDefault(),
+            language_code=lang,
+        )
+    for tg_id in admin_tg_ids:
+        for lang, cmds in _MASTER_COMMANDS.items():
+            await bot.set_my_commands(
+                commands=[BotCommand(command=c, description=d) for c, d in cmds],
+                scope=BotCommandScopeChat(chat_id=tg_id),
+                language_code=lang,
+            )
 
 
 log: structlog.stdlib.BoundLogger = structlog.get_logger()
@@ -71,6 +130,8 @@ async def main() -> None:
         id="expire_pending_appointments",
         replace_existing=True,
     )
+
+    await setup_bot_commands(bot, settings.admin_tg_ids)
 
     log.info("bot_starting")
     scheduler.start()

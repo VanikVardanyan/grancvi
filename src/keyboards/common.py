@@ -16,10 +16,17 @@ def main_menu() -> ReplyKeyboardMarkup:
         keyboard=[
             [
                 KeyboardButton(text=strings.MAIN_MENU_TODAY),
-                KeyboardButton(text=strings.MAIN_MENU_ADD),
+                KeyboardButton(text=strings.MAIN_MENU_TOMORROW),
             ],
             [
+                KeyboardButton(text=strings.MAIN_MENU_WEEK),
                 KeyboardButton(text=strings.MAIN_MENU_CALENDAR),
+            ],
+            [
+                KeyboardButton(text=strings.MAIN_MENU_ADD),
+                KeyboardButton(text=strings.MAIN_MENU_CLIENT),
+            ],
+            [
                 KeyboardButton(text=strings.MAIN_MENU_SETTINGS),
             ],
         ],

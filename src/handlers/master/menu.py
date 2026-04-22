@@ -8,7 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.db.models import Master
 from src.handlers.master.add_manual import cmd_add
 from src.handlers.master.calendar import cmd_calendar
-from src.handlers.master.today import cmd_today
+from src.handlers.master.client_page import cmd_client
+from src.handlers.master.today import cmd_today, cmd_tomorrow
+from src.handlers.master.week import cmd_week
 from src.keyboards.settings import settings_menu
 from src.strings import get_bundle, strings
 
@@ -59,3 +61,39 @@ async def handle_settings(message: Message, master: Master | None) -> None:
     if master is None:
         return
     await message.answer(strings.SETTINGS_MENU_TITLE, reply_markup=settings_menu())
+
+
+@router.message(F.text.in_({_RU_MENU.MAIN_MENU_TOMORROW, _HY_MENU.MAIN_MENU_TOMORROW}))
+async def handle_tomorrow(
+    message: Message,
+    state: FSMContext,
+    session: AsyncSession,
+    master: Master | None,
+) -> None:
+    if master is None:
+        return
+    await cmd_tomorrow(message=message, state=state, session=session, master=master)
+
+
+@router.message(F.text.in_({_RU_MENU.MAIN_MENU_WEEK, _HY_MENU.MAIN_MENU_WEEK}))
+async def handle_week(
+    message: Message,
+    state: FSMContext,
+    session: AsyncSession,
+    master: Master | None,
+) -> None:
+    if master is None:
+        return
+    await cmd_week(message=message, state=state, session=session, master=master)
+
+
+@router.message(F.text.in_({_RU_MENU.MAIN_MENU_CLIENT, _HY_MENU.MAIN_MENU_CLIENT}))
+async def handle_client(
+    message: Message,
+    state: FSMContext,
+    session: AsyncSession,
+    master: Master | None,
+) -> None:
+    if master is None:
+        return
+    await cmd_client(message=message, state=state, session=session, master=master)
