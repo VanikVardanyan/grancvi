@@ -8,6 +8,7 @@ from src.handlers.master.calendar import router as calendar_router
 from src.handlers.master.client_page import router as client_page_router
 from src.handlers.master.my_link import router as my_link_router
 from src.handlers.master.my_invites import router as my_invites_router
+from src.handlers.master.profile import router as profile_router
 from src.handlers.master.new_invite import router as new_invite_router
 from src.handlers.master.mark_past import router as mark_past_router
 from src.handlers.master.menu import router as menu_router
@@ -32,5 +33,6 @@ router.include_router(client_page_router)
 router.include_router(my_link_router)
 router.include_router(new_invite_router)
 router.include_router(my_invites_router)
+router.include_router(profile_router)
 
 __all__ = ["router"]
