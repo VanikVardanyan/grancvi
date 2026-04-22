@@ -62,6 +62,9 @@ class MasterRepository:
             return
         master.lang = lang
 
+    async def by_id(self, master_id: Any) -> Master | None:
+        return cast(Master | None, await self._session.get(Master, master_id))
+
     async def by_slug(self, slug: str) -> Master | None:
         return cast(
             Master | None,

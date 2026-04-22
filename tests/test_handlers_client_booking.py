@@ -33,6 +33,7 @@ class _FakeUser:
 class _FakeMsg:
     from_user: _FakeUser | None = None
     answers: list[tuple[str, Any]] = field(default_factory=list)
+    text: str | None = None
 
     async def answer(self, text: str, reply_markup: Any = None, **_: Any) -> None:
         self.answers.append((text, reply_markup))
@@ -57,7 +58,7 @@ def _make_fsm(tg_id: int) -> FSMContext:
 
 
 @pytest.mark.asyncio
-async def test_start_no_master_replies_with_stub(session: AsyncSession) -> None:
+async def test_start_no_master_shows_empty_catalog(session: AsyncSession) -> None:
     msg = _FakeMsg(from_user=_FakeUser(id=123))
     state = _make_fsm(123)
 
@@ -65,37 +66,34 @@ async def test_start_no_master_replies_with_stub(session: AsyncSession) -> None:
 
     assert msg.answers
     text, _ = msg.answers[0]
-    assert "не настроен" in text
+    assert "мастер" in text.lower()
 
 
 @pytest.mark.asyncio
-async def test_start_with_master_via_singleton_shows_services(
+async def test_start_with_public_master_shows_catalog(
     session: AsyncSession,
 ) -> None:
-    master = Master(tg_id=7777, name="Мастер")
+    master = Master(tg_id=7777, name="Мастер", slug="m-7777", is_public=True)
     session.add(master)
     await session.flush()
     session.add(Service(master_id=master.id, name="Стрижка", duration_min=60))
     await session.commit()
 
-    msg = _FakeMsg(from_user=_FakeUser(id=42))  # tg_id != master.tg_id → client path
+    msg = _FakeMsg(from_user=_FakeUser(id=42))
     state = _make_fsm(42)
 
     await handle_start(msg, master=None, state=state, session=session)
 
     assert msg.answers
-    text, kb = msg.answers[-1]
-    assert "услугу" in text.lower()
-    assert kb is not None  # services_pick_kb with one row
-    current = await state.get_state()
-    assert current == ClientBooking.ChoosingService.state
+    _, kb = msg.answers[-1]
+    assert kb is not None  # catalog_kb with one master
 
 
 @pytest.mark.asyncio
-async def test_start_with_empty_services_shows_no_services(
+async def test_start_no_payload_shows_catalog_not_services(
     session: AsyncSession,
 ) -> None:
-    master = Master(tg_id=7778, name="Мастер")
+    master = Master(tg_id=7778, name="Мастер", slug="m-7778", is_public=True)
     session.add(master)
     await session.commit()
 
@@ -104,8 +102,9 @@ async def test_start_with_empty_services_shows_no_services(
 
     await handle_start(msg, master=None, state=state, session=session)
 
+    assert msg.answers
     text, _ = msg.answers[-1]
-    assert "услуг" in text.lower()
+    assert "мастер" in text.lower()
 
 
 @pytest.mark.asyncio
