@@ -31,6 +31,14 @@ def configure_logging() -> None:
     )
 
 
+def _init_sentry_if_configured(dsn: str | None) -> None:
+    if not dsn:
+        return
+    import sentry_sdk
+
+    sentry_sdk.init(dsn=dsn, traces_sample_rate=0.0)
+
+
 log: structlog.stdlib.BoundLogger = structlog.get_logger()
 
 
@@ -46,6 +54,7 @@ def build_dispatcher() -> Dispatcher:
 
 async def main() -> None:
     configure_logging()
+    _init_sentry_if_configured(settings.sentry_dsn)
     bot = Bot(token=settings.bot_token)
     dp = build_dispatcher()
 
