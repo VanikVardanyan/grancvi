@@ -322,6 +322,10 @@ _RU: dict[str, Any] = {
     "ADMIN_INVITES_HEADER": "Все инвайты:",
     "ADMIN_INVITE_ITEM_FMT": "`{code}` · {status} · by {creator_tg_id}",
     "ADMIN_MASTER_NOT_FOUND": "Мастер с таким slug не найден.",
+    "ADMIN_MASTER_DETAIL_REGISTERED": "Зарегистрирован",
+    "ADMIN_MASTER_DETAIL_SPECIALTY": "Специальность",
+    "ADMIN_MASTER_DETAIL_STATUS": "Статус",
+    "ADMIN_MASTER_USAGE": "Использование: /master <slug>",
 }
 
 _HY: dict[str, Any] = {
@@ -628,6 +632,10 @@ _HY: dict[str, Any] = {
     "ADMIN_INVITES_HEADER": "Բոլոր հրավերները․",
     "ADMIN_INVITE_ITEM_FMT": "`{code}` · {status} · {creator_tg_id}-ի կողմից",
     "ADMIN_MASTER_NOT_FOUND": "Այս slug-ով վարպետ չի գտնվել։",
+    "ADMIN_MASTER_DETAIL_REGISTERED": "Գրանցված է",
+    "ADMIN_MASTER_DETAIL_SPECIALTY": "Մասնագիտություն",
+    "ADMIN_MASTER_DETAIL_STATUS": "Կարգավիճակ",
+    "ADMIN_MASTER_USAGE": "Օգտագործում՝ /master <slug>",
 }
 
 _BUNDLES: dict[str, dict[str, Any]] = {"ru": _RU, "hy": _HY}

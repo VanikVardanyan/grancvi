@@ -18,14 +18,10 @@ async def cmd_admin_masters(*, message: Message, session: AsyncSession) -> None:
     if not masters:
         await message.answer(strings.ADMIN_MASTERS_EMPTY)
         return
-    await message.answer(
-        strings.ADMIN_MASTERS_HEADER, reply_markup=masters_list_kb(masters)
-    )
+    await message.answer(strings.ADMIN_MASTERS_HEADER, reply_markup=masters_list_kb(masters))
 
 
-async def cmd_admin_master_detail(
-    *, message: Message, session: AsyncSession, slug: str
-) -> None:
+async def cmd_admin_master_detail(*, message: Message, session: AsyncSession, slug: str) -> None:
     repo = MasterRepository(session)
     master = await repo.by_slug(slug)
     if master is None:
@@ -33,15 +29,13 @@ async def cmd_admin_master_detail(
         return
     is_blocked = master.blocked_at is not None
     status = (
-        strings.ADMIN_MASTER_STATUS_BLOCKED
-        if is_blocked
-        else strings.ADMIN_MASTER_STATUS_ACTIVE
+        strings.ADMIN_MASTER_STATUS_BLOCKED if is_blocked else strings.ADMIN_MASTER_STATUS_ACTIVE
     )
     text = (
-        f"*{master.slug}* · {master.name}\n"
-        f"Специальность: {master.specialty_text or '—'}\n"
-        f"Статус: {status}\n"
-        f"Зарегистрирован: {master.created_at.strftime('%Y-%m-%d')}"
+        f"{master.slug} · {master.name}\n"
+        f"{strings.ADMIN_MASTER_DETAIL_SPECIALTY}: {master.specialty_text or '—'}\n"
+        f"{strings.ADMIN_MASTER_DETAIL_STATUS}: {status}\n"
+        f"{strings.ADMIN_MASTER_DETAIL_REGISTERED}: {master.created_at.strftime('%Y-%m-%d')}"
     )
     await message.answer(text, reply_markup=block_toggle_kb(master))
 
@@ -66,6 +60,6 @@ async def handle_master_cmd(
         return
     slug = (command.args or "").strip()
     if not slug:
-        await message.answer("Usage: /master <slug>")
+        await message.answer(strings.ADMIN_MASTER_USAGE)
         return
     await cmd_admin_master_detail(message=message, session=session, slug=slug)
