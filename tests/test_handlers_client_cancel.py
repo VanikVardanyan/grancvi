@@ -10,7 +10,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.callback_data.approval import ApprovalCallback
-from src.db.models import Appointment, Client, Master, Service
+from src.db.models import Appointment, Client, Master, Reminder, Service
 from src.handlers.client.cancel import handle_cancel
 
 
@@ -111,3 +111,28 @@ async def test_cancel_missing_appt_alerts_unavailable(session: AsyncSession) -> 
     )
     bot.send_message.assert_not_awaited()
     assert any(show for _, show in cb.answered)
+
+
+@pytest.mark.asyncio
+async def test_client_cancel_suppresses_reminders(session: AsyncSession) -> None:
+    appt = await _seed(session)
+    reminder = Reminder(
+        appointment_id=appt.id,
+        kind="day_before",
+        send_at=datetime(2026, 5, 3, 12, 0, tzinfo=UTC),
+    )
+    session.add(reminder)
+    await session.commit()
+
+    bot = AsyncMock()
+    cb = _FakeCb(from_user=_FakeUser(id=9001))
+
+    await handle_cancel(
+        callback=cb,  # type: ignore[arg-type]
+        callback_data=ApprovalCallback(action="cancel", appointment_id=appt.id),
+        session=session,
+        bot=bot,
+    )
+
+    await session.refresh(reminder)
+    assert reminder.sent is True

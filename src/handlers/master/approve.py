@@ -122,6 +122,8 @@ async def cb_reject(
     except (NotFound, InvalidState):
         await callback.answer(strings.APPT_ALREADY_PROCESSED, show_alert=True)
         return
+    reminder_svc = ReminderService(session)
+    await reminder_svc.suppress_for_appointment(appt.id)
     await session.flush()
 
     tz = ZoneInfo(master.timezone)

@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.callback_data.approval import ApprovalCallback
 from src.exceptions import InvalidState, NotFound
 from src.services.booking import BookingService
+from src.services.reminders import ReminderService
 from src.strings import strings
 
 router = Router(name="client_cancel")
@@ -32,6 +33,8 @@ async def handle_cancel(
     except (NotFound, InvalidState):
         await callback.answer(strings.CLIENT_CANCEL_UNAVAILABLE, show_alert=True)
         return
+    reminder_svc = ReminderService(session)
+    await reminder_svc.suppress_for_appointment(appt.id)
     await session.commit()
 
     await callback.answer(strings.CLIENT_CANCEL_DONE)

@@ -309,3 +309,39 @@ async def test_confirm_schedules_three_reminders(session: AsyncSession) -> None:
 
     kinds = {r.kind for r in (await session.scalars(select(Reminder))).all()}
     assert kinds == {"day_before", "two_hours", "master_before"}
+
+
+@pytest.mark.asyncio
+async def test_reject_suppresses_existing_reminders(session: AsyncSession) -> None:
+    from src.handlers.master.approve import cb_reject
+
+    master, client, service = await _seed(session)
+    repo = AppointmentRepository(session)
+    appt = await repo.create(
+        master_id=master.id,
+        client_id=client.id,
+        service_id=service.id,
+        start_at=datetime(2030, 5, 4, 12, 0, tzinfo=UTC),
+        end_at=datetime(2030, 5, 4, 13, 0, tzinfo=UTC),
+        status="pending",
+        source="client_request",
+        decision_deadline=datetime(2030, 5, 4, 10, 0, tzinfo=UTC),
+    )
+    reminder = Reminder(
+        appointment_id=appt.id,
+        kind="day_before",
+        send_at=datetime(2030, 5, 3, 12, 0, tzinfo=UTC),
+    )
+    session.add(reminder)
+    await session.commit()
+
+    msg = _Msg(from_user=_User(id=master.tg_id), text="🔔")
+    cb = _Cb(from_user=_User(id=master.tg_id), message=msg)
+    bot = AsyncMock()
+    cb_data = ApprovalCallback(action="reject", appointment_id=appt.id)
+
+    await cb_reject(cb, callback_data=cb_data, master=master, session=session, bot=bot)
+    await session.commit()
+
+    await session.refresh(reminder)
+    assert reminder.sent is True
