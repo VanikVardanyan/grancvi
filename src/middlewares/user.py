@@ -8,13 +8,15 @@ from aiogram.types import TelegramObject, Update
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.db.models import Client, Master
+from src.db.models import Master
 
 
 class UserMiddleware(BaseMiddleware):
-    """Resolve Master or Client by Telegram user id and attach to handler data.
+    """Resolve Master (if any) by Telegram user id and attach to handler data.
 
-    Requires `data["session"]` — DbSessionMiddleware must be registered first.
+    Client resolution is intentionally NOT done here — in a multi-master bot one
+    tg_id may be a client of multiple masters, so client lookup must be scoped
+    by master_id and performed at the service layer.
     """
 
     async def __call__(
@@ -24,10 +26,8 @@ class UserMiddleware(BaseMiddleware):
         data: dict[str, Any],
     ) -> Any:
         data["master"] = None
-        data["client"] = None
+        data["client"] = None  # kept for handler compatibility
 
-        # When registered on dp.update.middleware, `event` is Update — from_user
-        # lives on the inner Message/CallbackQuery, not on Update itself.
         inner = event.event if isinstance(event, Update) else event
         tg_user = getattr(inner, "from_user", None)
         if tg_user is None:
@@ -38,10 +38,5 @@ class UserMiddleware(BaseMiddleware):
         master = await session.scalar(select(Master).where(Master.tg_id == tg_user.id))
         if master is not None:
             data["master"] = master
-            return await handler(event, data)
-
-        client = await session.scalar(select(Client).where(Client.tg_id == tg_user.id))
-        if client is not None:
-            data["client"] = client
 
         return await handler(event, data)

@@ -8,6 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.callback_data.settings import LanguageCallback, SettingsCallback, WorkHoursDay
 from src.db.models import Master
 from src.fsm.work_hours import WorkHoursEdit
+from src.handlers.master.my_invites import cmd_myinvites
+from src.handlers.master.new_invite import cmd_new_invite
+from src.handlers.master.profile import open_profile_menu
 from src.keyboards.services import services_list
 from src.keyboards.settings import language_menu, work_hours_day_prompt, work_hours_list
 from src.repositories.masters import MasterRepository
@@ -26,6 +29,45 @@ router = Router(name="master_settings")
 
 async def _render_work_hours(target: Message, master: Master) -> None:
     await target.answer(strings.WORK_HOURS_TITLE, reply_markup=work_hours_list(master.work_hours))
+
+
+@router.callback_query(SettingsCallback.filter(F.section == "my_invites"))
+async def on_my_invites(
+    cb: CallbackQuery,
+    session: AsyncSession,
+    master: Master | None,
+) -> None:
+    if master is None or not isinstance(cb.message, Message):
+        await cb.answer()
+        return
+    await cmd_myinvites(message=cb.message, session=session, master=master)
+    await cb.answer()
+
+
+@router.callback_query(SettingsCallback.filter(F.section == "new_invite"))
+async def on_new_invite(
+    cb: CallbackQuery,
+    session: AsyncSession,
+    master: Master | None,
+) -> None:
+    if master is None or not isinstance(cb.message, Message):
+        await cb.answer()
+        return
+    await cmd_new_invite(message=cb.message, session=session, master=master)
+    await cb.answer()
+
+
+@router.callback_query(SettingsCallback.filter(F.section == "profile"))
+async def on_profile(
+    cb: CallbackQuery,
+    master: Master | None,
+    state: FSMContext,
+) -> None:
+    if master is None or not isinstance(cb.message, Message):
+        await cb.answer()
+        return
+    await open_profile_menu(message=cb.message, state=state, master=master)
+    await cb.answer()
 
 
 @router.callback_query(SettingsCallback.filter())

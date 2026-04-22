@@ -59,3 +59,36 @@ async def test_master_commands_include_core_schedule_and_crud() -> None:
     )
     names = {cmd.command for cmd in master_ru_call.kwargs["commands"]}
     assert {"start", "today", "tomorrow", "week", "calendar", "add", "client"}.issubset(names)
+
+
+@pytest.mark.asyncio
+async def test_master_commands_include_epic9_items() -> None:
+    bot = AsyncMock()
+    bot.set_my_commands = AsyncMock()
+
+    await setup_bot_commands(bot, admin_tg_ids=[123])
+
+    master_ru = next(
+        c
+        for c in bot.set_my_commands.call_args_list
+        if isinstance(c.kwargs["scope"], BotCommandScopeChat) and c.kwargs["language_code"] == "ru"
+    )
+    names = {cmd.command for cmd in master_ru.kwargs["commands"]}
+    assert {"mylink", "myinvites", "new_invite"}.issubset(names)
+
+
+@pytest.mark.asyncio
+async def test_admin_chat_scope_includes_admin_commands() -> None:
+    bot = AsyncMock()
+    bot.set_my_commands = AsyncMock()
+
+    await setup_bot_commands(bot, admin_tg_ids=[555])
+
+    chat_calls = [
+        c
+        for c in bot.set_my_commands.call_args_list
+        if isinstance(c.kwargs["scope"], BotCommandScopeChat)
+    ]
+    ru_call = next(c for c in chat_calls if c.kwargs["language_code"] == "ru")
+    names = {cmd.command for cmd in ru_call.kwargs["commands"]}
+    assert {"masters", "stats", "invites", "block", "unblock"}.issubset(names)

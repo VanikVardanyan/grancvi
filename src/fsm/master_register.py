@@ -7,3 +7,6 @@ class MasterRegister(StatesGroup):
     waiting_lang = State()
     waiting_name = State()
     waiting_phone = State()
+    waiting_specialty = State()
+    waiting_slug_confirm = State()
+    waiting_custom_slug = State()

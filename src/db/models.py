@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import (
     BigInteger,
@@ -11,6 +11,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    String,
     Text,
     UniqueConstraint,
     text,
@@ -25,6 +26,14 @@ from src.db.base import Base
 
 class Master(Base):
     __tablename__ = "masters"
+    __table_args__ = (
+        Index(
+            "ix_masters_catalog",
+            "is_public",
+            "blocked_at",
+            postgresql_where=text("blocked_at IS NULL AND is_public = true"),
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(
         PgUUID(as_uuid=True),
@@ -47,6 +56,15 @@ class Master(Base):
     )
     lang: Mapped[str] = mapped_column(Text, nullable=False, server_default="ru")
     decision_timeout_min: Mapped[int] = mapped_column(Integer, nullable=False, server_default="120")
+    slug: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        unique=True,
+        default=lambda: f"master-{uuid4().hex[:6]}",
+    )
+    specialty_text: Mapped[str] = mapped_column(String(200), nullable=False, server_default="")
+    is_public: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+    blocked_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
     )
@@ -208,3 +226,35 @@ class Reminder(Base):
     channel: Mapped[str] = mapped_column(Text, nullable=False, server_default="telegram")
     sent: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
     sent_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
+
+
+class Invite(Base):
+    __tablename__ = "invites"
+    __table_args__ = (
+        CheckConstraint(
+            "(used_by_tg_id IS NULL) = (used_at IS NULL) "
+            "AND (used_at IS NULL) = (used_for_master_id IS NULL)",
+            name="ck_invites_usage_tuple",
+        ),
+        Index("ix_invites_code", "code"),
+        Index("ix_invites_creator", "created_by_tg_id", "created_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    code: Mapped[str] = mapped_column(String(16), nullable=False, unique=True)
+    created_by_tg_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
+    )
+    expires_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
+    used_by_tg_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    used_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
+    used_for_master_id: Mapped[UUID | None] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("masters.id", ondelete="SET NULL"),
+        nullable=True,
+    )

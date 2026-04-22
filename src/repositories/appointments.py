@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import cast
 from uuid import UUID
 
@@ -178,3 +178,24 @@ class AppointmentRepository:
             .order_by(Appointment.decision_deadline)
         )
         return list((await self._session.scalars(stmt)).all())
+
+    async def bulk_reject_pending_for_master(
+        self,
+        master_id: UUID,
+        *,
+        reason: str,
+    ) -> list[Appointment]:
+        """Reject all pending appointments for a master; return the rejected rows."""
+        stmt = select(Appointment).where(
+            Appointment.master_id == master_id,
+            Appointment.status == "pending",
+        )
+        result = await self._session.scalars(stmt)
+        rows = list(result.all())
+        now = datetime.now(UTC)
+        for appt in rows:
+            appt.status = "rejected"
+            appt.cancelled_at = now
+            appt.cancelled_by = "system"
+            appt.comment = (appt.comment or "") + f" [{reason}]"
+        return rows
