@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import (
     BigInteger,
@@ -56,7 +56,12 @@ class Master(Base):
     )
     lang: Mapped[str] = mapped_column(Text, nullable=False, server_default="ru")
     decision_timeout_min: Mapped[int] = mapped_column(Integer, nullable=False, server_default="120")
-    slug: Mapped[str] = mapped_column(String(32), nullable=False, unique=True)
+    slug: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        unique=True,
+        default=lambda: f"master-{uuid4().hex[:6]}",
+    )
     specialty_text: Mapped[str] = mapped_column(
         String(200), nullable=False, server_default=""
     )
