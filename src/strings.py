@@ -1,4 +1,4 @@
-# ruff: noqa: RUF001
+# ruff: noqa: RUF001, E501
 # cSpell:disable
 from __future__ import annotations
 

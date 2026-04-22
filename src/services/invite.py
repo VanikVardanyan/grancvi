@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Final
 from uuid import UUID
 
@@ -28,10 +28,8 @@ class InviteService:
 
     async def create_invite(self, *, actor_tg_id: int) -> Invite:
         code = self.generate_code()
-        expires = datetime.now(timezone.utc) + timedelta(days=_TTL_DAYS)
-        return await self._repo.create(
-            code=code, created_by_tg_id=actor_tg_id, expires_at=expires
-        )
+        expires = datetime.now(UTC) + timedelta(days=_TTL_DAYS)
+        return await self._repo.create(code=code, created_by_tg_id=actor_tg_id, expires_at=expires)
 
     async def redeem(self, *, code: str, tg_id: int, master_id: UUID) -> Invite:
         invite = await self._repo.by_code(code)
@@ -39,13 +37,13 @@ class InviteService:
             raise InviteNotFound(code)
         if invite.used_at is not None:
             raise InviteAlreadyUsed(code)
-        if invite.expires_at <= datetime.now(timezone.utc):
+        if invite.expires_at <= datetime.now(UTC):
             raise InviteExpired(code)
         await self._repo.mark_used(
             code=code,
             used_by_tg_id=tg_id,
             master_id=master_id,
-            used_at=datetime.now(timezone.utc),
+            used_at=datetime.now(UTC),
         )
         await self._session.flush()
         refreshed = await self._repo.by_code(code)

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 
 import pytest
@@ -16,8 +16,9 @@ async def test_start_with_valid_invite_starts_registration(
     session: AsyncSession,
 ) -> None:
     invite = Invite(
-        code="AAAA-BBBB", created_by_tg_id=1,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+        code="AAAA-BBBB",
+        created_by_tg_id=1,
+        expires_at=datetime.now(UTC) + timedelta(days=7),
     )
     session.add(invite)
     await session.commit()
@@ -27,9 +28,7 @@ async def test_start_with_valid_invite_starts_registration(
     message.from_user = AsyncMock(id=999)
     state = AsyncMock()
 
-    await handle_start(
-        message=message, master=None, state=state, session=session
-    )
+    await handle_start(message=message, master=None, state=state, session=session)
     state.set_state.assert_any_call(MasterRegister.waiting_lang)
     state.update_data.assert_any_call(invite_code="AAAA-BBBB")
 
@@ -37,13 +36,16 @@ async def test_start_with_valid_invite_starts_registration(
 @pytest.mark.asyncio
 async def test_start_with_used_invite_shows_error(session: AsyncSession) -> None:
     from src.db.models import Master
+
     m = Master(tg_id=1, name="A", slug="a-0001")
     session.add(m)
     await session.flush()
     invite = Invite(
-        code="USED-CODE", created_by_tg_id=1,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
-        used_by_tg_id=1, used_at=datetime.now(timezone.utc),
+        code="USED-CODE",
+        created_by_tg_id=1,
+        expires_at=datetime.now(UTC) + timedelta(days=7),
+        used_by_tg_id=1,
+        used_at=datetime.now(UTC),
         used_for_master_id=m.id,
     )
     session.add(invite)
@@ -54,11 +56,10 @@ async def test_start_with_used_invite_shows_error(session: AsyncSession) -> None
     message.from_user = AsyncMock(id=999)
     state = AsyncMock()
 
-    await handle_start(
-        message=message, master=None, state=state, session=session
-    )
+    await handle_start(message=message, master=None, state=state, session=session)
     message.answer.assert_awaited()
     sent = message.answer.await_args[0][0]
     from src.strings import get_bundle
+
     ru = get_bundle("ru")
     assert ru.INVITE_ALREADY_USED in sent

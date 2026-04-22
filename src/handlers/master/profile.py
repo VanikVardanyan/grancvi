@@ -24,25 +24,29 @@ router = Router(name="master_profile")
 def profile_menu_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(
-                text=strings.PROFILE_BTN_NAME,
-                callback_data=ProfileFieldCallback(field="name").pack(),
-            )],
-            [InlineKeyboardButton(
-                text=strings.PROFILE_BTN_SPECIALTY,
-                callback_data=ProfileFieldCallback(field="specialty").pack(),
-            )],
-            [InlineKeyboardButton(
-                text=strings.PROFILE_BTN_SLUG,
-                callback_data=ProfileFieldCallback(field="slug").pack(),
-            )],
+            [
+                InlineKeyboardButton(
+                    text=strings.PROFILE_BTN_NAME,
+                    callback_data=ProfileFieldCallback(field="name").pack(),
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text=strings.PROFILE_BTN_SPECIALTY,
+                    callback_data=ProfileFieldCallback(field="specialty").pack(),
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text=strings.PROFILE_BTN_SLUG,
+                    callback_data=ProfileFieldCallback(field="slug").pack(),
+                )
+            ],
         ]
     )
 
 
-async def open_profile_menu(
-    *, message: Message, state: FSMContext, master: Master
-) -> None:
+async def open_profile_menu(*, message: Message, state: FSMContext, master: Master) -> None:
     await state.set_state(ProfileEdit.menu)
     await message.answer(strings.PROFILE_MENU_TITLE, reply_markup=profile_menu_kb())
 

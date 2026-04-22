@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from uuid import uuid4
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,16 +20,24 @@ async def test_bulk_reject_pending_only(session: AsyncSession) -> None:
     session.add(cli)
     await session.flush()
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     pending = Appointment(
-        master_id=m.id, client_id=cli.id, service_id=svc.id,
-        start_at=now + timedelta(hours=1), end_at=now + timedelta(hours=2),
-        status="pending", source="client_request",
+        master_id=m.id,
+        client_id=cli.id,
+        service_id=svc.id,
+        start_at=now + timedelta(hours=1),
+        end_at=now + timedelta(hours=2),
+        status="pending",
+        source="client_request",
     )
     confirmed = Appointment(
-        master_id=m.id, client_id=cli.id, service_id=svc.id,
-        start_at=now + timedelta(hours=3), end_at=now + timedelta(hours=4),
-        status="confirmed", source="client_request",
+        master_id=m.id,
+        client_id=cli.id,
+        service_id=svc.id,
+        start_at=now + timedelta(hours=3),
+        end_at=now + timedelta(hours=4),
+        status="confirmed",
+        source="client_request",
     )
     session.add_all([pending, confirmed])
     await session.commit()
@@ -60,16 +67,24 @@ async def test_bulk_reject_other_master_untouched(session: AsyncSession) -> None
     session.add_all([svc1, svc2, cli1, cli2])
     await session.flush()
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     a1 = Appointment(
-        master_id=m1.id, client_id=cli1.id, service_id=svc1.id,
-        start_at=now + timedelta(hours=1), end_at=now + timedelta(hours=2),
-        status="pending", source="client_request",
+        master_id=m1.id,
+        client_id=cli1.id,
+        service_id=svc1.id,
+        start_at=now + timedelta(hours=1),
+        end_at=now + timedelta(hours=2),
+        status="pending",
+        source="client_request",
     )
     a2 = Appointment(
-        master_id=m2.id, client_id=cli2.id, service_id=svc2.id,
-        start_at=now + timedelta(hours=1), end_at=now + timedelta(hours=2),
-        status="pending", source="client_request",
+        master_id=m2.id,
+        client_id=cli2.id,
+        service_id=svc2.id,
+        start_at=now + timedelta(hours=1),
+        end_at=now + timedelta(hours=2),
+        status="pending",
+        source="client_request",
     )
     session.add_all([a1, a2])
     await session.commit()

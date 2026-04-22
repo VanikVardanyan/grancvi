@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 
 import pytest
@@ -20,6 +20,7 @@ async def test_empty_sends_empty_msg(session: AsyncSession) -> None:
     message.answer.assert_awaited_once()
     text = message.answer.await_args[0][0]
     from src.strings import get_bundle
+
     ru = get_bundle("ru")
     assert ru.MY_INVITES_EMPTY in text
 
@@ -29,20 +30,17 @@ async def test_lists_invites_with_status(session: AsyncSession) -> None:
     master = Master(tg_id=1, name="A", slug="a-0001")
     session.add(master)
     await session.flush()
-    now = datetime.now(timezone.utc)
-    session.add(
-        Invite(code="ACT-0001", created_by_tg_id=1,
-               expires_at=now + timedelta(days=1))
-    )
-    session.add(
-        Invite(code="EXP-0001", created_by_tg_id=1,
-               expires_at=now - timedelta(days=1))
-    )
+    now = datetime.now(UTC)
+    session.add(Invite(code="ACT-0001", created_by_tg_id=1, expires_at=now + timedelta(days=1)))
+    session.add(Invite(code="EXP-0001", created_by_tg_id=1, expires_at=now - timedelta(days=1)))
     session.add(
         Invite(
-            code="USD-0001", created_by_tg_id=1,
+            code="USD-0001",
+            created_by_tg_id=1,
             expires_at=now + timedelta(days=1),
-            used_by_tg_id=555, used_at=now, used_for_master_id=master.id,
+            used_by_tg_id=555,
+            used_at=now,
+            used_for_master_id=master.id,
         )
     )
     await session.commit()

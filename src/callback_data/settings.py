@@ -6,7 +6,9 @@ from aiogram.filters.callback_data import CallbackData
 
 
 class SettingsCallback(CallbackData, prefix="set"):
-    section: Literal["services", "hours", "breaks", "language", "profile", "my_invites", "new_invite"]
+    section: Literal[
+        "services", "hours", "breaks", "language", "profile", "my_invites", "new_invite"
+    ]
 
 
 class WorkHoursDay(CallbackData, prefix="wh"):

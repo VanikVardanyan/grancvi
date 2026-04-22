@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,8 +30,11 @@ async def test_list_public_excludes_blocked(session: AsyncSession) -> None:
     session.add(Master(tg_id=1, name="A", slug="a-0001", is_public=True))
     session.add(
         Master(
-            tg_id=2, name="B", slug="b-0001",
-            is_public=True, blocked_at=datetime.now(timezone.utc),
+            tg_id=2,
+            name="B",
+            slug="b-0001",
+            is_public=True,
+            blocked_at=datetime.now(UTC),
         )
     )
     session.add(Master(tg_id=3, name="C", slug="c-0001", is_public=False))

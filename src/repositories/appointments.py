@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import cast
 from uuid import UUID
 
@@ -192,7 +192,7 @@ class AppointmentRepository:
         )
         result = await self._session.scalars(stmt)
         rows = list(result.all())
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for appt in rows:
             appt.status = "rejected"
             appt.cancelled_at = now

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,7 +14,7 @@ async def test_create_invite(session: AsyncSession) -> None:
     invite = await repo.create(
         code="TEST-0001",
         created_by_tg_id=111,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+        expires_at=datetime.now(UTC) + timedelta(days=7),
     )
     await session.commit()
     assert invite.code == "TEST-0001"
@@ -27,7 +27,7 @@ async def test_by_code_found(session: AsyncSession) -> None:
     await repo.create(
         code="FIND-0001",
         created_by_tg_id=111,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+        expires_at=datetime.now(UTC) + timedelta(days=7),
     )
     await session.commit()
     found = await repo.by_code("FIND-0001")
@@ -48,7 +48,7 @@ async def test_list_by_creator_desc(session: AsyncSession) -> None:
         await repo.create(
             code=f"CODE-{i:04d}",
             created_by_tg_id=777,
-            expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+            expires_at=datetime.now(UTC) + timedelta(days=7),
         )
     await session.commit()
     items = await repo.list_by_creator(777)

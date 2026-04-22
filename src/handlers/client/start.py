@@ -43,15 +43,12 @@ async def handle_start(
     if master is not None:
         return  # master router handled it
 
-    if command and command.args:
-        payload = command.args
-    else:
-        payload = _parse_payload(message.text)
+    payload = command.args if command and command.args else _parse_payload(message.text)
 
     m_repo = MasterRepository(session)
 
     if payload.startswith("master_"):
-        slug = payload[len("master_"):]
+        slug = payload[len("master_") :]
         target = await m_repo.by_slug(slug)
         if target is None or target.blocked_at is not None or not target.is_public:
             await message.answer(strings.CLIENT_MASTER_NOT_FOUND)
@@ -71,10 +68,10 @@ async def handle_start(
                 name=target.name, specialty=target.specialty_text or "—"
             )
         )
-        await message.answer(
-            strings.CLIENT_CHOOSE_SERVICE, reply_markup=services_pick_kb(services)
+        await message.answer(strings.CLIENT_CHOOSE_SERVICE, reply_markup=services_pick_kb(services))
+        log.info(
+            "client_start_deep_link", tg_id=message.from_user.id if message.from_user else None
         )
-        log.info("client_start_deep_link", tg_id=message.from_user.id if message.from_user else None)
         return
 
     await render_catalog(message=message, session=session)

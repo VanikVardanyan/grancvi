@@ -16,9 +16,7 @@ async def test_admin_masters_button_dispatches() -> None:
     session = AsyncMock()
 
     with patch.object(menu_mod, "cmd_admin_masters", new=AsyncMock()) as mocked:
-        await menu_mod.handle_admin_masters(
-            message=message, session=session, is_admin=True
-        )
+        await menu_mod.handle_admin_masters(message=message, session=session, is_admin=True)
 
     mocked.assert_awaited_once()
 
@@ -28,7 +26,5 @@ async def test_admin_buttons_noop_for_non_admin() -> None:
     message = AsyncMock()
     session = AsyncMock()
     with patch.object(menu_mod, "cmd_admin_masters", new=AsyncMock()) as mocked:
-        await menu_mod.handle_admin_masters(
-            message=message, session=session, is_admin=False
-        )
+        await menu_mod.handle_admin_masters(message=message, session=session, is_admin=False)
     mocked.assert_not_awaited()

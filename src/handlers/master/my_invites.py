@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from aiogram import Router
 from aiogram.filters import Command
@@ -16,10 +16,10 @@ router = Router(name="master_my_invites")
 
 def _format_status(invite: Invite) -> str:
     if invite.used_at is not None:
-        return strings.MY_INVITES_STATUS_USED
-    if invite.expires_at <= datetime.now(timezone.utc):
-        return strings.MY_INVITES_STATUS_EXPIRED
-    return strings.MY_INVITES_STATUS_ACTIVE
+        return str(strings.MY_INVITES_STATUS_USED)
+    if invite.expires_at <= datetime.now(UTC):
+        return str(strings.MY_INVITES_STATUS_EXPIRED)
+    return str(strings.MY_INVITES_STATUS_ACTIVE)
 
 
 async def cmd_myinvites(

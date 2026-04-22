@@ -44,9 +44,7 @@ def masters_list_kb(masters: list[Master]) -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton(
                     text=label,
-                    callback_data=AdminMasterCallback(
-                        master_id=m.id, action="view"
-                    ).pack(),
+                    callback_data=AdminMasterCallback(master_id=m.id, action="view").pack(),
                 )
             ]
         )
@@ -55,17 +53,13 @@ def masters_list_kb(masters: list[Master]) -> InlineKeyboardMarkup:
 
 def block_toggle_kb(master: Master) -> InlineKeyboardMarkup:
     is_blocked = master.blocked_at is not None
-    btn_text = (
-        strings.ADMIN_UNBLOCK_BTN if is_blocked else strings.ADMIN_BLOCK_BTN
-    )
+    btn_text = strings.ADMIN_UNBLOCK_BTN if is_blocked else strings.ADMIN_BLOCK_BTN
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
                     text=btn_text,
-                    callback_data=BlockCallback(
-                        master_id=master.id, block=not is_blocked
-                    ).pack(),
+                    callback_data=BlockCallback(master_id=master.id, block=not is_blocked).pack(),
                 )
             ]
         ]

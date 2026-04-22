@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -15,6 +15,7 @@ def test_generate_code_format() -> None:
     code = InviteService.generate_code()
     # Format XXXX-XXXX with alphabet A-Z (no I/O) + digits 2-9
     import re
+
     assert re.match(r"^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$", code)
 
 
@@ -29,7 +30,7 @@ async def test_create_invite_persists(session: AsyncSession) -> None:
     invite = await svc.create_invite(actor_tg_id=111)
     await session.commit()
     assert invite.created_by_tg_id == 111
-    assert invite.expires_at > datetime.now(timezone.utc) + timedelta(days=6)
+    assert invite.expires_at > datetime.now(UTC) + timedelta(days=6)
 
 
 @pytest.mark.asyncio
@@ -59,7 +60,7 @@ async def test_redeem_expired(session: AsyncSession) -> None:
     invite = Invite(
         code="EXP-0001",
         created_by_tg_id=1,
-        expires_at=datetime.now(timezone.utc) - timedelta(minutes=1),
+        expires_at=datetime.now(UTC) - timedelta(minutes=1),
     )
     session.add(invite)
     await session.commit()
@@ -76,10 +77,10 @@ async def test_redeem_already_used(session: AsyncSession) -> None:
     invite = Invite(
         code="USED-0001",
         created_by_tg_id=1,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+        expires_at=datetime.now(UTC) + timedelta(days=1),
         used_by_tg_id=333,
         used_for_master_id=master.id,
-        used_at=datetime.now(timezone.utc),
+        used_at=datetime.now(UTC),
     )
     session.add(invite)
     await session.commit()

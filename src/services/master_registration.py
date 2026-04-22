@@ -31,15 +31,16 @@ class MasterRegistrationService:
         Raises SlugTaken if the slug is already in use.
         Raises InviteNotFound / InviteExpired / InviteAlreadyUsed via InviteService.
         """
-        existing = await self._session.scalar(
-            select(Master).where(Master.slug == slug)
-        )
+        existing = await self._session.scalar(select(Master).where(Master.slug == slug))
         if existing is not None:
             raise SlugTaken(slug)
 
         master = Master(
-            tg_id=tg_id, name=name, slug=slug,
-            specialty_text=specialty, lang=lang,
+            tg_id=tg_id,
+            name=name,
+            slug=slug,
+            specialty_text=specialty,
+            lang=lang,
         )
         self._session.add(master)
         try:
@@ -48,7 +49,5 @@ class MasterRegistrationService:
             raise SlugTaken(slug) from e
 
         # Redeem invite only after Master is successfully flushed
-        await self._invites.redeem(
-            code=invite_code, tg_id=tg_id, master_id=master.id
-        )
+        await self._invites.redeem(code=invite_code, tg_id=tg_id, master_id=master.id)
         return master

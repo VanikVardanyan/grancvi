@@ -30,9 +30,7 @@ async def register_handle_phone(
         return
     await state.update_data(phone=phone)
     await state.set_state(MasterRegister.waiting_specialty)
-    await message.answer(
-        strings.REGISTER_ASK_SPECIALTY, reply_markup=specialty_hints_kb()
-    )
+    await message.answer(strings.REGISTER_ASK_SPECIALTY, reply_markup=specialty_hints_kb())
 
 
 _HINT_MAP = {
@@ -58,9 +56,8 @@ async def register_handle_specialty_hint(
         return
     label = getattr(strings, _HINT_MAP[callback_data.hint])
     stripped = label.split(" ", 1)[1] if " " in label else label
-    await _accept_specialty(
-        specialty=stripped, state=state, session=session, message=cb.message
-    )
+    msg = cb.message if isinstance(cb.message, Message) else None
+    await _accept_specialty(specialty=stripped, state=state, session=session, message=msg)
     await cb.answer()
 
 
@@ -74,9 +71,7 @@ async def register_handle_specialty_text(
     if not specialty:
         await message.answer(strings.REGISTER_ASK_SPECIALTY)
         return
-    await _accept_specialty(
-        specialty=specialty, state=state, session=session, message=message
-    )
+    await _accept_specialty(specialty=specialty, state=state, session=session, message=message)
 
 
 async def _accept_specialty(

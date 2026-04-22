@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,11 +20,15 @@ async def test_block_sets_blocked_at_and_rejects_pending(
     cli = Client(master_id=m.id, name="C", phone="+111", tg_id=999)
     session.add_all([svc, cli])
     await session.flush()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     appt = Appointment(
-        master_id=m.id, client_id=cli.id, service_id=svc.id,
-        start_at=now + timedelta(hours=1), end_at=now + timedelta(hours=2),
-        status="pending", source="client_request",
+        master_id=m.id,
+        client_id=cli.id,
+        service_id=svc.id,
+        start_at=now + timedelta(hours=1),
+        end_at=now + timedelta(hours=2),
+        status="pending",
+        source="client_request",
     )
     session.add(appt)
     await session.commit()
@@ -44,8 +48,10 @@ async def test_block_sets_blocked_at_and_rejects_pending(
 @pytest.mark.asyncio
 async def test_unblock_clears_blocked_at(session: AsyncSession) -> None:
     m = Master(
-        tg_id=1, name="A", slug="a-0001",
-        blocked_at=datetime.now(timezone.utc),
+        tg_id=1,
+        name="A",
+        slug="a-0001",
+        blocked_at=datetime.now(UTC),
     )
     session.add(m)
     await session.commit()

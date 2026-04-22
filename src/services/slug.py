@@ -1,3 +1,4 @@
+# ruff: noqa: RUF001
 from __future__ import annotations
 
 import re
@@ -20,19 +21,80 @@ _RESERVED: Final[frozenset[str]] = frozenset(
 
 # Russian + Armenian to latin.
 _RU_MAP: Final[dict[str, str]] = {
-    "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "yo",
-    "ж": "zh", "з": "z", "и": "i", "й": "y", "к": "k", "л": "l", "м": "m",
-    "н": "n", "о": "o", "п": "p", "р": "r", "с": "s", "т": "t", "у": "u",
-    "ф": "f", "х": "h", "ц": "ts", "ч": "ch", "ш": "sh", "щ": "shch",
-    "ъ": "", "ы": "y", "ь": "", "э": "e", "ю": "yu", "я": "ya",
+    "а": "a",
+    "б": "b",
+    "в": "v",
+    "г": "g",
+    "д": "d",
+    "е": "e",
+    "ё": "yo",
+    "ж": "zh",
+    "з": "z",
+    "и": "i",
+    "й": "y",
+    "к": "k",
+    "л": "l",
+    "м": "m",
+    "н": "n",
+    "о": "o",
+    "п": "p",
+    "р": "r",
+    "с": "s",
+    "т": "t",
+    "у": "u",
+    "ф": "f",
+    "х": "h",
+    "ц": "ts",
+    "ч": "ch",
+    "ш": "sh",
+    "щ": "shch",
+    "ъ": "",
+    "ы": "y",
+    "ь": "",
+    "э": "e",
+    "ю": "yu",
+    "я": "ya",
 }
 _HY_MAP: Final[dict[str, str]] = {
-    "ա": "a", "բ": "b", "գ": "g", "դ": "d", "ե": "e", "զ": "z", "է": "e",
-    "ը": "y", "թ": "t", "ժ": "zh", "ի": "i", "լ": "l", "խ": "kh", "ծ": "ts",
-    "կ": "k", "հ": "h", "ձ": "dz", "ղ": "gh", "ճ": "ch", "մ": "m", "յ": "y",
-    "ն": "n", "շ": "sh", "ո": "o", "չ": "ch", "պ": "p", "ջ": "j", "ռ": "r",
-    "ս": "s", "վ": "v", "տ": "t", "ր": "r", "ց": "ts", "ու": "u", "փ": "p",
-    "ք": "k", "և": "ev", "օ": "o", "ֆ": "f",
+    "ա": "a",
+    "բ": "b",
+    "գ": "g",
+    "դ": "d",
+    "ե": "e",
+    "զ": "z",
+    "է": "e",
+    "ը": "y",
+    "թ": "t",
+    "ժ": "zh",
+    "ի": "i",
+    "լ": "l",
+    "խ": "kh",
+    "ծ": "ts",
+    "կ": "k",
+    "հ": "h",
+    "ձ": "dz",
+    "ղ": "gh",
+    "ճ": "ch",
+    "մ": "m",
+    "յ": "y",
+    "ն": "n",
+    "շ": "sh",
+    "ո": "o",
+    "չ": "ch",
+    "պ": "p",
+    "ջ": "j",
+    "ռ": "r",
+    "ս": "s",
+    "վ": "v",
+    "տ": "t",
+    "ր": "r",
+    "ց": "ts",
+    "ու": "u",
+    "փ": "p",
+    "ք": "k",
+    "և": "ev",
+    "օ": "o",
+    "ֆ": "f",
 }
 
 
@@ -83,9 +145,7 @@ class SlugService:
                 self.validate(candidate)
             except (InvalidSlug, ReservedSlug):
                 continue
-            existing = await self._session.scalar(
-                select(Master).where(Master.slug == candidate)
-            )
+            existing = await self._session.scalar(select(Master).where(Master.slug == candidate))
             if existing is None:
                 return candidate
         # Fallback: master-<6hex>

@@ -22,9 +22,7 @@ async def render_catalog(*, message: Message, session: AsyncSession) -> None:
     if not masters:
         await message.answer(strings.CLIENT_CATALOG_EMPTY)
         return
-    await message.answer(
-        strings.CLIENT_CATALOG_HEADER, reply_markup=catalog_kb(masters)
-    )
+    await message.answer(strings.CLIENT_CATALOG_HEADER, reply_markup=catalog_kb(masters))
 
 
 @router.callback_query(CatalogMasterCallback.filter())

@@ -62,15 +62,9 @@ class Master(Base):
         unique=True,
         default=lambda: f"master-{uuid4().hex[:6]}",
     )
-    specialty_text: Mapped[str] = mapped_column(
-        String(200), nullable=False, server_default=""
-    )
-    is_public: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default=text("true")
-    )
-    blocked_at: Mapped[datetime | None] = mapped_column(
-        TIMESTAMP(timezone=True), nullable=True
-    )
+    specialty_text: Mapped[str] = mapped_column(String(200), nullable=False, server_default="")
+    is_public: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+    blocked_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
     )
@@ -256,13 +250,9 @@ class Invite(Base):
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
     )
-    expires_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), nullable=False
-    )
+    expires_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
     used_by_tg_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    used_at: Mapped[datetime | None] = mapped_column(
-        TIMESTAMP(timezone=True), nullable=True
-    )
+    used_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
     used_for_master_id: Mapped[UUID | None] = mapped_column(
         PgUUID(as_uuid=True),
         ForeignKey("masters.id", ondelete="SET NULL"),

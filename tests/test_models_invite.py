@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,7 +13,7 @@ async def test_invite_can_be_created(session: AsyncSession) -> None:
     invite = Invite(
         code="A7K2-X9MP",
         created_by_tg_id=111,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+        expires_at=datetime.now(UTC) + timedelta(days=7),
     )
     session.add(invite)
     await session.commit()
@@ -30,7 +30,7 @@ async def test_invite_code_is_unique(session: AsyncSession) -> None:
     i1 = Invite(
         code="DUP-CODE",
         created_by_tg_id=111,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+        expires_at=datetime.now(UTC) + timedelta(days=7),
     )
     session.add(i1)
     await session.commit()
@@ -38,7 +38,7 @@ async def test_invite_code_is_unique(session: AsyncSession) -> None:
     i2 = Invite(
         code="DUP-CODE",
         created_by_tg_id=222,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+        expires_at=datetime.now(UTC) + timedelta(days=7),
     )
     session.add(i2)
     with pytest.raises(IntegrityError):

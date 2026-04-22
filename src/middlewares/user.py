@@ -35,9 +35,7 @@ class UserMiddleware(BaseMiddleware):
 
         session: AsyncSession = data["session"]
 
-        master = await session.scalar(
-            select(Master).where(Master.tg_id == tg_user.id)
-        )
+        master = await session.scalar(select(Master).where(Master.tg_id == tg_user.id))
         if master is not None:
             data["master"] = master
 

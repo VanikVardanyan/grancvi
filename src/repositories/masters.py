@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC
 from typing import Any, cast
 
 from sqlalchemy import select
@@ -104,8 +105,9 @@ class MasterRepository:
         master.name = name
 
     async def set_blocked(self, master_id: Any, *, blocked: bool) -> None:
-        from datetime import datetime, timezone
+        from datetime import datetime
+
         master = await self._session.get(Master, master_id)
         if master is None:
             return
-        master.blocked_at = datetime.now(timezone.utc) if blocked else None
+        master.blocked_at = datetime.now(UTC) if blocked else None

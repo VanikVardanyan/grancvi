@@ -114,7 +114,7 @@ async def handle_block_toggle(
     if master is None:
         await callback.answer(strings.ADMIN_MASTER_NOT_FOUND, show_alert=True)
         return
-    if callback.message is None:
+    if not isinstance(callback.message, Message):
         await callback.answer()
         return
     if callback_data.block:

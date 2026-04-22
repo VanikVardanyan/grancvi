@@ -29,7 +29,7 @@ def _parse_invite_payload(text: str | None) -> str | None:
     payload = parts[1]
     if not payload.startswith("invite_"):
         return None
-    return payload[len("invite_"):]
+    return payload[len("invite_") :]
 
 
 class HasInviteOrMaster(Filter):

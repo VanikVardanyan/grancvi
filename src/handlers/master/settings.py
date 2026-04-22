@@ -37,7 +37,7 @@ async def on_my_invites(
     session: AsyncSession,
     master: Master | None,
 ) -> None:
-    if master is None or cb.message is None:
+    if master is None or not isinstance(cb.message, Message):
         await cb.answer()
         return
     await cmd_myinvites(message=cb.message, session=session, master=master)
@@ -50,7 +50,7 @@ async def on_new_invite(
     session: AsyncSession,
     master: Master | None,
 ) -> None:
-    if master is None or cb.message is None:
+    if master is None or not isinstance(cb.message, Message):
         await cb.answer()
         return
     await cmd_new_invite(message=cb.message, session=session, master=master)
@@ -63,7 +63,7 @@ async def on_profile(
     master: Master | None,
     state: FSMContext,
 ) -> None:
-    if master is None or cb.message is None:
+    if master is None or not isinstance(cb.message, Message):
         await cb.answer()
         return
     await open_profile_menu(message=cb.message, state=state, master=master)

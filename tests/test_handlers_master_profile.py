@@ -15,8 +15,6 @@ async def test_profile_save_slug_rejects_invalid() -> None:
     state = AsyncMock()
     master = AsyncMock(id=uuid4())
     session = AsyncMock()
-    await cmd_profile_save_slug(
-        message=message, state=state, session=session, master=master
-    )
+    await cmd_profile_save_slug(message=message, state=state, session=session, master=master)
     message.answer.assert_awaited()
     session.commit.assert_not_awaited()

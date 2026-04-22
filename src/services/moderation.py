@@ -40,9 +40,7 @@ class ModerationService:
         )
         out: list[RejectedInfo] = []
         for appt in rejected_appts:
-            client = await self._session.scalar(
-                select(Client).where(Client.id == appt.client_id)
-            )
+            client = await self._session.scalar(select(Client).where(Client.id == appt.client_id))
             out.append(
                 RejectedInfo(
                     appointment_id=appt.id,
