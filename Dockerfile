@@ -16,8 +16,12 @@ RUN uv sync --frozen --no-dev --no-install-project
 
 COPY src ./src
 COPY migrations ./migrations
+COPY scripts ./scripts
 COPY alembic.ini ./
 
 ENV PATH="/app/.venv/bin:$PATH"
 
-CMD ["python", "-m", "src.main"]
+HEALTHCHECK --interval=60s --timeout=10s --start-period=30s --retries=3 \
+    CMD python /app/scripts/healthcheck.py || exit 1
+
+CMD ["sh", "-c", "alembic upgrade head && exec python -m src.main"]
