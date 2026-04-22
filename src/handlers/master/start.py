@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 from aiogram import Router
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, Filter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,7 +32,18 @@ def _parse_invite_payload(text: str | None) -> str | None:
     return payload[len("invite_"):]
 
 
-@router.message(CommandStart())
+class HasInviteOrMaster(Filter):
+    async def __call__(
+        self,
+        event: Message,
+        master: Master | None = None,
+    ) -> bool:
+        if master is not None:
+            return True
+        return _parse_invite_payload(event.text) is not None
+
+
+@router.message(CommandStart(), HasInviteOrMaster())
 async def handle_start(
     message: Message,
     master: Master | None,
@@ -60,7 +71,7 @@ async def handle_start(
         if invite.used_at is not None:
             await message.answer(strings.INVITE_ALREADY_USED)
             return
-        if invite.expires_at <= datetime.now(timezone.utc):
+        if invite.expires_at <= datetime.now(UTC):
             await message.answer(strings.INVITE_EXPIRED)
             return
         await state.clear()
@@ -69,12 +80,8 @@ async def handle_start(
         await message.answer(strings.LANG_PICK_PROMPT, reply_markup=lang_picker())
         return
 
-    if master is not None:
-        await state.clear()
-        await message.answer(strings.START_WELCOME_BACK, reply_markup=main_menu())
-        return
-
-    return  # no master + no invite → client router picks up
+    await state.clear()
+    await message.answer(strings.START_WELCOME_BACK, reply_markup=main_menu())
 
 
 @router.callback_query(LangPickCallback.filter(), MasterRegister.waiting_lang)

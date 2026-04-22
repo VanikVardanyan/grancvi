@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from aiogram import F, Router
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, Filter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,16 +21,21 @@ _RU = get_bundle("ru")
 _HY = get_bundle("hy")
 
 
-@router.message(CommandStart())
+class IsAdminNoMaster(Filter):
+    async def __call__(
+        self,
+        event: Message,
+        is_admin: bool = False,
+        master: Master | None = None,
+    ) -> bool:
+        return bool(is_admin) and master is None
+
+
+@router.message(CommandStart(), IsAdminNoMaster())
 async def handle_admin_start(
     message: Message,
-    master: Master | None,
     state: FSMContext,
-    session: AsyncSession,
-    is_admin: bool = False,
 ) -> None:
-    if not is_admin or master is not None:
-        return
     await state.clear()
     await message.answer(strings.ADMIN_MENU_TITLE, reply_markup=admin_menu())
 
