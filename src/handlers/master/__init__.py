@@ -14,12 +14,14 @@ from src.handlers.master.mark_past import router as mark_past_router
 from src.handlers.master.menu import router as menu_router
 from src.handlers.master.services import router as services_router
 from src.handlers.master.settings import router as settings_router
+from src.handlers.master.registration import router as registration_router
 from src.handlers.master.start import router as start_router
 from src.handlers.master.today import router as today_router
 from src.handlers.master.week import router as week_router
 
 router = Router(name="master")
 router.include_router(start_router)
+router.include_router(registration_router)
 router.include_router(menu_router)
 router.include_router(services_router)
 router.include_router(settings_router)
