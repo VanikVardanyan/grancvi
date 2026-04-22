@@ -4,7 +4,7 @@ from typing import Any
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from src.callback_data.settings import SettingsCallback, WorkHoursDay
+from src.callback_data.settings import LanguageCallback, SettingsCallback, WorkHoursDay
 from src.strings import strings
 
 
@@ -27,6 +27,12 @@ def settings_menu() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(
                     text=strings.SETTINGS_BTN_BREAKS,
                     callback_data=SettingsCallback(section="breaks").pack(),
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text=strings.SETTINGS_BTN_LANGUAGE,
+                    callback_data=SettingsCallback(section="language").pack(),
                 )
             ],
         ]
@@ -62,6 +68,23 @@ def work_hours_list(work_hours: dict[str, Any]) -> InlineKeyboardMarkup:
         ]
     )
     return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def language_menu() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="Русский",
+                    callback_data=LanguageCallback(lang="ru").pack(),
+                ),
+                InlineKeyboardButton(
+                    text="Հայերեն",
+                    callback_data=LanguageCallback(lang="hy").pack(),
+                ),
+            ],
+        ]
+    )
 
 
 def work_hours_day_prompt(day: str) -> InlineKeyboardMarkup:

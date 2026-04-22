@@ -5,14 +5,14 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.callback_data.settings import SettingsCallback, WorkHoursDay
+from src.callback_data.settings import LanguageCallback, SettingsCallback, WorkHoursDay
 from src.db.models import Master
 from src.fsm.work_hours import WorkHoursEdit
 from src.keyboards.services import services_list
-from src.keyboards.settings import work_hours_day_prompt, work_hours_list
+from src.keyboards.settings import language_menu, work_hours_day_prompt, work_hours_list
 from src.repositories.masters import MasterRepository
 from src.repositories.services import ServiceRepository
-from src.strings import strings
+from src.strings import set_current_lang, strings
 from src.utils.work_hours import (
     InvalidTimeFormat,
     InvalidTimeOrder,
@@ -52,6 +52,14 @@ async def handle_settings_section(
         await callback.answer()
         if isinstance(callback.message, Message):
             await _render_work_hours(callback.message, master)
+        return
+
+    if callback_data.section == "language":
+        await callback.answer()
+        if isinstance(callback.message, Message):
+            await callback.message.answer(
+                strings.LANGUAGE_PICK_PROMPT, reply_markup=language_menu()
+            )
         return
 
     # breaks wired later (out of scope for this epic)
@@ -112,6 +120,23 @@ async def wh_handle_start(message: Message, state: FSMContext) -> None:
     await state.update_data(start=raw)
     await state.set_state(WorkHoursEdit.waiting_end)
     await message.answer(strings.WORK_HOURS_ASK_END)
+
+
+@router.callback_query(LanguageCallback.filter())
+async def cb_pick_language(
+    callback: CallbackQuery,
+    callback_data: LanguageCallback,
+    master: Master | None,
+    session: AsyncSession,
+) -> None:
+    if master is None:
+        await callback.answer()
+        return
+    repo = MasterRepository(session)
+    await repo.update_lang(master.id, callback_data.lang)
+    master.lang = callback_data.lang
+    set_current_lang(callback_data.lang)
+    await callback.answer(strings.LANGUAGE_CHANGED)
 
 
 @router.message(WorkHoursEdit.waiting_end)

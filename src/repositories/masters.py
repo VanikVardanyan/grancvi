@@ -55,3 +55,9 @@ class MasterRepository:
         if master is None:
             return
         master.breaks = breaks
+
+    async def update_lang(self, master_id: Any, lang: str) -> None:
+        master = await self._session.get(Master, master_id)
+        if master is None:
+            return
+        master.lang = lang
