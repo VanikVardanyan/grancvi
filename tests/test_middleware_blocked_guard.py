@@ -74,3 +74,45 @@ async def test_non_master_passes_through() -> None:
 
     await middleware(handler, cast(TelegramObject, msg), {"master": None})
     handler.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_cancel_passes_through_when_blocked() -> None:
+    master = Master(
+        tg_id=1,
+        name="A",
+        slug="a-0001",
+        blocked_at=now_utc(),
+    )
+    middleware = BlockedMasterGuardMiddleware()
+    msg = FakeMessage(text="/cancel", answer=AsyncMock())
+    handler = AsyncMock()
+
+    await middleware(handler, cast(TelegramObject, msg), {"master": master})
+    handler.assert_awaited_once()
+
+
+@dataclass
+class FakeCallback:
+    answer: AsyncMock
+
+
+@pytest.mark.asyncio
+async def test_blocked_master_callback_gets_toast() -> None:
+    master = Master(
+        tg_id=1,
+        name="A",
+        slug="a-0001",
+        blocked_at=now_utc(),
+    )
+    middleware = BlockedMasterGuardMiddleware()
+    cb = FakeCallback(answer=AsyncMock())
+    handler = AsyncMock()
+
+    await middleware(handler, cast(TelegramObject, cb), {"master": master})
+    handler.assert_not_awaited()
+    cb.answer.assert_awaited_once()
+    from src.strings import get_bundle
+
+    ru = get_bundle("ru")
+    assert ru.MASTER_BLOCKED_BANNER in cb.answer.await_args[0][0]

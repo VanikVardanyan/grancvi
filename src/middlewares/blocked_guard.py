@@ -27,7 +27,7 @@ class BlockedMasterGuardMiddleware(BaseMiddleware):
         if master is None or master.blocked_at is None:
             return await handler(event, data)
 
-        inner: Any = event.event if isinstance(event, Update) else event
+        inner: TelegramObject = event.event if isinstance(event, Update) else event
         text = getattr(inner, "text", None)
         if isinstance(text, str) and text.strip() in _ALLOWED_TEXTS:
             return await handler(event, data)
