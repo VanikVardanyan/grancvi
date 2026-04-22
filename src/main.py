@@ -49,7 +49,7 @@ async def main() -> None:
     bot = Bot(token=settings.bot_token)
     dp = build_dispatcher()
 
-    scheduler = build_scheduler(settings.redis_url)
+    scheduler = build_scheduler()
     scheduler.add_job(
         partial(send_due_reminders, bot=bot, session_factory=SessionMaker),
         trigger=CronTrigger(minute="*"),
