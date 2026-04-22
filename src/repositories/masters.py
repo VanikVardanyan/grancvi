@@ -61,3 +61,48 @@ class MasterRepository:
         if master is None:
             return
         master.lang = lang
+
+    async def by_slug(self, slug: str) -> Master | None:
+        return cast(
+            Master | None,
+            await self._session.scalar(select(Master).where(Master.slug == slug)),
+        )
+
+    async def list_public(self) -> list[Master]:
+        stmt = (
+            select(Master)
+            .where(Master.is_public.is_(True), Master.blocked_at.is_(None))
+            .order_by(Master.created_at.asc())
+        )
+        result = await self._session.scalars(stmt)
+        return list(result.all())
+
+    async def list_all(self) -> list[Master]:
+        stmt = select(Master).order_by(Master.created_at.asc())
+        result = await self._session.scalars(stmt)
+        return list(result.all())
+
+    async def update_slug(self, master_id: Any, slug: str) -> None:
+        master = await self._session.get(Master, master_id)
+        if master is None:
+            return
+        master.slug = slug
+
+    async def update_specialty(self, master_id: Any, specialty: str) -> None:
+        master = await self._session.get(Master, master_id)
+        if master is None:
+            return
+        master.specialty_text = specialty
+
+    async def update_name(self, master_id: Any, name: str) -> None:
+        master = await self._session.get(Master, master_id)
+        if master is None:
+            return
+        master.name = name
+
+    async def set_blocked(self, master_id: Any, *, blocked: bool) -> None:
+        from datetime import datetime, timezone
+        master = await self._session.get(Master, master_id)
+        if master is None:
+            return
+        master.blocked_at = datetime.now(timezone.utc) if blocked else None
