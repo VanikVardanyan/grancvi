@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 from aiogram import Router
 from aiogram.filters import Command
@@ -10,12 +10,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.models import Appointment, Client, Master
 from src.strings import strings
+from src.utils.time import now_utc
 
 router = Router(name="admin_stats")
 
 
 async def cmd_admin_stats(*, message: Message, session: AsyncSession) -> None:
-    now = datetime.now(UTC)
+    now = now_utc()
 
     masters_active = (
         await session.scalar(select(func.count(Master.id)).where(Master.blocked_at.is_(None))) or 0

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from unittest.mock import AsyncMock
 
 import pytest
@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.models import Appointment, Client, Master, Service
 from src.handlers.admin.stats import cmd_admin_stats
+from src.utils.time import now_utc
 
 
 @pytest.mark.asyncio
@@ -17,7 +18,7 @@ async def test_stats_counts(session: AsyncSession) -> None:
         tg_id=2,
         name="B",
         slug="b-0001",
-        blocked_at=datetime.now(UTC),
+        blocked_at=now_utc(),
     )
     session.add_all([m1, m2])
     await session.flush()
@@ -26,7 +27,7 @@ async def test_stats_counts(session: AsyncSession) -> None:
     session.add_all([svc, cli])
     await session.flush()
 
-    now = datetime.now(UTC)
+    now = now_utc()
     session.add(
         Appointment(
             master_id=m1.id,
@@ -56,5 +57,7 @@ async def test_stats_counts(session: AsyncSession) -> None:
     message = AsyncMock()
     await cmd_admin_stats(message=message, session=session)
     text = message.answer.await_args[0][0]
-    assert "1" in text  # active masters
-    assert "1" in text  # blocked
+    assert "Мастера: 1 активных / 1 заблокированных" in text
+    assert "Клиентов (уникальных): 1" in text
+    assert "Записей за 7 дней: 1" in text
+    assert "Записей за 30 дней: 2" in text
