@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import structlog
 from aiogram import Bot, Router
+from aiogram.exceptions import TelegramAPIError
 from aiogram.filters import Command, CommandObject
 from aiogram.types import Message
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,6 +41,7 @@ async def cmd_block_master(
         return
     svc = ModerationService(session)
     result = await svc.block_master(master.id)
+    await session.commit()
     for info in result.rejected:
         if info.client_tg_id is None:
             continue
@@ -48,7 +50,7 @@ async def cmd_block_master(
                 chat_id=info.client_tg_id,
                 text=strings.CLIENT_APPT_REJECTED_BLOCK,
             )
-        except Exception as e:
+        except TelegramAPIError as e:
             log.warning("notify_failed", tg_id=info.client_tg_id, err=str(e))
     await message.answer(
         strings.ADMIN_BLOCK_DONE_FMT.format(slug=slug, n=len(result.rejected)),
@@ -69,6 +71,7 @@ async def cmd_unblock_master(
         return
     svc = ModerationService(session)
     await svc.unblock_master(master.id)
+    await session.commit()
     await message.answer(
         strings.ADMIN_UNBLOCK_DONE_FMT.format(slug=slug),
         reply_markup=admin_menu(),

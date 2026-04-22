@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.models import Appointment, Client, Master, Service
 from src.handlers.admin.moderation import cmd_block_master, cmd_unblock_master
+from src.strings import strings as strings_module
 from src.utils.time import now_utc
 
 
@@ -39,7 +40,10 @@ async def test_block_sends_notifications_and_blocks(session: AsyncSession) -> No
     await cmd_block_master(message=message, session=session, slug="target-0001", bot=bot)
     await session.commit()
 
-    bot.send_message.assert_awaited()
+    bot.send_message.assert_awaited_once_with(
+        chat_id=987654,
+        text=strings_module.CLIENT_APPT_REJECTED_BLOCK,
+    )
     await session.refresh(m)
     assert m.blocked_at is not None
 
