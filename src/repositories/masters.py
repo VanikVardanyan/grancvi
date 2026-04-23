@@ -3,7 +3,8 @@ from __future__ import annotations
 from datetime import UTC
 from typing import Any, cast
 
-from sqlalchemy import select
+from sqlalchemy import bindparam, select
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.models import Master
@@ -67,10 +68,19 @@ class MasterRepository:
         return cast(Master | None, await self._session.get(Master, master_id))
 
     async def by_slug(self, slug: str) -> Master | None:
-        return cast(
-            Master | None,
-            await self._session.scalar(select(Master).where(Master.slug == slug)),
+        """Look up by current slug, falling back to historical slugs.
+
+        Old QR codes and shared links keep working after a slug rename:
+        the previous slug lives in `past_slugs` (JSONB array) and is
+        matched via the `@>` containment operator.
+        """
+        master = await self._session.scalar(select(Master).where(Master.slug == slug))
+        if master is not None:
+            return master
+        stmt = select(Master).where(
+            Master.past_slugs.contains(bindparam("slug_arr", [slug], type_=JSONB))
         )
+        return cast(Master | None, await self._session.scalar(stmt))
 
     async def list_public(self) -> list[Master]:
         stmt = (
@@ -87,10 +97,22 @@ class MasterRepository:
         return list(result.all())
 
     async def update_slug(self, master_id: Any, slug: str) -> None:
+        from datetime import UTC, datetime
+
         master = await self._session.get(Master, master_id)
         if master is None:
             return
+        if master.slug == slug:
+            return
+        old = master.slug
+        # Rebuild the list to ensure SQLAlchemy picks up the mutation
+        # (JSONB columns don't auto-track append on the in-memory list).
+        history = [s for s in (master.past_slugs or []) if s != slug]
+        if old and old not in history:
+            history.append(old)
+        master.past_slugs = history
         master.slug = slug
+        master.slug_changed_at = datetime.now(UTC)
 
     async def update_specialty(self, master_id: Any, specialty: str) -> None:
         master = await self._session.get(Master, master_id)

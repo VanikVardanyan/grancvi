@@ -28,6 +28,7 @@ from src.db.models import Appointment, Client, Master, Service
 from src.exceptions import InvalidSlug, InvalidState, NotFound, ReservedSlug, SlotAlreadyTaken
 from src.repositories.appointments import AppointmentRepository
 from src.repositories.clients import ClientRepository
+from src.repositories.masters import MasterRepository
 from src.services.booking import BookingService
 from src.services.reminders import ReminderService
 from src.services.slug import SlugService
@@ -146,7 +147,15 @@ def _validate_schedule_map(
                 )
 
 
+_SLUG_COOLDOWN = timedelta(days=30)
+
+
 def _profile_out(m: Master) -> MasterProfileOut:
+    next_change = (
+        m.slug_changed_at + _SLUG_COOLDOWN
+        if m.slug_changed_at is not None
+        else None
+    )
     return MasterProfileOut(
         id=m.id,
         name=m.name,
@@ -156,6 +165,7 @@ def _profile_out(m: Master) -> MasterProfileOut:
         timezone=m.timezone,
         lang=m.lang,
         is_public=m.is_public,
+        slug_next_change_at=next_change,
     )
 
 
@@ -173,6 +183,16 @@ async def update_my_profile(
     session: AsyncSession = Depends(get_session),
 ) -> MasterProfileOut:
     if payload.slug is not None and payload.slug != master.slug:
+        # 30-day cooldown — stops thrashing and keeps printed QR stickers
+        # meaningful even though we redirect past slugs.
+        if master.slug_changed_at is not None:
+            next_allowed = master.slug_changed_at + _SLUG_COOLDOWN
+            if datetime.now(UTC) < next_allowed:
+                raise ApiError(
+                    "slug_rate_limited",
+                    f"slug can be changed again at {next_allowed.isoformat()}",
+                    status_code=429,
+                )
         slug_svc = SlugService(session)
         try:
             SlugService.validate(payload.slug)
@@ -182,7 +202,9 @@ async def update_my_profile(
             raise ApiError("slug_invalid", str(exc), status_code=400) from exc
         if await slug_svc.is_taken(payload.slug):
             raise ApiError("slug_taken", "slug already taken", status_code=409)
-        master.slug = payload.slug
+        # Goes through the repo so the old slug is stashed in past_slugs
+        # and old QR / deep links still resolve to this master.
+        await MasterRepository(session).update_slug(master.id, payload.slug)
 
     if payload.timezone is not None:
         try:

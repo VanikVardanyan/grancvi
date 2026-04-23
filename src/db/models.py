@@ -73,6 +73,12 @@ class Master(Base):
         ForeignKey("salons.id", ondelete="SET NULL"),
         nullable=True,
     )
+    past_slugs: Mapped[list[str]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'[]'::jsonb")
+    )
+    slug_changed_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
 
 
 class Service(Base):

@@ -181,6 +181,7 @@ class MasterProfileOut(BaseModel):
     timezone: str
     lang: str
     is_public: bool
+    slug_next_change_at: datetime | None = None
 
 
 class MasterProfileIn(BaseModel):
