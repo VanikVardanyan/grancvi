@@ -8,10 +8,15 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.callback_data.services import ServiceAction
+from src.callback_data.services import ServiceAction, ServicePresetPick
 from src.db.models import Master
 from src.fsm.services import ServiceAdd, ServiceEditDuration, ServiceEditName
-from src.keyboards.services import edit_menu, services_list
+from src.keyboards.services import (
+    edit_menu,
+    service_presets_for,
+    service_presets_kb,
+    services_list,
+)
 from src.repositories.services import ServiceRepository
 from src.strings import strings
 
@@ -39,11 +44,42 @@ async def cmd_services(message: Message, master: Master | None, session: AsyncSe
 
 
 @router.callback_query(ServiceAction.filter(F.action == "add"))
-async def cb_add(callback: CallbackQuery, state: FSMContext) -> None:
+async def cb_add(callback: CallbackQuery, state: FSMContext, master: Master | None) -> None:
     await state.set_state(ServiceAdd.waiting_name)
     await callback.answer()
-    if callback.message is not None and hasattr(callback.message, "answer"):
+    if callback.message is None or not hasattr(callback.message, "answer"):
+        return
+    specialty = (master.specialty_text if master is not None else "") or ""
+    if service_presets_for(specialty):
+        await callback.message.answer(
+            strings.SERVICES_ADD_PICK_PRESET, reply_markup=service_presets_kb(specialty)
+        )
+    else:
         await callback.message.answer(strings.SERVICES_ADD_ASK_NAME)
+
+
+@router.callback_query(ServicePresetPick.filter(), ServiceAdd.waiting_name)
+async def cb_pick_preset(
+    callback: CallbackQuery,
+    callback_data: ServicePresetPick,
+    state: FSMContext,
+    master: Master | None,
+) -> None:
+    await callback.answer()
+    if callback_data.key == "custom":
+        if callback.message is not None and hasattr(callback.message, "answer"):
+            await callback.message.answer(strings.SERVICES_ADD_ASK_NAME)
+        return
+    label_key = callback_data.key.upper()
+    name: str | None = getattr(strings, f"SERVICE_PRESET_{label_key}", None)
+    if name is None:
+        if callback.message is not None and hasattr(callback.message, "answer"):
+            await callback.message.answer(strings.SERVICES_ADD_ASK_NAME)
+        return
+    await state.update_data(name=name)
+    await state.set_state(ServiceAdd.waiting_duration)
+    if callback.message is not None and hasattr(callback.message, "answer"):
+        await callback.message.answer(strings.SERVICES_ADD_ASK_DURATION)
 
 
 @router.message(ServiceAdd.waiting_name)
