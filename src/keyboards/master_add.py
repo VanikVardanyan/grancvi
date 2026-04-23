@@ -12,6 +12,7 @@ from src.callback_data.master_add import (
     PhoneDupCallback,
     RecentClientCallback,
     SkipCommentCallback,
+    SkipPhoneCallback,
 )
 from src.callback_data.slots import SlotCallback
 from src.db.models import Client
@@ -19,8 +20,9 @@ from src.strings import strings
 
 
 def _client_button(client: Client) -> InlineKeyboardButton:
+    label = f"{client.name} · {client.phone}" if client.phone else client.name
     return InlineKeyboardButton(
-        text=f"{client.name} · {client.phone}",
+        text=label,
         callback_data=RecentClientCallback(client_id=str(client.id)).pack(),
     )
 
@@ -114,6 +116,19 @@ def skip_comment_kb() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(
                     text=strings.MANUAL_BTN_SKIP,
                     callback_data=SkipCommentCallback().pack(),
+                )
+            ]
+        ]
+    )
+
+
+def skip_phone_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=strings.MANUAL_BTN_SKIP,
+                    callback_data=SkipPhoneCallback().pack(),
                 )
             ]
         ]

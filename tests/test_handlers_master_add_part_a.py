@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from aiogram.fsm.context import FSMContext
@@ -11,13 +11,14 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.callback_data.client_services import ClientServicePick
-from src.callback_data.master_add import PhoneDupCallback, RecentClientCallback
+from src.callback_data.master_add import PhoneDupCallback, RecentClientCallback, SkipPhoneCallback
 from src.db.models import Client, Master, Service
 from src.fsm.master_add import MasterAdd
 from src.handlers.master.add_manual import (
     cb_phone_dup,
     cb_pick_recent,
     cb_pick_service,
+    cb_skip_phone,
     cmd_add,
     msg_new_client_name,
     msg_new_client_phone,
@@ -192,6 +193,37 @@ async def test_msg_new_client_phone_dup_waits_for_decision(session: AsyncSession
     await msg_new_client_phone(message=msg, state=state, session=session, master=master)
     assert await state.get_state() == MasterAdd.NewClientPhone.state
     assert (await state.get_data())["pending_phone"] == "+37499500500"
+
+
+@pytest.mark.asyncio
+async def test_cb_skip_phone_creates_anonymous_client_and_advances(
+    session: AsyncSession,
+) -> None:
+    master = await _seed_master(session)
+    svc = Service(master_id=master.id, name="Стрижка", duration_min=60)
+    session.add(svc)
+    await session.flush()
+    await session.commit()
+
+    state = await _mkctx()
+    await state.set_state(MasterAdd.NewClientPhone)
+    await state.update_data(pending_name="Walk-in")
+    cb = _FakeCb(from_user=_FakeUser(id=master.tg_id))
+    await cb_skip_phone(
+        callback=cb,  # type: ignore[arg-type]
+        callback_data=SkipPhoneCallback(),
+        state=state,
+        session=session,
+        master=master,
+    )
+    assert await state.get_state() == MasterAdd.PickingService.state
+    data = await state.get_data()
+    assert "client_id" in data
+
+    client = await session.get(Client, UUID(data["client_id"]))
+    assert client is not None
+    assert client.name == "Walk-in"
+    assert client.phone is None
 
 
 @pytest.mark.asyncio

@@ -21,6 +21,7 @@ from src.callback_data.master_add import (
     PhoneDupCallback,
     RecentClientCallback,
     SkipCommentCallback,
+    SkipPhoneCallback,
 )
 from src.callback_data.slots import SlotCallback
 from src.db.models import Client, Master, Service
@@ -34,6 +35,7 @@ from src.keyboards.master_add import (
     recent_clients_kb,
     search_results_kb,
     skip_comment_kb,
+    skip_phone_kb,
     slots_grid_with_custom,
 )
 from src.keyboards.slots import services_pick_kb
@@ -152,7 +154,7 @@ async def msg_new_client_name(message: Message, state: FSMContext) -> None:
         return
     await state.update_data(pending_name=name)
     await state.set_state(MasterAdd.NewClientPhone)
-    await message.answer(strings.MANUAL_ASK_PHONE)
+    await message.answer(strings.MANUAL_ASK_PHONE, reply_markup=skip_phone_kb())
 
 
 @router.message(MasterAdd.NewClientPhone)
@@ -207,7 +209,28 @@ async def cb_phone_dup(
     data.pop("pending_phone", None)
     await state.set_data(data)
     if callback.message is not None and hasattr(callback.message, "answer"):
-        await callback.message.answer(strings.MANUAL_ASK_PHONE)
+        await callback.message.answer(strings.MANUAL_ASK_PHONE, reply_markup=skip_phone_kb())
+
+
+@router.callback_query(SkipPhoneCallback.filter(), MasterAdd.NewClientPhone)
+async def cb_skip_phone(
+    callback: CallbackQuery,
+    callback_data: SkipPhoneCallback,
+    state: FSMContext,
+    session: AsyncSession,
+    master: Master,
+) -> None:
+    await callback.answer()
+    data = await state.get_data()
+    name = data.get("pending_name", "")
+    repo = ClientRepository(session)
+    client = await repo.create_anonymous(master_id=master.id, name=name)
+    await session.commit()
+    await state.update_data(client_id=str(client.id))
+    await state.set_state(MasterAdd.PickingService)
+    reply_to = callback.message if isinstance(callback.message, Message) else None
+    if reply_to is not None:
+        await _show_services(state, session, master, reply_to=reply_to)
 
 
 @router.callback_query(ClientServicePick.filter(), MasterAdd.PickingService)
@@ -407,7 +430,7 @@ def _render_confirm(
     local = start_at.astimezone(tz)
     text: str = strings.MANUAL_CONFIRM_CARD.format(
         client=client.name,
-        phone=client.phone,
+        phone=(client.phone or "—"),
         service=service.name,
         date=local.strftime("%d.%m.%Y"),
         time=local.strftime("%H:%M"),

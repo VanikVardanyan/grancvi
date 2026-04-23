@@ -21,5 +21,9 @@ class SkipCommentCallback(CallbackData, prefix="msc"):
     pass
 
 
+class SkipPhoneCallback(CallbackData, prefix="msp"):
+    pass
+
+
 class CustomTimeCallback(CallbackData, prefix="mct"):
     pass

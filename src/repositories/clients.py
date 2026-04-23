@@ -20,6 +20,23 @@ class ClientRepository:
     async def get(self, client_id: UUID) -> Client | None:
         return cast(Client | None, await self._session.get(Client, client_id))
 
+    async def create_anonymous(
+        self,
+        *,
+        master_id: UUID,
+        name: str,
+        tg_id: int | None = None,
+    ) -> Client:
+        """Create a phone-less client (master-side walk-in).
+
+        Each call produces a new row — no dedup, since there's no stable key
+        without a phone.
+        """
+        client = Client(master_id=master_id, phone=None, name=name, tg_id=tg_id)
+        self._session.add(client)
+        await self._session.flush()
+        return client
+
     async def upsert_by_phone(
         self,
         *,

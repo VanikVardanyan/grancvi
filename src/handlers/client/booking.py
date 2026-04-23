@@ -361,7 +361,7 @@ async def handle_confirm(
     weekday_ru = strings.WEEKDAY_SHORT[local.weekday()]
     text = strings.APPT_NOTIFY_MASTER.format(
         name=client_row.name,
-        phone=client_row.phone,
+        phone=client_row.phone or "—",
         service=service.name,
         duration=service.duration_min,
         date=local.strftime("%d.%m.%Y"),

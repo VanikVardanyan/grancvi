@@ -40,10 +40,11 @@ _HISTORY_LIMIT = 20
 def _search_results_kb(clients: list[Client]) -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = []
     for c in clients:
+        label = f"{c.name} · {c.phone}" if c.phone else c.name
         rows.append(
             [
                 InlineKeyboardButton(
-                    text=f"{c.name} · {c.phone}",
+                    text=label,
                     callback_data=ClientPickCallback(client_id=c.id).pack(),
                 )
             ]
@@ -118,7 +119,9 @@ async def _render_client_page(
 ) -> tuple[str, InlineKeyboardMarkup]:
     tz = ZoneInfo(master.timezone)
     now = now_utc()
-    parts: list[str] = [strings.CLIENT_PAGE_HEADER.format(name=client.name, phone=client.phone)]
+    parts: list[str] = [
+        strings.CLIENT_PAGE_HEADER.format(name=client.name, phone=client.phone or "—")
+    ]
     notes_text = client.notes if client.notes else strings.CLIENT_PAGE_NOTES_EMPTY
     parts.append(strings.CLIENT_PAGE_NOTES_TITLE.format(notes=notes_text))
 
