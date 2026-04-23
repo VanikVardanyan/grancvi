@@ -68,6 +68,11 @@ class Master(Base):
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
     )
+    salon_id: Mapped[UUID | None] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("salons.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
 
 class Service(Base):
@@ -236,6 +241,10 @@ class Invite(Base):
             "AND (used_at IS NULL) = (used_for_master_id IS NULL)",
             name="ck_invites_usage_tuple",
         ),
+        CheckConstraint(
+            "kind IN ('master', 'salon_owner')",
+            name="ck_invites_kind",
+        ),
         Index("ix_invites_code", "code"),
         Index("ix_invites_creator", "created_by_tg_id", "created_at"),
     )
@@ -257,4 +266,36 @@ class Invite(Base):
         PgUUID(as_uuid=True),
         ForeignKey("masters.id", ondelete="SET NULL"),
         nullable=True,
+    )
+    kind: Mapped[str] = mapped_column(
+        String(16), nullable=False, server_default=text("'master'")
+    )
+    salon_id: Mapped[UUID | None] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("salons.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+
+
+class Salon(Base):
+    __tablename__ = "salons"
+
+    id: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    owner_tg_id: Mapped[int] = mapped_column(BigInteger, unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    slug: Mapped[str] = mapped_column(String(32), nullable=False, unique=True)
+    logo_file_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_public: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("true")
+    )
+    blocked_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
     )
