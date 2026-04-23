@@ -177,3 +177,125 @@ async def test_appointments_bad_date_format(session: AsyncSession, api_client: A
         "/v1/master/me/appointments", params={"from": "bad", "to": "2026-01-02"}
     )
     assert r.status_code == 400
+
+
+# ---------- services CRUD ----------
+
+
+@pytest.mark.asyncio
+async def test_services_list_includes_inactive(
+    session: AsyncSession, api_client: AsyncClient
+) -> None:
+    master, _, _ = await _seed(session, tg_id=8001)
+    session.add(Service(master_id=master.id, name="Extra", duration_min=20, active=False))
+    await session.commit()
+    _install_overrides(session, tg_id=8001)
+    r = await api_client.get("/v1/master/me/services")
+    assert r.status_code == 200
+    items = r.json()
+    names = sorted(i["name"] for i in items)
+    assert names == ["Extra", "Стрижка"]
+
+
+@pytest.mark.asyncio
+async def test_service_create(session: AsyncSession, api_client: AsyncClient) -> None:
+    await _seed(session, tg_id=8100)
+    _install_overrides(session, tg_id=8100)
+    r = await api_client.post(
+        "/v1/master/me/services",
+        json={"name": "Маникюр", "duration_min": 45, "price_amd": 5000},
+    )
+    assert r.status_code == 201
+    body = r.json()
+    assert body["name"] == "Маникюр"
+    assert body["duration_min"] == 45
+    assert body["price_amd"] == 5000
+    assert body["active"] is True
+
+
+@pytest.mark.asyncio
+async def test_service_update_and_delete(session: AsyncSession, api_client: AsyncClient) -> None:
+    _, _, service = await _seed(session, tg_id=8200)
+    _install_overrides(session, tg_id=8200)
+
+    r = await api_client.patch(
+        f"/v1/master/me/services/{service.id}",
+        json={"name": "Стрижка-2", "duration_min": 60},
+    )
+    assert r.status_code == 200
+    assert r.json()["name"] == "Стрижка-2"
+    assert r.json()["duration_min"] == 60
+
+    r = await api_client.delete(f"/v1/master/me/services/{service.id}")
+    assert r.status_code == 200
+    r = await api_client.get("/v1/master/me/services")
+    only = r.json()
+    assert len(only) == 1
+    assert only[0]["active"] is False
+
+
+@pytest.mark.asyncio
+async def test_service_cross_master_forbidden(
+    session: AsyncSession, api_client: AsyncClient
+) -> None:
+    _, _, service = await _seed(session, tg_id=8301)
+    master_b = Master(tg_id=8302, name="B", slug="b-8302")
+    session.add(master_b)
+    await session.commit()
+    _install_overrides(session, tg_id=8302)  # master B tries to touch master A's service
+    r = await api_client.patch(f"/v1/master/me/services/{service.id}", json={"name": "hack"})
+    assert r.status_code == 404
+
+
+# ---------- appointment cancel ----------
+
+
+@pytest.mark.asyncio
+async def test_appointment_cancel_by_master(session: AsyncSession, api_client: AsyncClient) -> None:
+    master, client, service = await _seed(session, tg_id=8400)
+    start = datetime.now(UTC) + timedelta(hours=4)
+    appt = Appointment(
+        master_id=master.id,
+        client_id=client.id,
+        service_id=service.id,
+        start_at=start,
+        end_at=start + timedelta(minutes=30),
+        status="confirmed",
+        source="master_manual",
+    )
+    session.add(appt)
+    await session.commit()
+
+    _install_overrides(session, tg_id=8400)
+    r = await api_client.post(f"/v1/master/me/appointments/{appt.id}/cancel")
+    assert r.status_code == 200
+
+    await session.refresh(appt)
+    assert appt.status == "cancelled"
+    assert appt.cancelled_by == "master"
+
+
+@pytest.mark.asyncio
+async def test_appointment_cancel_other_master_404(
+    session: AsyncSession, api_client: AsyncClient
+) -> None:
+    master_a, client, service = await _seed(session, tg_id=8501)
+    master_b = Master(tg_id=8502, name="B", slug="b-8502")
+    session.add(master_b)
+    await session.flush()
+    start = datetime.now(UTC) + timedelta(hours=4)
+    appt = Appointment(
+        master_id=master_a.id,
+        client_id=client.id,
+        service_id=service.id,
+        start_at=start,
+        end_at=start + timedelta(minutes=30),
+        status="confirmed",
+        source="master_manual",
+    )
+    session.add(appt)
+    await session.commit()
+
+    _install_overrides(session, tg_id=8502)
+    r = await api_client.post(f"/v1/master/me/appointments/{appt.id}/cancel")
+    assert r.status_code == 404

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta
+from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Query
@@ -10,8 +11,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.auth import require_master
 from src.api.deps import get_session
 from src.api.errors import ApiError
-from src.api.schemas import MasterAppointmentOut
+from src.api.schemas import (
+    MasterAppointmentOut,
+    MasterServiceOut,
+    OkOut,
+    ServiceCreateIn,
+    ServiceUpdateIn,
+)
 from src.db.models import Appointment, Client, Master, Service
+from src.exceptions import InvalidState, NotFound
+from src.repositories.appointments import AppointmentRepository
+from src.services.booking import BookingService
+from src.services.reminders import ReminderService
 
 router = APIRouter(prefix="/v1/master/me", tags=["master"])
 
@@ -85,3 +96,129 @@ async def list_my_appointments(
         )
         for row in rows
     ]
+
+
+def _service_to_out(s: Service) -> MasterServiceOut:
+    return MasterServiceOut(
+        id=s.id,
+        name=s.name,
+        duration_min=s.duration_min,
+        price_amd=s.price_amd,
+        active=s.active,
+    )
+
+
+@router.get("/services", response_model=list[MasterServiceOut])
+async def list_my_services(
+    master: Master = Depends(require_master),
+    session: AsyncSession = Depends(get_session),
+) -> list[MasterServiceOut]:
+    """Return all services owned by the caller (including inactive ones).
+
+    Ordered by `position` then `created_at` — matches the master's bot view.
+    """
+    stmt = (
+        select(Service)
+        .where(Service.master_id == master.id)
+        .order_by(Service.position.asc(), Service.created_at.asc())
+    )
+    rows = list((await session.scalars(stmt)).all())
+    return [_service_to_out(s) for s in rows]
+
+
+@router.post("/services", response_model=MasterServiceOut, status_code=201)
+async def create_my_service(
+    payload: ServiceCreateIn,
+    master: Master = Depends(require_master),
+    session: AsyncSession = Depends(get_session),
+) -> MasterServiceOut:
+    """Create a new service on the caller's master profile."""
+    service = Service(
+        master_id=master.id,
+        name=payload.name.strip(),
+        duration_min=payload.duration_min,
+        price_amd=payload.price_amd,
+    )
+    session.add(service)
+    await session.flush()
+    await session.commit()
+    return _service_to_out(service)
+
+
+@router.patch("/services/{service_id}", response_model=MasterServiceOut)
+async def update_my_service(
+    service_id: UUID,
+    payload: ServiceUpdateIn,
+    master: Master = Depends(require_master),
+    session: AsyncSession = Depends(get_session),
+) -> MasterServiceOut:
+    """Partially update a service owned by the caller."""
+    service = await session.scalar(
+        select(Service).where(Service.id == service_id, Service.master_id == master.id)
+    )
+    if service is None:
+        raise ApiError("not_found", "service not found", status_code=404)
+
+    if payload.name is not None:
+        service.name = payload.name.strip()
+    if payload.duration_min is not None:
+        service.duration_min = payload.duration_min
+    if payload.price_amd is not None:
+        service.price_amd = payload.price_amd
+    if payload.active is not None:
+        service.active = payload.active
+
+    await session.commit()
+    return _service_to_out(service)
+
+
+@router.post("/appointments/{appointment_id}/cancel", response_model=OkOut)
+async def cancel_my_appointment(
+    appointment_id: UUID,
+    master: Master = Depends(require_master),
+    session: AsyncSession = Depends(get_session),
+) -> OkOut:
+    """Master cancels one of their appointments from the TMA dashboard.
+
+    Only pending/confirmed can be cancelled. Triggers the same
+    side-effects as the bot flow: status → cancelled, cancelled_by =
+    "master", reminders suppressed. Client notification via the bot is
+    handled by the existing cancel-notify path (not yet wired for API
+    cancels — can be added in a follow-up).
+    """
+    appt_repo = AppointmentRepository(session)
+    appt = await appt_repo.get(appointment_id)
+    if appt is None or appt.master_id != master.id:
+        raise ApiError("not_found", "appointment not found", status_code=404)
+
+    svc = BookingService(session)
+    try:
+        await svc.cancel(appt.id, cancelled_by="master")
+    except (NotFound, InvalidState) as exc:
+        raise ApiError("cannot_cancel", "appointment cannot be cancelled", status_code=409) from exc
+
+    reminder_svc = ReminderService(session)
+    await reminder_svc.suppress_for_appointment(appt.id)
+    await session.commit()
+    return OkOut(ok=True)
+
+
+@router.delete("/services/{service_id}", response_model=OkOut)
+async def delete_my_service(
+    service_id: UUID,
+    master: Master = Depends(require_master),
+    session: AsyncSession = Depends(get_session),
+) -> OkOut:
+    """Soft-delete a service (sets active=False).
+
+    Hard-delete would break existing appointments' FK. Services with
+    historical appointments must stay in DB.
+    """
+    service = await session.scalar(
+        select(Service).where(Service.id == service_id, Service.master_id == master.id)
+    )
+    if service is None:
+        raise ApiError("not_found", "service not found", status_code=404)
+    service.active = False
+    await session.commit()
+    return OkOut(ok=True)

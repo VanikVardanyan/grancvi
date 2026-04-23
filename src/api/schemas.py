@@ -111,3 +111,28 @@ class MasterAppointmentOut(BaseModel):
     end_at_utc: datetime
     status: str
     source: str
+
+
+class MasterServiceOut(BaseModel):
+    """Service row as seen by the owning master (includes inactive ones)."""
+
+    id: UUID
+    name: str
+    duration_min: int
+    price_amd: int | None = None
+    active: bool
+
+
+class ServiceCreateIn(BaseModel):
+    name: str = Field(..., min_length=1, max_length=120)
+    duration_min: int = Field(..., ge=1, le=24 * 60)
+    price_amd: int | None = Field(default=None, ge=0)
+
+
+class ServiceUpdateIn(BaseModel):
+    """Partial update — only send what you want to change."""
+
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    duration_min: int | None = Field(default=None, ge=1, le=24 * 60)
+    price_amd: int | None = Field(default=None, ge=0)
+    active: bool | None = None
