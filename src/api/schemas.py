@@ -14,6 +14,20 @@ class MasterOut(BaseModel):
     timezone: str
 
 
+class VisitedMasterOut(BaseModel):
+    """Compact master card for the client's 'previously booked' list.
+
+    `last_booked_at` is the most recent appointment start time (UTC), used
+    for most-recent-first sorting.
+    """
+
+    id: UUID
+    name: str
+    slug: str
+    specialty: str
+    last_booked_at: datetime
+
+
 class ServiceOut(BaseModel):
     id: UUID
     name: str

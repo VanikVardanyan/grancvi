@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 import structlog
 from aiogram import Bot
 from fastapi import APIRouter, Depends
-from sqlalchemy import select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -20,6 +20,7 @@ from src.api.schemas import (
     BookingCreateOut,
     BookingMineOut,
     OkOut,
+    VisitedMasterOut,
 )
 from src.db.models import Appointment, Client, Master, Service
 from src.exceptions import InvalidState, NotFound, SlotAlreadyTaken
@@ -100,9 +101,7 @@ async def create_booking(
     from src.keyboards.slots import approval_kb
 
     try:
-        await bot.send_message(
-            chat_id=master.tg_id, text=text, reply_markup=approval_kb(appt.id)
-        )
+        await bot.send_message(chat_id=master.tg_id, text=text, reply_markup=approval_kb(appt.id))
     except Exception:
         log.warning("api_master_notify_failed", master_tg=master.tg_id)
 
@@ -143,6 +142,55 @@ async def list_my_bookings(
             service_name=row.service_name,
             start_at_utc=row.start_at.astimezone(UTC),
             status=row.status,
+        )
+        for row in rows
+    ]
+
+
+@router.get("/visited-masters", response_model=list[VisitedMasterOut])
+async def list_visited_masters(
+    tg_user: dict[str, Any] = Depends(require_tg_user),
+    session: AsyncSession = Depends(get_session),
+) -> list[VisitedMasterOut]:
+    """Masters this client has ever booked with.
+
+    Groups by master across all of the client's appointments in any status,
+    returns one row per master sorted by most recent booking first. Lets a
+    returning client re-book without needing the original QR/link.
+
+    Only masters currently public and not blocked are returned.
+    """
+    tg_id = int(tg_user["id"])
+    last_booked = func.max(Appointment.start_at).label("last_booked_at")
+    stmt = (
+        select(
+            Master.id,
+            Master.name,
+            Master.slug,
+            Master.specialty_text.label("specialty"),
+            last_booked,
+        )
+        .join(Appointment, Appointment.master_id == Master.id)
+        .join(Client, Client.id == Appointment.client_id)
+        .where(
+            and_(
+                Client.tg_id == tg_id,
+                Master.blocked_at.is_(None),
+                Master.is_public.is_(True),
+            )
+        )
+        .group_by(Master.id, Master.name, Master.slug, Master.specialty_text)
+        .order_by(last_booked.desc())
+        .limit(30)
+    )
+    rows = (await session.execute(stmt)).all()
+    return [
+        VisitedMasterOut(
+            id=row.id,
+            name=row.name,
+            slug=row.slug,
+            specialty=row.specialty or "",
+            last_booked_at=row.last_booked_at.astimezone(UTC),
         )
         for row in rows
     ]

@@ -405,6 +405,103 @@ async def test_mine_scoped_by_tg_id(session: AsyncSession, api_client: AsyncClie
     assert items[0]["service_name"] == "Чистка"
 
 
+# ---------- bookings.visited-masters ----------
+
+
+@pytest.mark.asyncio
+async def test_visited_masters_returns_unique_recent_masters(
+    session: AsyncSession, api_client: AsyncClient
+) -> None:
+    m1 = await _make_master(session, slug="m-vm-1", tg_id=8001, name="Anna")
+    m2 = await _make_master(session, slug="m-vm-2", tg_id=8002, name="Boris")
+    m_blocked = await _make_master(session, slug="m-vm-3", tg_id=8003, name="Old", blocked=True)
+    svc1 = await _make_service(session, m1)
+    svc2 = await _make_service(session, m2)
+    svc3 = await _make_service(session, m_blocked)
+
+    client_a = Client(master_id=m1.id, name="Me", phone="+1", tg_id=FAKE_TG_ID)
+    client_b = Client(master_id=m2.id, name="Me", phone="+1", tg_id=FAKE_TG_ID)
+    client_c = Client(master_id=m_blocked.id, name="Me", phone="+1", tg_id=FAKE_TG_ID)
+    other = Client(master_id=m1.id, name="Other", phone="+2", tg_id=OTHER_TG_ID)
+    session.add_all([client_a, client_b, client_c, other])
+    await session.flush()
+
+    # Two appts with m1 (sorted by last_booked), one with m2, one with blocked.
+    now = datetime.now(UTC)
+    session.add_all(
+        [
+            Appointment(
+                master_id=m1.id,
+                client_id=client_a.id,
+                service_id=svc1.id,
+                start_at=now - timedelta(days=5),
+                end_at=now - timedelta(days=5, minutes=-30),
+                status="completed",
+                source="client_request",
+            ),
+            Appointment(
+                master_id=m1.id,
+                client_id=client_a.id,
+                service_id=svc1.id,
+                start_at=now - timedelta(days=1),
+                end_at=now - timedelta(days=1, minutes=-30),
+                status="completed",
+                source="client_request",
+            ),
+            Appointment(
+                master_id=m2.id,
+                client_id=client_b.id,
+                service_id=svc2.id,
+                start_at=now - timedelta(days=10),
+                end_at=now - timedelta(days=10, minutes=-30),
+                status="completed",
+                source="client_request",
+            ),
+            Appointment(
+                master_id=m_blocked.id,
+                client_id=client_c.id,
+                service_id=svc3.id,
+                start_at=now - timedelta(days=2),
+                end_at=now - timedelta(days=2, minutes=-30),
+                status="completed",
+                source="client_request",
+            ),
+            # Appt belongs to someone else → must not surface m1 a second time.
+            Appointment(
+                master_id=m1.id,
+                client_id=other.id,
+                service_id=svc1.id,
+                start_at=now - timedelta(days=3),
+                end_at=now - timedelta(days=3, minutes=-30),
+                status="completed",
+                source="client_request",
+            ),
+        ]
+    )
+    await session.commit()
+
+    _install_overrides(session, tg_id=FAKE_TG_ID)
+    r = await api_client.get("/v1/bookings/visited-masters")
+    assert r.status_code == 200
+    items = r.json()
+    # Two unique masters (blocked one is filtered out).
+    assert len(items) == 2
+    # Most recent first: m1 (last booked 1 day ago) before m2 (10 days ago).
+    assert items[0]["slug"] == "m-vm-1"
+    assert items[0]["name"] == "Anna"
+    assert items[1]["slug"] == "m-vm-2"
+
+
+@pytest.mark.asyncio
+async def test_visited_masters_empty_for_new_user(
+    session: AsyncSession, api_client: AsyncClient
+) -> None:
+    _install_overrides(session, tg_id=9999999)
+    r = await api_client.get("/v1/bookings/visited-masters")
+    assert r.status_code == 200
+    assert r.json() == []
+
+
 # ---------- bookings.cancel ----------
 
 
