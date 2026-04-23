@@ -57,3 +57,29 @@ class BookingMineOut(BaseModel):
 
 class OkOut(BaseModel):
     ok: bool = True
+
+
+class MeProfileOut(BaseModel):
+    """Compact identity card returned by GET /v1/me.
+
+    Fields depend on role:
+      - client       → only tg_id + first_name
+      - master       → tg_id, first_name, master_id, master_name, slug, specialty
+      - salon_owner  → tg_id, first_name, salon_id, salon_name, slug
+    """
+
+    tg_id: int
+    first_name: str
+    # master-only
+    master_id: UUID | None = None
+    master_name: str | None = None
+    slug: str | None = None
+    specialty: str | None = None
+    # salon-only
+    salon_id: UUID | None = None
+    salon_name: str | None = None
+
+
+class MeOut(BaseModel):
+    role: str  # "client" | "master" | "salon_owner"
+    profile: MeProfileOut
