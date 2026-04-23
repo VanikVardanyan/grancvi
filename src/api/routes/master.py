@@ -15,6 +15,8 @@ from src.api.schemas import (
     BookingCreateOut,
     MasterAppointmentOut,
     MasterManualBookingIn,
+    MasterScheduleIn,
+    MasterScheduleOut,
     MasterServiceOut,
     OkOut,
     ServiceCreateIn,
@@ -99,6 +101,82 @@ async def list_my_appointments(
         )
         for row in rows
     ]
+
+
+_WEEKDAYS: frozenset[str] = frozenset({"mon", "tue", "wed", "thu", "fri", "sat", "sun"})
+
+
+def _validate_schedule_map(
+    mapping: dict[str, list[list[str]]] | None,
+    field: str,
+) -> None:
+    if mapping is None:
+        return
+    for key, intervals in mapping.items():
+        if key not in _WEEKDAYS:
+            raise ApiError("bad_input", f"{field}: unknown weekday '{key}'", status_code=400)
+        for pair in intervals:
+            if len(pair) != 2:
+                raise ApiError(
+                    "bad_input",
+                    f"{field}[{key}]: interval must be [start, end]",
+                    status_code=400,
+                )
+            start, end = pair
+            for t_str in (start, end):
+                try:
+                    h, m = t_str.split(":")
+                    hh, mm = int(h), int(m)
+                    if not (0 <= hh < 24 and 0 <= mm < 60):
+                        raise ValueError
+                except (ValueError, AttributeError) as exc:
+                    raise ApiError(
+                        "bad_input",
+                        f"{field}[{key}]: bad time '{t_str}' (expected HH:MM)",
+                        status_code=400,
+                    ) from exc
+            if start >= end:
+                raise ApiError(
+                    "bad_input",
+                    f"{field}[{key}]: start must be before end",
+                    status_code=400,
+                )
+
+
+@router.get("/schedule", response_model=MasterScheduleOut)
+async def get_my_schedule(
+    master: Master = Depends(require_master),
+) -> MasterScheduleOut:
+    return MasterScheduleOut(
+        work_hours=master.work_hours or {},
+        breaks=master.breaks or {},
+        slot_step_min=master.slot_step_min,
+        timezone=master.timezone,
+    )
+
+
+@router.patch("/schedule", response_model=MasterScheduleOut)
+async def update_my_schedule(
+    payload: MasterScheduleIn,
+    master: Master = Depends(require_master),
+    session: AsyncSession = Depends(get_session),
+) -> MasterScheduleOut:
+    _validate_schedule_map(payload.work_hours, "work_hours")
+    _validate_schedule_map(payload.breaks, "breaks")
+
+    if payload.work_hours is not None:
+        master.work_hours = payload.work_hours
+    if payload.breaks is not None:
+        master.breaks = payload.breaks
+    if payload.slot_step_min is not None:
+        master.slot_step_min = payload.slot_step_min
+    await session.commit()
+    return MasterScheduleOut(
+        work_hours=master.work_hours or {},
+        breaks=master.breaks or {},
+        slot_step_min=master.slot_step_min,
+        timezone=master.timezone,
+    )
 
 
 @router.post("/appointments", response_model=BookingCreateOut, status_code=201)

@@ -154,6 +154,24 @@ class MasterManualBookingIn(BaseModel):
     comment: str | None = Field(default=None, max_length=500)
 
 
+class MasterScheduleOut(BaseModel):
+    """Weekday schedule: work_hours[weekday] = [["HH:MM","HH:MM"], …]
+
+    Weekday keys: mon, tue, wed, thu, fri, sat, sun.
+    """
+
+    work_hours: dict[str, list[list[str]]]
+    breaks: dict[str, list[list[str]]]
+    slot_step_min: int
+    timezone: str
+
+
+class MasterScheduleIn(BaseModel):
+    work_hours: dict[str, list[list[str]]] | None = None
+    breaks: dict[str, list[list[str]]] | None = None
+    slot_step_min: int | None = Field(default=None, ge=5, le=120)
+
+
 class MasterServiceOut(BaseModel):
     """Service row as seen by the owning master (includes inactive ones)."""
 
