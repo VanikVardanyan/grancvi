@@ -4,10 +4,11 @@ from zoneinfo import ZoneInfo
 
 import structlog
 from aiogram import Bot, F, Router
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.callback_data.approval import ApprovalCallback
+from src.config import settings
 from src.exceptions import InvalidState, NotFound
 from src.services.booking import BookingService
 from src.services.reminders import ReminderService
@@ -43,6 +44,13 @@ async def handle_cancel(
             await callback.message.edit_reply_markup(reply_markup=None)
         except Exception:
             log.warning("cancel_kb_strip_failed", appointment_id=str(appt.id))
+
+    if callback.message is not None and hasattr(callback.message, "answer"):
+        link = f"https://t.me/{settings.bot_username}?start=master_{master.slug}"
+        kb = InlineKeyboardMarkup(
+            inline_keyboard=[[InlineKeyboardButton(text=strings.CLIENT_BOOK_AGAIN_BTN, url=link)]]
+        )
+        await callback.message.answer(strings.CLIENT_CANCEL_DONE, reply_markup=kb)
 
     tz = ZoneInfo(master.timezone)
     local = appt.start_at.astimezone(tz)
