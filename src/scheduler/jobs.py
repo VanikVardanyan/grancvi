@@ -61,6 +61,7 @@ async def send_due_reminders(
     *,
     bot: Bot,
     session_factory: async_sessionmaker[AsyncSession],
+    app_bot: Bot | None = None,
     now: datetime | None = None,
 ) -> None:
     """One-tick worker: pick due reminders and send them.
@@ -70,6 +71,9 @@ async def send_due_reminders(
     cleanup). TelegramBadRequest / TelegramForbiddenError also mark sent
     (don't retry dead chats forever). TelegramRetryAfter leaves sent=false
     so the next tick retries. Any other exception is logged and left unsent.
+
+    Client-bound kinds (`day_before`, `two_hours`) prefer `app_bot` and fall
+    back to `bot`; master-bound `master_before` always uses `bot`.
     """
     n = now if now is not None else now_utc()
     async with session_factory() as session:
@@ -86,8 +90,40 @@ async def send_due_reminders(
                 await repo.mark_sent(reminder.id, sent_at=n)
                 continue
             chat_id, text = formatted
+            is_client_kind = reminder.kind in ("day_before", "two_hours")
+            send_bot = app_bot if (is_client_kind and app_bot is not None) else bot
             try:
-                await bot.send_message(chat_id=chat_id, text=text)
+                await send_bot.send_message(chat_id=chat_id, text=text)
+            except TelegramForbiddenError as exc:
+                # Client hasn't started the app bot — fall back to legacy bot.
+                if is_client_kind and app_bot is not None and send_bot is app_bot:
+                    try:
+                        await bot.send_message(chat_id=chat_id, text=text)
+                    except (TelegramBadRequest, TelegramForbiddenError) as exc2:
+                        log.warning(
+                            "reminder_dead_chat",
+                            reminder_id=str(reminder.id),
+                            chat_id=chat_id,
+                            error=repr(exc2),
+                        )
+                        await repo.mark_sent(reminder.id, sent_at=n)
+                        continue
+                    except TelegramRetryAfter as exc2:
+                        log.warning(
+                            "reminder_retry_after",
+                            reminder_id=str(reminder.id),
+                            retry_after=exc2.retry_after,
+                        )
+                        continue
+                else:
+                    log.warning(
+                        "reminder_dead_chat",
+                        reminder_id=str(reminder.id),
+                        chat_id=chat_id,
+                        error=repr(exc),
+                    )
+                    await repo.mark_sent(reminder.id, sent_at=n)
+                    continue
             except TelegramRetryAfter as exc:
                 log.warning(
                     "reminder_retry_after",
@@ -95,7 +131,7 @@ async def send_due_reminders(
                     retry_after=exc.retry_after,
                 )
                 continue
-            except (TelegramBadRequest, TelegramForbiddenError) as exc:
+            except TelegramBadRequest as exc:
                 log.warning(
                     "reminder_dead_chat",
                     reminder_id=str(reminder.id),
@@ -121,6 +157,7 @@ async def expire_pending_appointments(
     *,
     bot: Bot,
     session_factory: async_sessionmaker[AsyncSession],
+    app_bot: Bot | None = None,
     now: datetime | None = None,
 ) -> None:
     """Cancel pending appointments past decision_deadline and notify the client.
@@ -163,14 +200,16 @@ async def expire_pending_appointments(
                 service=service.name,
                 link=link,
             )
-            try:
-                await bot.send_message(chat_id=client.tg_id, text=text)
-            except (TelegramBadRequest, TelegramForbiddenError, TelegramRetryAfter) as exc:
+            from src.utils.client_notify import notify_client
+
+            ok = await notify_client(
+                app_bot=app_bot, master_bot=bot, chat_id=client.tg_id, text=text
+            )
+            if not ok:
                 log.warning(
                     "pending_expire_notify_failed",
                     appointment_id=str(appt.id),
                     chat_id=client.tg_id,
-                    error=repr(exc),
                 )
 
         await session.commit()

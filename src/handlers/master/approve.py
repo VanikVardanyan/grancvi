@@ -31,13 +31,14 @@ _STATUS_LABELS = {
 }
 
 
-async def _notify_client(bot: Bot, client_tg_id: int | None, text: str) -> None:
+async def _notify_client(
+    bot: Bot, app_bot: Bot | None, client_tg_id: int | None, text: str
+) -> None:
     if client_tg_id is None:
         return
-    try:
-        await bot.send_message(chat_id=client_tg_id, text=text)
-    except Exception as exc:
-        log.warning("client_notify_failed", tg_id=client_tg_id, error=repr(exc))
+    from src.utils.client_notify import notify_client
+
+    await notify_client(app_bot=app_bot, master_bot=bot, chat_id=client_tg_id, text=text)
 
 
 @router.callback_query(ApprovalCallback.filter())
@@ -47,17 +48,28 @@ async def route_approval(
     master: Master | None,
     session: AsyncSession,
     bot: Bot,
+    app_bot: Bot | None = None,
 ) -> None:
     if master is None:
         await callback.answer()
         return
     if callback_data.action == "confirm":
         await cb_confirm(
-            callback, callback_data=callback_data, master=master, session=session, bot=bot
+            callback,
+            callback_data=callback_data,
+            master=master,
+            session=session,
+            bot=bot,
+            app_bot=app_bot,
         )
     elif callback_data.action == "reject":
         await cb_reject(
-            callback, callback_data=callback_data, master=master, session=session, bot=bot
+            callback,
+            callback_data=callback_data,
+            master=master,
+            session=session,
+            bot=bot,
+            app_bot=app_bot,
         )
     elif callback_data.action == "history":
         await cb_history(
@@ -72,6 +84,7 @@ async def cb_confirm(
     master: Master,
     session: AsyncSession,
     bot: Bot,
+    app_bot: Bot | None = None,
 ) -> None:
     reminder_svc = ReminderService(session)
     svc = BookingService(session, reminder_service=reminder_svc)
@@ -104,7 +117,7 @@ async def cb_confirm(
         date=local_appt.strftime("%d.%m.%Y"),
         time=local_appt.strftime("%H:%M"),
     )
-    await _notify_client(bot, client.tg_id, text)
+    await _notify_client(bot, app_bot, client.tg_id, text)
     log.info("appointment_confirmed", id=str(appt.id))
 
 
@@ -115,6 +128,7 @@ async def cb_reject(
     master: Master,
     session: AsyncSession,
     bot: Bot,
+    app_bot: Bot | None = None,
 ) -> None:
     svc = BookingService(session)
     try:
@@ -144,7 +158,7 @@ async def cb_reject(
         date=local_appt.strftime("%d.%m.%Y"),
         time=local_appt.strftime("%H:%M"),
     )
-    await _notify_client(bot, client.tg_id, text)
+    await _notify_client(bot, app_bot, client.tg_id, text)
     log.info("appointment_rejected", id=str(appt.id))
 
 

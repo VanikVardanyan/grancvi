@@ -53,6 +53,7 @@ async def cb_master_cancel(
     session: AsyncSession,
     master: Master | None,
     bot: Bot,
+    app_bot: Bot | None = None,
 ) -> None:
     if master is None:
         await callback.answer()
@@ -119,10 +120,9 @@ async def cb_master_cancel(
             service=service.name,
             link=link,
         )
-        try:
-            await bot.send_message(chat_id=client.tg_id, text=text)
-        except Exception:
-            log.warning("client_notify_failed", client_tg=client.tg_id)
+        from src.utils.client_notify import notify_client
+
+        await notify_client(app_bot=app_bot, master_bot=bot, chat_id=client.tg_id, text=text)
 
     log.info("master_cancelled_appointment", appointment_id=str(appt.id))
 

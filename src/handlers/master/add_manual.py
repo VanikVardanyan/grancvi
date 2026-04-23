@@ -504,6 +504,7 @@ async def cb_confirm_save(
     session: AsyncSession,
     master: Master,
     bot: Bot,
+    app_bot: Bot | None = None,
 ) -> None:
     data = await state.get_data()
     client, service = await _load_client_service(session, master, data)
@@ -547,12 +548,15 @@ async def cb_confirm_save(
             time=local.strftime("%H:%M"),
             service=service.name,
         )
-        try:
-            await bot.send_message(
-                chat_id=client.tg_id, text=text, reply_markup=client_cancel_kb(appt.id)
-            )
-        except Exception:
-            log.warning("client_notify_failed", client_tg=client.tg_id)
+        from src.utils.client_notify import notify_client
+
+        await notify_client(
+            app_bot=app_bot,
+            master_bot=bot,
+            chat_id=client.tg_id,
+            text=text,
+            reply_markup=client_cancel_kb(appt.id),
+        )
     log.info("manual_created", appointment_id=str(appt.id), master_tg=master.tg_id)
 
 

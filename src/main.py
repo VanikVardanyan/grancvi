@@ -147,17 +147,26 @@ async def main() -> None:
     configure_logging()
     _init_sentry_if_configured(settings.sentry_dsn)
     bot = Bot(token=settings.bot_token)
+    # Optional companion bot for client-facing notifications (see notify_client).
+    app_bot: Bot | None = Bot(token=settings.app_bot_token) if settings.app_bot_token else None
     dp = build_dispatcher()
+    # Make app_bot available to handlers via aiogram's workflow-data injection.
+    dp["app_bot"] = app_bot
 
     scheduler = build_scheduler()
     scheduler.add_job(
-        partial(send_due_reminders, bot=bot, session_factory=SessionMaker),
+        partial(send_due_reminders, bot=bot, app_bot=app_bot, session_factory=SessionMaker),
         trigger=CronTrigger(minute="*"),
         id="send_due_reminders",
         replace_existing=True,
     )
     scheduler.add_job(
-        partial(expire_pending_appointments, bot=bot, session_factory=SessionMaker),
+        partial(
+            expire_pending_appointments,
+            bot=bot,
+            app_bot=app_bot,
+            session_factory=SessionMaker,
+        ),
         trigger=CronTrigger(minute="*/5"),
         id="expire_pending_appointments",
         replace_existing=True,
@@ -172,6 +181,8 @@ async def main() -> None:
     finally:
         scheduler.shutdown(wait=True)
         await bot.session.close()
+        if app_bot is not None:
+            await app_bot.session.close()
 
 
 if __name__ == "__main__":
