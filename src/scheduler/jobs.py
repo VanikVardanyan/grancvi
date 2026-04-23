@@ -8,6 +8,7 @@ from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, TelegramRetryAfter
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from src.config import settings
 from src.db.models import Appointment, Client, Master, Reminder, Service
 from src.repositories.appointments import AppointmentRepository
 from src.repositories.reminders import ReminderRepository
@@ -155,10 +156,12 @@ async def expire_pending_appointments(
 
             tz = ZoneInfo(master.timezone)
             local = appt.start_at.astimezone(tz)
+            link = f"https://t.me/{settings.bot_username}?start=master_{master.slug}"
             text = strings.REMINDER_PENDING_EXPIRED.format(
                 date=local.strftime("%d.%m"),
                 time=local.strftime("%H:%M"),
                 service=service.name,
+                link=link,
             )
             try:
                 await bot.send_message(chat_id=client.tg_id, text=text)

@@ -219,7 +219,7 @@ _RU: dict[str, Any] = {
     "MASTER_CANCEL_UNAVAILABLE": "Запись уже нельзя отменить.",
     "CLIENT_APPT_CANCELLED_BY_MASTER": (
         "Мастер отменил вашу запись на {date} в {time} — {service}.\n"
-        "Если хотите — выберите другое время: /start"
+        "Если хотите выбрать другое время: {link}"
     ),
     "MARK_PAST_OK_COMPLETED": "Отмечено: был",
     "MARK_PAST_OK_NO_SHOW": "Отмечено: не пришёл",
@@ -254,7 +254,7 @@ _RU: dict[str, Any] = {
     "REMINDER_MASTER_BEFORE": "⏰ Сейчас {time}: {client_name} — {service}.\n📞 {phone}",
     "REMINDER_PENDING_EXPIRED": (
         "К сожалению, мастер не подтвердил вашу заявку на {date} {time} — {service}.\n"
-        "Попробуйте выбрать другое время: /start"
+        "Попробуйте выбрать другое время: {link}"
     ),
     # --- Epic 9: multi-master ---
     "INVITE_CREATED_FMT": "Инвайт создан.\n\nКод: `{code}`\nСсылка: {link}\n\nДействителен до: {expires}",
@@ -543,7 +543,7 @@ _HY: dict[str, Any] = {
     "MASTER_CANCEL_UNAVAILABLE": "Գրանցումն այլևս հնարավոր չէ չեղարկել։",
     "CLIENT_APPT_CANCELLED_BY_MASTER": (
         "Վարպետը չեղարկեց ձեր գրանցումը {date} {time} — {service}։\n"
-        "Եթե ցանկանում եք՝ ընտրեք այլ ժամանակ՝ /start"
+        "Եթե ցանկանում եք ընտրել այլ ժամանակ՝ {link}"
     ),
     "MARK_PAST_OK_COMPLETED": "Նշված է՝ եղել է",
     "MARK_PAST_OK_NO_SHOW": "Նշված է՝ չի եկել",
@@ -578,7 +578,7 @@ _HY: dict[str, Any] = {
     "REMINDER_MASTER_BEFORE": "⏰ Հիմա {time}։ {client_name} — {service}։\n📞 {phone}",
     "REMINDER_PENDING_EXPIRED": (
         "Ցավոք, վարպետը չի հաստատել ձեր հայտը {date} {time} — {service}։\n"
-        "Փորձեք ընտրել այլ ժամանակ՝ /start"
+        "Փորձեք ընտրել այլ ժամանակ՝ {link}"
     ),
     # --- Epic 9: multi-master ---
     "INVITE_CREATED_FMT": "Հրավերը ստեղծված է։\n\nԿոդ՝ `{code}`\nՀղում՝ {link}\n\nՎավերական մինչ՝ {expires}",

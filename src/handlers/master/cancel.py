@@ -8,6 +8,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.callback_data.master_cancel import MasterCancelCallback
+from src.config import settings
 from src.db.models import Client, Master, Service
 from src.exceptions import InvalidState, NotFound
 from src.handlers.master._common import safe_edit
@@ -111,10 +112,12 @@ async def cb_master_cancel(
     if client is not None and client.tg_id is not None and service is not None:
         tz = ZoneInfo(master.timezone)
         local = appt.start_at.astimezone(tz)
+        link = f"https://t.me/{settings.bot_username}?start=master_{master.slug}"
         text = strings.CLIENT_APPT_CANCELLED_BY_MASTER.format(
             date=local.strftime("%d.%m.%Y"),
             time=local.strftime("%H:%M"),
             service=service.name,
+            link=link,
         )
         try:
             await bot.send_message(chat_id=client.tg_id, text=text)
