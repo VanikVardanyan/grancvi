@@ -9,7 +9,7 @@ from src.db.models import Master
 from src.handlers.master.add_manual import cmd_add
 from src.handlers.master.calendar import cmd_calendar
 from src.handlers.master.client_page import cmd_client
-from src.handlers.master.my_link import cmd_mylink
+from src.handlers.master.my_link import cmd_mylink, cmd_qr
 from src.handlers.master.today import cmd_today, cmd_tomorrow
 from src.handlers.master.week import cmd_week
 from src.keyboards.settings import settings_menu
@@ -105,3 +105,10 @@ async def handle_my_link(message: Message, master: Master | None) -> None:
     if master is None:
         return
     await cmd_mylink(message=message, master=master)
+
+
+@router.message(F.text.in_({_RU_MENU.MAIN_MENU_QR, _HY_MENU.MAIN_MENU_QR}))
+async def handle_qr(message: Message, master: Master | None) -> None:
+    if master is None:
+        return
+    await cmd_qr(message=message, master=master)

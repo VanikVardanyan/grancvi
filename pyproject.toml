@@ -16,6 +16,7 @@ dependencies = [
     "aiogram-i18n>=1.4",
     "fluent-compiler>=1.1",
     "sentry-sdk>=2.0",
+    "segno>=1.6",
 ]
 
 [dependency-groups]

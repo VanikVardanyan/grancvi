@@ -19,17 +19,14 @@ def main_menu() -> ReplyKeyboardMarkup:
                 KeyboardButton(text=strings.MAIN_MENU_TOMORROW),
             ],
             [
-                KeyboardButton(text=strings.MAIN_MENU_WEEK),
                 KeyboardButton(text=strings.MAIN_MENU_CALENDAR),
-            ],
-            [
                 KeyboardButton(text=strings.MAIN_MENU_ADD),
-                KeyboardButton(text=strings.MAIN_MENU_CLIENT),
             ],
             [
                 KeyboardButton(text=strings.MAIN_MENU_MY_LINK),
-                KeyboardButton(text=strings.MAIN_MENU_SETTINGS),
+                KeyboardButton(text=strings.MAIN_MENU_QR),
             ],
+            [KeyboardButton(text=strings.MAIN_MENU_SETTINGS)],
         ],
         resize_keyboard=True,
         is_persistent=True,
