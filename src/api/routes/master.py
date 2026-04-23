@@ -151,11 +151,7 @@ _SLUG_COOLDOWN = timedelta(days=30)
 
 
 def _profile_out(m: Master) -> MasterProfileOut:
-    next_change = (
-        m.slug_changed_at + _SLUG_COOLDOWN
-        if m.slug_changed_at is not None
-        else None
-    )
+    next_change = m.slug_changed_at + _SLUG_COOLDOWN if m.slug_changed_at is not None else None
     return MasterProfileOut(
         id=m.id,
         name=m.name,

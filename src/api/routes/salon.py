@@ -39,8 +39,7 @@ async def salon_profile(
     session: AsyncSession = Depends(get_session),
 ) -> SalonProfileOut:
     count = (
-        await session.scalar(select(func.count(Master.id)).where(Master.salon_id == salon.id))
-        or 0
+        await session.scalar(select(func.count(Master.id)).where(Master.salon_id == salon.id)) or 0
     )
     return SalonProfileOut(
         id=salon.id,
