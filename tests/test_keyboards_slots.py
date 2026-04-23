@@ -47,8 +47,7 @@ def test_services_pick_kb_packs_service_ids() -> None:
     first = kb.inline_keyboard[0][0]
     restored = ClientServicePick.unpack(first.callback_data)
     assert restored.service_id == s1.id
-    assert "Стрижка" in first.text
-    assert "60" in first.text
+    assert first.text == "Стрижка"
 
 
 def test_approval_kb_has_three_buttons() -> None:

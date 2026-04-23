@@ -49,7 +49,7 @@ def services_pick_kb(services: list[Service]) -> InlineKeyboardMarkup:
         rows.append(
             [
                 InlineKeyboardButton(
-                    text=f"{svc.name} · {svc.duration_min} мин",
+                    text=svc.name,
                     callback_data=ClientServicePick(service_id=svc.id).pack(),
                 )
             ]
