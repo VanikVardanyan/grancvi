@@ -7,6 +7,7 @@ are skipped at filter level, allowing the update to reach the next router.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -14,8 +15,9 @@ import pytest
 from aiogram import Dispatcher, Router
 from aiogram.filters import CommandStart
 from aiogram.types import Chat, Message, Update, User
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.db.models import Master
+from src.db.models import Invite, Master
 from src.handlers.admin.menu import IsAdminNoMaster
 from src.handlers.master.start import HasInviteOrMaster
 
@@ -37,7 +39,10 @@ def _make_update(message: Message) -> Update:
 
 
 def _build_dispatcher(
-    *, master: Master | None, is_admin: bool
+    *,
+    master: Master | None,
+    is_admin: bool,
+    session: AsyncSession | None = None,
 ) -> tuple[Dispatcher, dict[str, list[str]]]:
     captured: dict[str, list[str]] = {"calls": []}
     admin = Router(name="admin_stub")
@@ -64,6 +69,7 @@ def _build_dispatcher(
     async def _inject(handler, event, data):  # type: ignore[no-untyped-def]
         data["master"] = master
         data["is_admin"] = is_admin
+        data["session"] = session
         return await handler(event, data)
 
     dp.update.outer_middleware(_inject)
@@ -101,9 +107,20 @@ async def test_pure_client_routes_to_client() -> None:
 
 
 @pytest.mark.asyncio
-async def test_client_with_invite_payload_routes_to_master() -> None:
-    """No master yet + invite payload → master router handles registration."""
-    dp, captured = _build_dispatcher(master=None, is_admin=False)
+async def test_client_with_invite_payload_routes_to_master(
+    session: AsyncSession,
+) -> None:
+    """No master yet + master-kind invite payload → master router handles registration."""
+    session.add(
+        Invite(
+            code="abc123",
+            created_by_tg_id=1,
+            expires_at=datetime.now(UTC) + timedelta(days=7),
+            kind="master",
+        )
+    )
+    await session.commit()
+    dp, captured = _build_dispatcher(master=None, is_admin=False, session=session)
     msg = _make_message("/start invite_abc123")
     await dp.feed_update(bot=MagicMock(id=1), update=_make_update(msg))
     assert captured["calls"] == ["master"]

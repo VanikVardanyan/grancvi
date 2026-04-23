@@ -50,10 +50,16 @@ class HasInviteOrMaster(Filter):
         self,
         event: Message,
         master: Master | None = None,
+        session: AsyncSession | None = None,
     ) -> bool:
         if master is not None:
             return True
-        return _parse_invite_payload(event.text) is not None
+        code = _parse_invite_payload(event.text)
+        if code is None or session is None:
+            return False
+        repo = InviteRepository(session)
+        invite = await repo.by_code(code)
+        return invite is not None and invite.kind == "master"
 
 
 @router.message(CommandStart(), HasInviteOrMaster())

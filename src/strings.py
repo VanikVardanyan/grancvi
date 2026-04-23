@@ -366,6 +366,14 @@ _RU: dict[str, Any] = {
     "ADMIN_MASTER_DETAIL_SPECIALTY": "Специальность",
     "ADMIN_MASTER_DETAIL_STATUS": "Статус",
     "ADMIN_MASTER_USAGE": "Использование: /master <slug>",
+    # --- Epic 10.1: salon main menu ---
+    "SALON_WELCOME_BACK": "С возвращением, салон. Что дальше?",
+    "SALON_MENU_MY_MASTERS": "👥 Мои мастера",
+    "SALON_MENU_INVITE_MASTER": "➕ Пригласить мастера",
+    "SALON_MENU_ADD_APPT": "➕ Новая запись",
+    "SALON_MENU_MY_LINK": "🔗 Моя ссылка",
+    "SALON_MENU_QR": "📱 QR-код",
+    "SALON_MENU_SETTINGS": "⚙️ Настройки",
 }
 
 _HY: dict[str, Any] = {
@@ -718,6 +726,14 @@ _HY: dict[str, Any] = {
     "ADMIN_MASTER_DETAIL_SPECIALTY": "Մասնագիտություն",
     "ADMIN_MASTER_DETAIL_STATUS": "Կարգավիճակ",
     "ADMIN_MASTER_USAGE": "Օգտագործում՝ /master <slug>",
+    # --- Epic 10.1: salon main menu ---
+    "SALON_WELCOME_BACK": "Բարի վերադարձ, սրահ։",
+    "SALON_MENU_MY_MASTERS": "👥 Իմ վարպետները",
+    "SALON_MENU_INVITE_MASTER": "➕ Հրավիրել վարպետ",
+    "SALON_MENU_ADD_APPT": "➕ Նոր գրանցում",
+    "SALON_MENU_MY_LINK": "🔗 Իմ հղումը",
+    "SALON_MENU_QR": "📱 QR-կոդ",
+    "SALON_MENU_SETTINGS": "⚙️ Կարգավորումներ",
 }
 
 _BUNDLES: dict[str, dict[str, Any]] = {"ru": _RU, "hy": _HY}
