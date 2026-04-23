@@ -8,12 +8,13 @@ from zoneinfo import ZoneInfo
 import structlog
 from aiogram import Bot, F, Router
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.callback_data.calendar import CalendarCallback
 from src.callback_data.client_services import ClientServicePick
 from src.callback_data.slots import SlotCallback
+from src.config import settings
 from src.db.models import Master, Service
 from src.exceptions import SlotAlreadyTaken
 from src.fsm.client_booking import ClientBooking
@@ -256,11 +257,34 @@ async def handle_phone(
     await message.answer(summary, reply_markup=confirm_kb())
 
 
+def _book_again_kb(master: Master) -> InlineKeyboardMarkup:
+    link = f"https://t.me/{settings.bot_username}?start=master_{master.slug}"
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=strings.CLIENT_BOOK_AGAIN_BTN, url=link)]
+        ]
+    )
+
+
 @router.callback_query(F.data == "client_cancel")
-async def handle_cancel_callback(callback: CallbackQuery, state: FSMContext) -> None:
+async def handle_cancel_callback(
+    callback: CallbackQuery, state: FSMContext, session: AsyncSession
+) -> None:
+    data = await state.get_data()
+    master_id_raw = data.get("master_id")
+    master: Master | None = None
+    if master_id_raw:
+        master = await session.get(Master, UUID(master_id_raw))
+
     await state.clear()
     await callback.answer()
-    if callback.message is not None and hasattr(callback.message, "answer"):
+    if callback.message is None or not hasattr(callback.message, "answer"):
+        return
+    if master is not None:
+        await callback.message.answer(
+            strings.CLIENT_CANCELLED, reply_markup=_book_again_kb(master)
+        )
+    else:
         await callback.message.answer(strings.CLIENT_CANCELLED)
 
 
