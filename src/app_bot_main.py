@@ -19,7 +19,7 @@ from src.app_bot.handlers import router as app_bot_router
 from src.config import settings
 
 _TMA_URL = "https://app.jampord.am"
-_MENU_BUTTON_TEXT = "Գրանցում"
+_MENU_BUTTON_TEXT = "Գրանցվել"
 
 
 def configure_logging() -> None:
