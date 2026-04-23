@@ -211,6 +211,16 @@ _RU: dict[str, Any] = {
     "DAY_NAV_BACK_TO_CALENDAR": "⬅ Назад в календарь",
     "MARK_PAST_PRESENT": "✅ {time} {short}",
     "MARK_PAST_NO_SHOW": "❌ {time} {short}",
+    "MASTER_CANCEL_BTN": "❌ {time} {short}",
+    "MASTER_CANCEL_ASK_FMT": ("Отменить запись?\n\n👤 {client}\n💇 {service}\n📅 {date} в {time}"),
+    "MASTER_CANCEL_BTN_CONFIRM": "✅ Да, отменить",
+    "MASTER_CANCEL_BTN_ABORT": "← Нет",
+    "MASTER_CANCEL_DONE": "Запись отменена ✅",
+    "MASTER_CANCEL_UNAVAILABLE": "Запись уже нельзя отменить.",
+    "CLIENT_APPT_CANCELLED_BY_MASTER": (
+        "Мастер отменил вашу запись на {date} в {time} — {service}.\n"
+        "Если хотите — выберите другое время: /start"
+    ),
     "MARK_PAST_OK_COMPLETED": "Отмечено: был",
     "MARK_PAST_OK_NO_SHOW": "Отмечено: не пришёл",
     "MARK_PAST_NOT_AVAILABLE": "Запись недоступна",
@@ -523,6 +533,18 @@ _HY: dict[str, Any] = {
     "DAY_NAV_BACK_TO_CALENDAR": "⬅ Վերադառնալ օրացույց",
     "MARK_PAST_PRESENT": "✅ {time} {short}",
     "MARK_PAST_NO_SHOW": "❌ {time} {short}",
+    "MASTER_CANCEL_BTN": "❌ {time} {short}",
+    "MASTER_CANCEL_ASK_FMT": (
+        "Չեղարկե՞լ գրանցումը։\n\n👤 {client}\n💇 {service}\n📅 {date} {time}"
+    ),
+    "MASTER_CANCEL_BTN_CONFIRM": "✅ Այո, չեղարկել",
+    "MASTER_CANCEL_BTN_ABORT": "← Ոչ",
+    "MASTER_CANCEL_DONE": "Գրանցումը չեղարկվեց ✅",
+    "MASTER_CANCEL_UNAVAILABLE": "Գրանցումն այլևս հնարավոր չէ չեղարկել։",
+    "CLIENT_APPT_CANCELLED_BY_MASTER": (
+        "Վարպետը չեղարկեց ձեր գրանցումը {date} {time} — {service}։\n"
+        "Եթե ցանկանում եք՝ ընտրեք այլ ժամանակ՝ /start"
+    ),
     "MARK_PAST_OK_COMPLETED": "Նշված է՝ եղել է",
     "MARK_PAST_OK_NO_SHOW": "Նշված է՝ չի եկել",
     "MARK_PAST_NOT_AVAILABLE": "Գրանցումը հասանելի չէ",

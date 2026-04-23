@@ -21,6 +21,13 @@ _RU = get_bundle("ru")
 _HY = get_bundle("hy")
 
 
+def _has_master_deep_link(text: str | None) -> bool:
+    if not text:
+        return False
+    parts = text.split(maxsplit=1)
+    return len(parts) == 2 and parts[1].startswith("master_")
+
+
 class IsAdminNoMaster(Filter):
     async def __call__(
         self,
@@ -28,7 +35,11 @@ class IsAdminNoMaster(Filter):
         is_admin: bool = False,
         master: Master | None = None,
     ) -> bool:
-        return bool(is_admin) and master is None
+        if not is_admin or master is not None:
+            return False
+        # Admin opening a /start master_<slug> deep link should fall through
+        # to the client booking router, not hit the admin menu.
+        return not _has_master_deep_link(event.text)
 
 
 @router.message(CommandStart(), IsAdminNoMaster())

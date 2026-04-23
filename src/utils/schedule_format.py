@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from src.callback_data.mark_past import MarkPastCallback
+from src.callback_data.master_cancel import MasterCancelCallback
 from src.db.models import Appointment
 from src.services.availability import WEEKDAYS
 from src.strings import strings
@@ -162,31 +163,39 @@ def render_day_schedule(
     rows: list[list[InlineKeyboardButton]] = list(day_nav)
     now_utc = now.astimezone(UTC)
     for a in visible:
-        if a.status != "confirmed" or a.end_at > now_utc:
-            continue
         local = a.start_at.astimezone(tz)
         short = (client_names.get(a.client_id, "—"))[:12]
-        rows.append(
-            [
-                InlineKeyboardButton(
-                    text=strings.MARK_PAST_PRESENT.format(
-                        time=f"{local.hour:02d}:{local.minute:02d}",
-                        short=short,
+        time_str = f"{local.hour:02d}:{local.minute:02d}"
+
+        if a.status == "confirmed" and a.end_at <= now_utc:
+            rows.append(
+                [
+                    InlineKeyboardButton(
+                        text=strings.MARK_PAST_PRESENT.format(time=time_str, short=short),
+                        callback_data=MarkPastCallback(
+                            action="present", appointment_id=a.id or uuid4()
+                        ).pack(),
                     ),
-                    callback_data=MarkPastCallback(
-                        action="present", appointment_id=a.id or uuid4()
-                    ).pack(),
-                ),
-                InlineKeyboardButton(
-                    text=strings.MARK_PAST_NO_SHOW.format(
-                        time=f"{local.hour:02d}:{local.minute:02d}",
-                        short=short,
+                    InlineKeyboardButton(
+                        text=strings.MARK_PAST_NO_SHOW.format(time=time_str, short=short),
+                        callback_data=MarkPastCallback(
+                            action="no_show", appointment_id=a.id or uuid4()
+                        ).pack(),
                     ),
-                    callback_data=MarkPastCallback(
-                        action="no_show", appointment_id=a.id or uuid4()
-                    ).pack(),
-                ),
-            ]
-        )
+                ]
+            )
+            continue
+
+        if a.status in ("pending", "confirmed") and a.start_at > now_utc:
+            rows.append(
+                [
+                    InlineKeyboardButton(
+                        text=strings.MASTER_CANCEL_BTN.format(time=time_str, short=short),
+                        callback_data=MasterCancelCallback(
+                            action="ask", appointment_id=a.id or uuid4()
+                        ).pack(),
+                    )
+                ]
+            )
 
     return text, InlineKeyboardMarkup(inline_keyboard=rows)
