@@ -97,8 +97,12 @@ async def create_booking(
         time=local.strftime("%H:%M"),
         weekday=strings.WEEKDAY_SHORT[local.weekday()],
     )
+    from src.keyboards.slots import approval_kb
+
     try:
-        await bot.send_message(chat_id=master.tg_id, text=text)
+        await bot.send_message(
+            chat_id=master.tg_id, text=text, reply_markup=approval_kb(appt.id)
+        )
     except Exception:
         log.warning("api_master_notify_failed", master_tg=master.tg_id)
 
