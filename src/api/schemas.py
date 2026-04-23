@@ -97,3 +97,17 @@ class MeProfileOut(BaseModel):
 class MeOut(BaseModel):
     role: str  # "client" | "master" | "salon_owner"
     profile: MeProfileOut
+
+
+class MasterAppointmentOut(BaseModel):
+    """One row in the master's dashboard calendar view."""
+
+    id: UUID
+    client_name: str
+    client_phone: str | None = None
+    service_name: str
+    duration_min: int
+    start_at_utc: datetime
+    end_at_utc: datetime
+    status: str
+    source: str

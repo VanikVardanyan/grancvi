@@ -7,9 +7,13 @@ import time
 from typing import Any
 from urllib.parse import parse_qsl
 
-from fastapi import Header, HTTPException
+from fastapi import Depends, Header, HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.api.deps import get_session
 from src.config import settings
+from src.db.models import Master
 
 
 class InvalidInitData(Exception):
@@ -66,3 +70,21 @@ async def require_tg_user(
         return parse_and_validate_init_data(x_telegram_init_data, bot_token=settings.app_bot_token)
     except InvalidInitData as exc:
         raise HTTPException(status_code=401, detail=str(exc)) from exc
+
+
+async def require_master(
+    tg_user: dict[str, Any] = Depends(require_tg_user),
+    session: AsyncSession = Depends(get_session),
+) -> Master:
+    """Dependency for master-only endpoints.
+
+    Resolves the caller's Telegram id to a Master row. 403 if the tg_id
+    isn't a registered master or the master is blocked.
+    """
+    tg_id = int(tg_user["id"])
+    master = await session.scalar(select(Master).where(Master.tg_id == tg_id))
+    if master is None:
+        raise HTTPException(status_code=403, detail="not a master")
+    if master.blocked_at is not None:
+        raise HTTPException(status_code=403, detail="master blocked")
+    return master
