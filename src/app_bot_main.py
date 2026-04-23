@@ -13,9 +13,13 @@ import sys
 
 import structlog
 from aiogram import Bot, Dispatcher
+from aiogram.types import MenuButtonWebApp, WebAppInfo
 
 from src.app_bot.handlers import router as app_bot_router
 from src.config import settings
+
+_TMA_URL = "https://app.jampord.am"
+_MENU_BUTTON_TEXT = "Գրանցում"
 
 
 def configure_logging() -> None:
@@ -41,6 +45,16 @@ async def main() -> None:
     bot = Bot(token=settings.app_bot_token)
     dp = Dispatcher()
     dp.include_router(app_bot_router)
+
+    # Default menu button (next to the message input) opens the TMA in one tap.
+    try:
+        await bot.set_chat_menu_button(
+            menu_button=MenuButtonWebApp(
+                text=_MENU_BUTTON_TEXT, web_app=WebAppInfo(url=_TMA_URL)
+            )
+        )
+    except Exception as exc:
+        log.warning("set_menu_button_failed", err=repr(exc))
 
     log.info("app_bot_starting")
     try:
