@@ -5,22 +5,30 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.callback_data.settings import LanguageCallback, SettingsCallback, WorkHoursDay
+from src.callback_data.settings import (
+    LanguageCallback,
+    SettingsCallback,
+    WorkHoursDay,
+    WorkHoursHour,
+)
 from src.db.models import Master
-from src.fsm.work_hours import WorkHoursEdit
 from src.handlers.master.my_invites import cmd_myinvites
 from src.handlers.master.new_invite import cmd_new_invite
 from src.handlers.master.profile import open_profile_menu
 from src.keyboards.common import main_menu
 from src.keyboards.services import services_list
-from src.keyboards.settings import language_menu, work_hours_day_prompt, work_hours_list
+from src.keyboards.settings import (
+    language_menu,
+    work_hours_end_picker,
+    work_hours_list,
+    work_hours_start_picker,
+)
 from src.repositories.masters import MasterRepository
 from src.repositories.services import ServiceRepository
 from src.strings import set_current_lang, strings
 from src.utils.work_hours import (
     InvalidTimeFormat,
     InvalidTimeOrder,
-    parse_hhmm,
     set_day_hours,
     set_day_off,
 )
@@ -114,15 +122,78 @@ async def cb_pick_day(
     callback: CallbackQuery,
     callback_data: WorkHoursDay,
     state: FSMContext,
+    master: Master | None,
 ) -> None:
-    await state.set_state(WorkHoursEdit.waiting_start)
-    await state.update_data(day=callback_data.day)
+    if master is None:
+        await callback.answer()
+        return
+    await state.clear()
     await callback.answer()
     if isinstance(callback.message, Message):
+        day_label = strings.WEEKDAYS[callback_data.day]
         await callback.message.answer(
-            strings.WORK_HOURS_ASK_START,
-            reply_markup=work_hours_day_prompt(callback_data.day),
+            strings.WORK_HOURS_PICK_START.format(day=day_label),
+            reply_markup=work_hours_start_picker(callback_data.day),
         )
+
+
+@router.callback_query(WorkHoursDay.filter(F.action == "back"))
+async def cb_back_to_days(
+    callback: CallbackQuery,
+    callback_data: WorkHoursDay,
+    state: FSMContext,
+    master: Master | None,
+) -> None:
+    if master is None:
+        await callback.answer()
+        return
+    await state.clear()
+    await callback.answer()
+    if isinstance(callback.message, Message):
+        await _render_work_hours(callback.message, master)
+
+
+@router.callback_query(WorkHoursHour.filter(F.phase == "start"))
+async def cb_pick_start_hour(
+    callback: CallbackQuery,
+    callback_data: WorkHoursHour,
+    master: Master | None,
+) -> None:
+    if master is None:
+        await callback.answer()
+        return
+    await callback.answer()
+    if isinstance(callback.message, Message):
+        day_label = strings.WEEKDAYS[callback_data.day]
+        await callback.message.answer(
+            strings.WORK_HOURS_PICK_END.format(day=day_label, start=f"{callback_data.hour:02d}:00"),
+            reply_markup=work_hours_end_picker(callback_data.day, callback_data.hour),
+        )
+
+
+@router.callback_query(WorkHoursHour.filter(F.phase == "end"))
+async def cb_pick_end_hour(
+    callback: CallbackQuery,
+    callback_data: WorkHoursHour,
+    master: Master | None,
+    session: AsyncSession,
+) -> None:
+    if master is None:
+        await callback.answer()
+        return
+    start_str = f"{callback_data.start_hour:02d}:00"
+    end_str = f"{callback_data.hour:02d}:00"
+    try:
+        updated = set_day_hours(master.work_hours, callback_data.day, start_str, end_str)
+    except (InvalidTimeFormat, InvalidTimeOrder):
+        await callback.answer(strings.WORK_HOURS_BAD_FORMAT, show_alert=True)
+        return
+    repo = MasterRepository(session)
+    await repo.update_work_hours(master.id, updated)
+    master.work_hours = updated
+    await callback.answer(strings.WORK_HOURS_SAVED)
+    if isinstance(callback.message, Message):
+        await _render_work_hours(callback.message, master)
 
 
 @router.callback_query(WorkHoursDay.filter(F.action == "day_off"))
@@ -152,19 +223,6 @@ async def cb_work_hours_done(callback: CallbackQuery, state: FSMContext) -> None
     await callback.answer(strings.WORK_HOURS_SAVED)
 
 
-@router.message(WorkHoursEdit.waiting_start)
-async def wh_handle_start(message: Message, state: FSMContext) -> None:
-    raw = (message.text or "").strip()
-    try:
-        parse_hhmm(raw)
-    except InvalidTimeFormat:
-        await message.answer(strings.WORK_HOURS_BAD_FORMAT)
-        return
-    await state.update_data(start=raw)
-    await state.set_state(WorkHoursEdit.waiting_end)
-    await message.answer(strings.WORK_HOURS_ASK_END)
-
-
 @router.callback_query(LanguageCallback.filter())
 async def cb_pick_language(
     callback: CallbackQuery,
@@ -182,34 +240,3 @@ async def cb_pick_language(
     await callback.answer(strings.LANGUAGE_CHANGED)
     if isinstance(callback.message, Message):
         await callback.message.answer(strings.LANGUAGE_CHANGED, reply_markup=main_menu())
-
-
-@router.message(WorkHoursEdit.waiting_end)
-async def wh_handle_end(
-    message: Message,
-    state: FSMContext,
-    master: Master | None,
-    session: AsyncSession,
-) -> None:
-    if master is None:
-        await state.clear()
-        return
-    raw_end = (message.text or "").strip()
-    data = await state.get_data()
-    day: str = data["day"]
-    raw_start: str = data["start"]
-    try:
-        updated = set_day_hours(master.work_hours, day, raw_start, raw_end)
-    except InvalidTimeFormat:
-        await message.answer(strings.WORK_HOURS_BAD_FORMAT)
-        return
-    except InvalidTimeOrder:
-        await message.answer(strings.WORK_HOURS_BAD_ORDER)
-        return
-
-    repo = MasterRepository(session)
-    await repo.update_work_hours(master.id, updated)
-    master.work_hours = updated
-    await state.clear()
-    await message.answer(strings.WORK_HOURS_SAVED)
-    await _render_work_hours(message, master)

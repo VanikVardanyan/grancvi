@@ -72,8 +72,11 @@ _RU: dict[str, Any] = {
     "WORK_HOURS_BAD_FORMAT": "Не разобрал. Ожидаю HH:MM, например 10:00.",
     "WORK_HOURS_BAD_ORDER": "Конец должен быть позже начала.",
     "WORK_HOURS_BTN_DAY_OFF": "Выходной",
+    "WORK_HOURS_BTN_BACK": "← Назад",
     "WORK_HOURS_SAVED": "Сохранено.",
     "WORK_HOURS_BTN_DONE": "Готово",
+    "WORK_HOURS_PICK_START": "{day}: когда начинаете?",
+    "WORK_HOURS_PICK_END": "{day}: начало {start}. Когда заканчиваете?",
     "WEEKDAYS": {
         "mon": "Пн",
         "tue": "Вт",
@@ -393,8 +396,11 @@ _HY: dict[str, Any] = {
     "WORK_HOURS_BAD_FORMAT": "Չհասկացա։ Սպասվում է HH:MM (օր. 10:00)",
     "WORK_HOURS_BAD_ORDER": "Ավարտը պետք է ավելի ուշ լինի, քան սկիզբը։",
     "WORK_HOURS_BTN_DAY_OFF": "Հանգստյան օր",
+    "WORK_HOURS_BTN_BACK": "← Հետ",
     "WORK_HOURS_SAVED": "Պահպանվեց։",
     "WORK_HOURS_BTN_DONE": "Պատրաստ է",
+    "WORK_HOURS_PICK_START": "{day}: ե՞րբ եք սկսում։",
+    "WORK_HOURS_PICK_END": "{day}: սկիզբը {start}. Ե՞րբ եք ավարտում։",
     "WEEKDAYS": {
         "mon": "Երկ",
         "tue": "Երք",

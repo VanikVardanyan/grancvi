@@ -4,8 +4,19 @@ from typing import Any
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from src.callback_data.settings import LanguageCallback, SettingsCallback, WorkHoursDay
+from src.callback_data.settings import (
+    LanguageCallback,
+    SettingsCallback,
+    WorkHoursDay,
+    WorkHoursHour,
+)
 from src.strings import strings
+
+_START_HOUR_MIN: int = 7
+_START_HOUR_MAX: int = 21
+_END_HOUR_MIN: int = 8
+_END_HOUR_MAX: int = 23
+_HOURS_PER_ROW: int = 4
 
 
 def settings_menu() -> InlineKeyboardMarkup:
@@ -105,14 +116,61 @@ def language_menu() -> InlineKeyboardMarkup:
     )
 
 
-def work_hours_day_prompt(day: str) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text=strings.WORK_HOURS_BTN_DAY_OFF,
-                    callback_data=WorkHoursDay(action="day_off", day=day).pack(),
-                )
-            ]
+def _hour_grid_rows(
+    *, day: str, phase: str, hours: range, start_hour: int = 0
+) -> list[list[InlineKeyboardButton]]:
+    rows: list[list[InlineKeyboardButton]] = []
+    buf: list[InlineKeyboardButton] = []
+    for h in hours:
+        buf.append(
+            InlineKeyboardButton(
+                text=f"{h:02d}:00",
+                callback_data=WorkHoursHour(
+                    day=day,
+                    phase="start" if phase == "start" else "end",
+                    hour=h,
+                    start_hour=start_hour,
+                ).pack(),
+            )
+        )
+        if len(buf) == _HOURS_PER_ROW:
+            rows.append(buf)
+            buf = []
+    if buf:
+        rows.append(buf)
+    return rows
+
+
+def work_hours_start_picker(day: str) -> InlineKeyboardMarkup:
+    rows = _hour_grid_rows(
+        day=day, phase="start", hours=range(_START_HOUR_MIN, _START_HOUR_MAX + 1)
+    )
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text=strings.WORK_HOURS_BTN_DAY_OFF,
+                callback_data=WorkHoursDay(action="day_off", day=day).pack(),
+            ),
+            InlineKeyboardButton(
+                text=strings.WORK_HOURS_BTN_BACK,
+                callback_data=WorkHoursDay(action="back", day=day).pack(),
+            ),
         ]
     )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def work_hours_end_picker(day: str, start_hour: int) -> InlineKeyboardMarkup:
+    lower = max(start_hour + 1, _END_HOUR_MIN)
+    rows = _hour_grid_rows(
+        day=day, phase="end", hours=range(lower, _END_HOUR_MAX + 1), start_hour=start_hour
+    )
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text=strings.WORK_HOURS_BTN_BACK,
+                callback_data=WorkHoursDay(action="back", day=day).pack(),
+            )
+        ]
+    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
