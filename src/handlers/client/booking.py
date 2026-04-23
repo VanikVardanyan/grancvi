@@ -260,9 +260,7 @@ async def handle_phone(
 def _book_again_kb(master: Master) -> InlineKeyboardMarkup:
     link = f"https://t.me/{settings.bot_username}?start=master_{master.slug}"
     return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text=strings.CLIENT_BOOK_AGAIN_BTN, url=link)]
-        ]
+        inline_keyboard=[[InlineKeyboardButton(text=strings.CLIENT_BOOK_AGAIN_BTN, url=link)]]
     )
 
 
@@ -281,9 +279,7 @@ async def handle_cancel_callback(
     if callback.message is None or not hasattr(callback.message, "answer"):
         return
     if master is not None:
-        await callback.message.answer(
-            strings.CLIENT_CANCELLED, reply_markup=_book_again_kb(master)
-        )
+        await callback.message.answer(strings.CLIENT_CANCELLED, reply_markup=_book_again_kb(master))
     else:
         await callback.message.answer(strings.CLIENT_CANCELLED)
 
