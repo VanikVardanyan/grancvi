@@ -121,6 +121,17 @@ class AdminMasterOut(BaseModel):
     appointments_30d: int
 
 
+class AdminInviteCreateIn(BaseModel):
+    kind: str = Field(..., pattern="^(master|salon_owner)$")
+
+
+class AdminInviteOut(BaseModel):
+    code: str
+    kind: str
+    link: str
+    expires_at: datetime
+
+
 class MasterAppointmentOut(BaseModel):
     """One row in the master's dashboard calendar view."""
 

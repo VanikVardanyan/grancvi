@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 from typing import Any
+from uuid import UUID
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import distinct, func, select
@@ -9,11 +10,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.auth import require_admin
 from src.api.deps import get_session
-from src.api.schemas import AdminMasterOut, AdminStatsOut
+from src.api.errors import ApiError
+from src.api.schemas import (
+    AdminInviteCreateIn,
+    AdminInviteOut,
+    AdminMasterOut,
+    AdminStatsOut,
+    OkOut,
+)
+from src.config import settings
 from src.db.models import Appointment, Client, Master
+from src.repositories.invites import InviteRepository
+from src.repositories.masters import MasterRepository
+from src.services.moderation import ModerationService
 from src.utils.time import now_utc
 
 router = APIRouter(prefix="/v1/admin", tags=["admin"])
+
+
+def _invite_link(code: str) -> str:
+    return f"https://t.me/{settings.bot_username}?start=invite_{code}"
 
 
 @router.get("/stats", response_model=AdminStatsOut)
@@ -107,3 +123,61 @@ async def admin_masters(
         )
         for (m, total, last30) in rows
     ]
+
+
+@router.post("/masters/{master_id}/block", response_model=OkOut)
+async def admin_block_master(
+    master_id: UUID,
+    _: dict[str, Any] = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> OkOut:
+    """Block a master (sets blocked_at, rejects open appointments).
+
+    Client-facing notifications of rejected appointments — handled by the
+    bot-side flow when an admin triggers block there. From the TMA we
+    currently skip the per-client notify; appointments become rejected
+    in-DB and the client sees it on their next check.
+    """
+    if (await MasterRepository(session).by_id(master_id)) is None:
+        raise ApiError("not_found", "master not found", status_code=404)
+    await ModerationService(session).block_master(master_id)
+    await session.commit()
+    return OkOut(ok=True)
+
+
+@router.post("/masters/{master_id}/unblock", response_model=OkOut)
+async def admin_unblock_master(
+    master_id: UUID,
+    _: dict[str, Any] = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> OkOut:
+    if (await MasterRepository(session).by_id(master_id)) is None:
+        raise ApiError("not_found", "master not found", status_code=404)
+    await ModerationService(session).unblock_master(master_id)
+    await session.commit()
+    return OkOut(ok=True)
+
+
+@router.post("/invites", response_model=AdminInviteOut, status_code=201)
+async def admin_create_invite(
+    payload: AdminInviteCreateIn,
+    admin_user: dict[str, Any] = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> AdminInviteOut:
+    """Create an invite code for a new master or salon owner.
+
+    Returned `link` is a `t.me/<bot>?start=invite_<code>` deep link the
+    admin can share with the invitee.
+    """
+    repo = InviteRepository(session)
+    invite = await repo.create(
+        created_by_tg_id=int(admin_user["id"]),
+        kind=payload.kind,
+    )
+    await session.commit()
+    return AdminInviteOut(
+        code=invite.code,
+        kind=invite.kind,
+        link=_invite_link(invite.code),
+        expires_at=invite.expires_at,
+    )
