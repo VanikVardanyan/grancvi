@@ -1,13 +1,23 @@
 from __future__ import annotations
 
-from datetime import datetime
-from typing import cast
+import secrets
+from datetime import datetime, timedelta
+from typing import Final, cast
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.models import Invite
+from src.utils.time import now_utc
+
+_ALPHABET: Final[str] = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no I,O,0,1
+
+
+def _generate_code() -> str:
+    left = "".join(secrets.choice(_ALPHABET) for _ in range(4))
+    right = "".join(secrets.choice(_ALPHABET) for _ in range(4))
+    return f"{left}-{right}"
 
 
 class InviteRepository:
@@ -17,14 +27,23 @@ class InviteRepository:
     async def create(
         self,
         *,
-        code: str,
         created_by_tg_id: int,
-        expires_at: datetime,
+        code: str | None = None,
+        expires_at: datetime | None = None,
+        ttl_days: int = 7,
+        kind: str = "master",
+        salon_id: UUID | None = None,
     ) -> Invite:
+        if code is None:
+            code = _generate_code()
+        if expires_at is None:
+            expires_at = now_utc() + timedelta(days=ttl_days)
         invite = Invite(
             code=code,
             created_by_tg_id=created_by_tg_id,
             expires_at=expires_at,
+            kind=kind,
+            salon_id=salon_id,
         )
         self._session.add(invite)
         await self._session.flush()

@@ -14,3 +14,7 @@ class AdminMasterCallback(CallbackData, prefix="adm"):
 class BlockCallback(CallbackData, prefix="blk"):
     master_id: UUID
     block: bool
+
+
+class AdminNewSalonCallback(CallbackData, prefix="ans"):
+    pass

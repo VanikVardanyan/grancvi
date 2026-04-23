@@ -32,7 +32,9 @@ async def test_admin_invites_empty(session: AsyncSession) -> None:
     from src.strings import get_bundle
 
     ru = get_bundle("ru")
-    message.answer.assert_awaited_once_with(ru.MY_INVITES_EMPTY)
+    message.answer.assert_awaited_once()
+    args, _kwargs = message.answer.await_args
+    assert args[0] == ru.MY_INVITES_EMPTY
 
 
 @pytest.mark.asyncio

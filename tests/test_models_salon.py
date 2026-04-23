@@ -36,9 +36,7 @@ async def test_invite_has_kind_and_optional_salon(session: AsyncSession) -> None
     from datetime import UTC, datetime, timedelta
 
     expires = datetime.now(UTC) + timedelta(days=7)
-    inv = Invite(
-        code="abc123", created_by_tg_id=999, expires_at=expires, kind="master"
-    )
+    inv = Invite(code="abc123", created_by_tg_id=999, expires_at=expires, kind="master")
     session.add(inv)
     await session.flush()
     await session.commit()

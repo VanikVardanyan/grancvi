@@ -357,6 +357,10 @@ _RU: dict[str, Any] = {
     ),
     "ADMIN_INVITES_HEADER": "Все инвайты:",
     "ADMIN_INVITE_ITEM_FMT": "`{code}` · {status} · by {creator_tg_id}",
+    "ADMIN_INVITE_NEW_SALON_BTN": "➕ Пригласить салон",
+    "ADMIN_INVITE_SALON_CREATED_FMT": (
+        "Инвайт салона создан.\n\nКод: `{code}`\nСсылка: {link}\nДействителен до: {expires}"
+    ),
     "ADMIN_MASTER_NOT_FOUND": "Мастер с таким slug не найден.",
     "ADMIN_MASTER_DETAIL_REGISTERED": "Зарегистрирован",
     "ADMIN_MASTER_DETAIL_SPECIALTY": "Специальность",
@@ -705,6 +709,10 @@ _HY: dict[str, Any] = {
     ),
     "ADMIN_INVITES_HEADER": "Բոլոր հրավերները․",
     "ADMIN_INVITE_ITEM_FMT": "`{code}` · {status} · {creator_tg_id}-ի կողմից",
+    "ADMIN_INVITE_NEW_SALON_BTN": "➕ Հրավիրել սրահ",
+    "ADMIN_INVITE_SALON_CREATED_FMT": (
+        "Սրահի հրավերը ստեղծված է։\n\nԿոդ՝ `{code}`\nՀղում՝ {link}\nՎավերական մինչ՝ {expires}"
+    ),
     "ADMIN_MASTER_NOT_FOUND": "Այս slug-ով վարպետ չի գտնվել։",
     "ADMIN_MASTER_DETAIL_REGISTERED": "Գրանցված է",
     "ADMIN_MASTER_DETAIL_SPECIALTY": "Մասնագիտություն",

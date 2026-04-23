@@ -267,9 +267,7 @@ class Invite(Base):
         ForeignKey("masters.id", ondelete="SET NULL"),
         nullable=True,
     )
-    kind: Mapped[str] = mapped_column(
-        String(16), nullable=False, server_default=text("'master'")
-    )
+    kind: Mapped[str] = mapped_column(String(16), nullable=False, server_default=text("'master'"))
     salon_id: Mapped[UUID | None] = mapped_column(
         PgUUID(as_uuid=True),
         ForeignKey("salons.id", ondelete="CASCADE"),
@@ -290,12 +288,8 @@ class Salon(Base):
     slug: Mapped[str] = mapped_column(String(32), nullable=False, unique=True)
     logo_file_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    is_public: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default=text("true")
-    )
-    blocked_at: Mapped[datetime | None] = mapped_column(
-        TIMESTAMP(timezone=True), nullable=True
-    )
+    is_public: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+    blocked_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
     )
