@@ -97,6 +97,28 @@ class MeProfileOut(BaseModel):
 class MeOut(BaseModel):
     role: str  # "client" | "master" | "salon_owner"
     profile: MeProfileOut
+    is_admin: bool = False
+
+
+class AdminStatsOut(BaseModel):
+    masters_active: int
+    masters_blocked: int
+    clients: int
+    appointments_7d: int
+    appointments_30d: int
+
+
+class AdminMasterOut(BaseModel):
+    id: UUID
+    name: str
+    slug: str
+    specialty: str
+    tg_id: int | None = None
+    is_public: bool
+    blocked: bool
+    created_at: datetime
+    appointments_total: int
+    appointments_30d: int
 
 
 class MasterAppointmentOut(BaseModel):

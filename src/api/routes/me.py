@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.auth import require_tg_user
 from src.api.deps import get_session
 from src.api.schemas import MeOut, MeProfileOut
+from src.config import settings
 from src.db.models import Master, Salon
 
 router = APIRouter(prefix="/v1/me", tags=["me"])
@@ -28,6 +29,7 @@ async def me(
     """
     tg_id = int(tg_user["id"])
     first_name = str(tg_user.get("first_name") or "")
+    is_admin = tg_id in settings.admin_tg_ids
 
     salon = await session.scalar(select(Salon).where(Salon.owner_tg_id == tg_id))
     if salon is not None:
@@ -40,6 +42,7 @@ async def me(
                 salon_name=salon.name,
                 slug=salon.slug,
             ),
+            is_admin=is_admin,
         )
 
     master = await session.scalar(select(Master).where(Master.tg_id == tg_id))
@@ -54,9 +57,11 @@ async def me(
                 slug=master.slug,
                 specialty=master.specialty_text or None,
             ),
+            is_admin=is_admin,
         )
 
     return MeOut(
         role="client",
         profile=MeProfileOut(tg_id=tg_id, first_name=first_name),
+        is_admin=is_admin,
     )

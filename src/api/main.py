@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.errors import register_exception_handlers
+from src.api.routes import admin as admin_routes
 from src.api.routes import bookings as bookings_routes
 from src.api.routes import master as master_routes
 from src.api.routes import masters as masters_routes
@@ -26,6 +27,7 @@ app.include_router(me_routes.router)
 app.include_router(masters_routes.router)
 app.include_router(master_routes.router)
 app.include_router(bookings_routes.router)
+app.include_router(admin_routes.router)
 
 
 @app.get("/v1/health")

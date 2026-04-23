@@ -88,3 +88,12 @@ async def require_master(
     if master.blocked_at is not None:
         raise HTTPException(status_code=403, detail="master blocked")
     return master
+
+
+async def require_admin(
+    tg_user: dict[str, Any] = Depends(require_tg_user),
+) -> dict[str, Any]:
+    """Dependency for admin-only endpoints (gated by ADMIN_TG_IDS env)."""
+    if int(tg_user["id"]) not in settings.admin_tg_ids:
+        raise HTTPException(status_code=403, detail="not an admin")
+    return tg_user

@@ -49,9 +49,7 @@ async def main() -> None:
     # Default menu button (next to the message input) opens the TMA in one tap.
     try:
         await bot.set_chat_menu_button(
-            menu_button=MenuButtonWebApp(
-                text=_MENU_BUTTON_TEXT, web_app=WebAppInfo(url=_TMA_URL)
-            )
+            menu_button=MenuButtonWebApp(text=_MENU_BUTTON_TEXT, web_app=WebAppInfo(url=_TMA_URL))
         )
     except Exception as exc:
         log.warning("set_menu_button_failed", err=repr(exc))
