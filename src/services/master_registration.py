@@ -49,5 +49,11 @@ class MasterRegistrationService:
             raise SlugTaken(slug) from e
 
         # Redeem invite only after Master is successfully flushed
-        await self._invites.redeem(code=invite_code, tg_id=tg_id, master_id=master.id)
+        redeemed = await self._invites.redeem(
+            code=invite_code, tg_id=tg_id, master_id=master.id
+        )
+        # Salon-scoped invites carry a salon_id — auto-link the new master
+        # to that salon so they show up in salon dashboards immediately.
+        if redeemed.salon_id is not None:
+            master.salon_id = redeemed.salon_id
         return master

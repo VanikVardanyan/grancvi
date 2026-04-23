@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.deps import get_session
 from src.config import settings
-from src.db.models import Master
+from src.db.models import Master, Salon
 
 
 class InvalidInitData(Exception):
@@ -97,3 +97,19 @@ async def require_admin(
     if int(tg_user["id"]) not in settings.admin_tg_ids:
         raise HTTPException(status_code=403, detail="not an admin")
     return tg_user
+
+
+async def require_salon(
+    tg_user: dict[str, Any] = Depends(require_tg_user),
+    session: AsyncSession = Depends(get_session),
+) -> Salon:
+    """Dependency for salon-owner endpoints.
+
+    Resolves the caller's Telegram id to a Salon row (by owner_tg_id).
+    403 if the tg_id isn't a salon owner.
+    """
+    tg_id = int(tg_user["id"])
+    salon = await session.scalar(select(Salon).where(Salon.owner_tg_id == tg_id))
+    if salon is None:
+        raise HTTPException(status_code=403, detail="not a salon owner")
+    return salon

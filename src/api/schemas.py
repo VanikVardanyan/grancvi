@@ -132,6 +132,37 @@ class AdminInviteOut(BaseModel):
     expires_at: datetime
 
 
+class SalonMasterOut(BaseModel):
+    id: UUID
+    name: str
+    slug: str
+    specialty: str
+    is_public: bool
+    blocked: bool
+    appointments_today: int
+    appointments_30d: int
+
+
+class SalonProfileOut(BaseModel):
+    id: UUID
+    name: str
+    slug: str
+    masters_count: int
+
+
+class SalonAppointmentOut(BaseModel):
+    id: UUID
+    master_id: UUID
+    master_name: str
+    client_name: str
+    client_phone: str | None = None
+    service_name: str
+    duration_min: int
+    start_at_utc: datetime
+    end_at_utc: datetime
+    status: str
+
+
 class MasterAppointmentOut(BaseModel):
     """One row in the master's dashboard calendar view."""
 
