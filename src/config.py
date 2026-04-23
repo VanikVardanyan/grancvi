@@ -47,6 +47,15 @@ class Settings(BaseSettings):
     app_bot_username: str = "grancviWebBot"
     database_url: str
     redis_url: str
+    # CORS allowlist for FastAPI. Include the TMA origin + localhost dev.
+    # Override in prod via env var API_CORS_ORIGINS="https://app.jampord.am".
+    api_cors_origins: list[str] = Field(
+        default_factory=lambda: [
+            "https://app.jampord.am",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+        ]
+    )
     # Env var accepts comma-separated integers: "111,222,333"
     admin_tg_ids: list[int] = Field(default_factory=list)
     log_level: str = "INFO"
