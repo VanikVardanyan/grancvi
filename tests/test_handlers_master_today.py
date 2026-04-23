@@ -140,15 +140,21 @@ async def test_safe_edit_reraises_other_telegram_errors() -> None:
 @pytest.mark.asyncio
 async def test_mark_past_button_present_for_past_confirmed(session: AsyncSession) -> None:
     master, client, svc = await _seed(session)
-    # Seed a confirmed appointment that ended in the past.
-    now = datetime.now(UTC)
-    past_start = now - timedelta(hours=3)
+    # Seed a confirmed appointment anchored to today in master's timezone so
+    # the `today` view picks it up regardless of when the test runs (including
+    # near-midnight edge cases in the master's local day).
+    from zoneinfo import ZoneInfo
+
+    tz = ZoneInfo(master.timezone)
+    today_local = datetime.now(UTC).astimezone(tz).date()
+    local_start = datetime(today_local.year, today_local.month, today_local.day, 0, 0, tzinfo=tz)
+    past_start = local_start.astimezone(UTC)
     appt = Appointment(
         master_id=master.id,
         client_id=client.id,
         service_id=svc.id,
         start_at=past_start,
-        end_at=past_start + timedelta(minutes=60),
+        end_at=past_start + timedelta(minutes=1),
         status="confirmed",
         source="master_manual",
         confirmed_at=past_start - timedelta(days=1),

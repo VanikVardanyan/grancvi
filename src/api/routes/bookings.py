@@ -74,25 +74,17 @@ async def create_booking(
             master_id=master.id, name=payload.client_name, tg_id=tg_id
         )
 
-    reminder_svc = ReminderService(session)
-    booking_svc = BookingService(session, reminder_service=reminder_svc)
+    booking_svc = BookingService(session)
 
     try:
-        appt = await booking_svc.create_manual(
+        appt = await booking_svc.create_pending(
             master=master,
             client=client,
             service=service,
             start_at=start_at_utc,
-            # source="client_request" — see below
         )
     except SlotAlreadyTaken as exc:
         raise ApiError("slot_taken", "slot is no longer available", status_code=409) from exc
-
-    # create_manual stamps source="master_manual"; the TMA is a client-side booking
-    # so rewrite the source for correctness. The row is already committed by
-    # create_manual, so a separate UPDATE is needed.
-    appt.source = "client_request"
-    await session.commit()
 
     tz = ZoneInfo(master.timezone)
     local = appt.start_at.astimezone(tz)
