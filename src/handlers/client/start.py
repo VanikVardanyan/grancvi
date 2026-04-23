@@ -26,6 +26,44 @@ def _parse_payload(text: str | None) -> str:
     return parts[1] if len(parts) == 2 else ""
 
 
+async def start_booking_for_slug(
+    *,
+    slug: str,
+    message: Message,
+    state: FSMContext,
+    session: AsyncSession,
+    show_catalog_on_missing: bool = True,
+) -> None:
+    """Enter the client-booking flow targeting `slug`.
+
+    Shared by the client /start handler and by master /start when a master
+    opens another master's deep link.
+    """
+    m_repo = MasterRepository(session)
+    target = await m_repo.by_slug(slug)
+    if target is None or target.blocked_at is not None or not target.is_public:
+        await message.answer(strings.CLIENT_MASTER_NOT_FOUND)
+        if show_catalog_on_missing:
+            await render_catalog(message=message, session=session)
+        return
+
+    s_repo = ServiceRepository(session)
+    services = await s_repo.list_active(target.id)
+    if not services:
+        await message.answer(strings.CLIENT_NO_SERVICES)
+        return
+    await state.clear()
+    await state.set_state(ClientBooking.ChoosingService)
+    await state.update_data(master_id=str(target.id))
+    await message.answer(
+        strings.CLIENT_MASTER_CARD_FMT.format(
+            name=target.name, specialty=target.specialty_text or "—"
+        )
+    )
+    await message.answer(strings.CLIENT_CHOOSE_SERVICE, reply_markup=services_pick_kb(services))
+    log.info("client_start_deep_link", tg_id=message.from_user.id if message.from_user else None)
+
+
 @router.message(CommandStart())
 async def handle_start(
     message: Message,
@@ -45,32 +83,12 @@ async def handle_start(
 
     payload = command.args if command and command.args else _parse_payload(message.text)
 
-    m_repo = MasterRepository(session)
-
     if payload.startswith("master_"):
-        slug = payload[len("master_") :]
-        target = await m_repo.by_slug(slug)
-        if target is None or target.blocked_at is not None or not target.is_public:
-            await message.answer(strings.CLIENT_MASTER_NOT_FOUND)
-            await render_catalog(message=message, session=session)
-            return
-
-        s_repo = ServiceRepository(session)
-        services = await s_repo.list_active(target.id)
-        if not services:
-            await message.answer(strings.CLIENT_NO_SERVICES)
-            return
-        await state.clear()
-        await state.set_state(ClientBooking.ChoosingService)
-        await state.update_data(master_id=str(target.id))
-        await message.answer(
-            strings.CLIENT_MASTER_CARD_FMT.format(
-                name=target.name, specialty=target.specialty_text or "—"
-            )
-        )
-        await message.answer(strings.CLIENT_CHOOSE_SERVICE, reply_markup=services_pick_kb(services))
-        log.info(
-            "client_start_deep_link", tg_id=message.from_user.id if message.from_user else None
+        await start_booking_for_slug(
+            slug=payload[len("master_") :],
+            message=message,
+            state=state,
+            session=session,
         )
         return
 

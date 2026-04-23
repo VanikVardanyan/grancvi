@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.callback_data.register import LangPickCallback
 from src.db.models import Master
 from src.fsm.master_register import MasterRegister
+from src.handlers.client.start import start_booking_for_slug
 from src.keyboards.common import lang_picker, main_menu
 from src.repositories.invites import InviteRepository
 from src.strings import set_current_lang, strings
@@ -30,6 +31,18 @@ def _parse_invite_payload(text: str | None) -> str | None:
     if not payload.startswith("invite_"):
         return None
     return payload[len("invite_") :]
+
+
+def _parse_master_payload(text: str | None) -> str | None:
+    if not text:
+        return None
+    parts = text.split(maxsplit=1)
+    if len(parts) != 2:
+        return None
+    payload = parts[1]
+    if not payload.startswith("master_"):
+        return None
+    return payload[len("master_") :]
 
 
 class HasInviteOrMaster(Filter):
@@ -78,6 +91,13 @@ async def handle_start(
         await state.update_data(invite_code=invite_code)
         await state.set_state(MasterRegister.waiting_lang)
         await message.answer(strings.LANG_PICK_PROMPT, reply_markup=lang_picker())
+        return
+
+    target_slug = _parse_master_payload(message.text)
+    if master is not None and target_slug is not None and target_slug != master.slug:
+        await start_booking_for_slug(
+            slug=target_slug, message=message, state=state, session=session
+        )
         return
 
     await state.clear()
