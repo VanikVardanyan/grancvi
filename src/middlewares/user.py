@@ -8,7 +8,7 @@ from aiogram.types import TelegramObject, Update
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.db.models import Master
+from src.db.models import Master, Salon
 
 
 class UserMiddleware(BaseMiddleware):
@@ -27,6 +27,7 @@ class UserMiddleware(BaseMiddleware):
     ) -> Any:
         data["master"] = None
         data["client"] = None  # kept for handler compatibility
+        data["salon"] = None
 
         inner = event.event if isinstance(event, Update) else event
         tg_user = getattr(inner, "from_user", None)
@@ -38,5 +39,9 @@ class UserMiddleware(BaseMiddleware):
         master = await session.scalar(select(Master).where(Master.tg_id == tg_user.id))
         if master is not None:
             data["master"] = master
+
+        salon = await session.scalar(select(Salon).where(Salon.owner_tg_id == tg_user.id))
+        if salon is not None:
+            data["salon"] = salon
 
         return await handler(event, data)
