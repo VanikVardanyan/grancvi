@@ -38,5 +38,28 @@ services:
       REDIS_URL: redis://redis:6379/0
     restart: unless-stopped
 
+  api:
+    build: .
+    command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://botik:botik@postgres:5432/botik
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "127.0.0.1:8000:8000"
+    restart: unless-stopped
+
+  app_bot:
+    build: .
+    command: python -m src.app_bot_main
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://botik:botik@postgres:5432/botik
+      REDIS_URL: redis://redis:6379/0
+    restart: unless-stopped
+
 volumes:
   pg_data:
