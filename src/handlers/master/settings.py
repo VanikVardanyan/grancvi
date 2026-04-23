@@ -11,6 +11,7 @@ from src.fsm.work_hours import WorkHoursEdit
 from src.handlers.master.my_invites import cmd_myinvites
 from src.handlers.master.new_invite import cmd_new_invite
 from src.handlers.master.profile import open_profile_menu
+from src.keyboards.common import main_menu
 from src.keyboards.services import services_list
 from src.keyboards.settings import language_menu, work_hours_day_prompt, work_hours_list
 from src.repositories.masters import MasterRepository
@@ -179,6 +180,8 @@ async def cb_pick_language(
     master.lang = callback_data.lang
     set_current_lang(callback_data.lang)
     await callback.answer(strings.LANGUAGE_CHANGED)
+    if isinstance(callback.message, Message):
+        await callback.message.answer(strings.LANGUAGE_CHANGED, reply_markup=main_menu())
 
 
 @router.message(WorkHoursEdit.waiting_end)

@@ -138,7 +138,7 @@ def build_dispatcher() -> Dispatcher:
     dp.update.middleware(UserMiddleware())
     dp.update.middleware(BlockedMasterGuardMiddleware())
     dp.update.middleware(AdminMiddleware())
-    dp.update.middleware(LangMiddleware())
+    dp.update.middleware(LangMiddleware(storage))
     dp.include_router(build_root_router())
     return dp
 
