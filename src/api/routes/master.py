@@ -15,6 +15,8 @@ from src.api.schemas import (
     BookingCreateOut,
     MasterAppointmentOut,
     MasterManualBookingIn,
+    MasterProfileIn,
+    MasterProfileOut,
     MasterScheduleIn,
     MasterScheduleOut,
     MasterServiceOut,
@@ -23,11 +25,12 @@ from src.api.schemas import (
     ServiceUpdateIn,
 )
 from src.db.models import Appointment, Client, Master, Service
-from src.exceptions import InvalidState, NotFound, SlotAlreadyTaken
+from src.exceptions import InvalidSlug, InvalidState, NotFound, ReservedSlug, SlotAlreadyTaken
 from src.repositories.appointments import AppointmentRepository
 from src.repositories.clients import ClientRepository
 from src.services.booking import BookingService
 from src.services.reminders import ReminderService
+from src.services.slug import SlugService
 
 router = APIRouter(prefix="/v1/master/me", tags=["master"])
 
@@ -141,6 +144,70 @@ def _validate_schedule_map(
                     f"{field}[{key}]: start must be before end",
                     status_code=400,
                 )
+
+
+def _profile_out(m: Master) -> MasterProfileOut:
+    return MasterProfileOut(
+        id=m.id,
+        name=m.name,
+        specialty=m.specialty_text or "",
+        slug=m.slug,
+        phone=m.phone,
+        timezone=m.timezone,
+        lang=m.lang,
+        is_public=m.is_public,
+    )
+
+
+@router.get("/profile", response_model=MasterProfileOut)
+async def get_my_profile(
+    master: Master = Depends(require_master),
+) -> MasterProfileOut:
+    return _profile_out(master)
+
+
+@router.patch("/profile", response_model=MasterProfileOut)
+async def update_my_profile(
+    payload: MasterProfileIn,
+    master: Master = Depends(require_master),
+    session: AsyncSession = Depends(get_session),
+) -> MasterProfileOut:
+    if payload.slug is not None and payload.slug != master.slug:
+        slug_svc = SlugService(session)
+        try:
+            SlugService.validate(payload.slug)
+        except ReservedSlug as exc:
+            raise ApiError("slug_reserved", "slug is reserved", status_code=400) from exc
+        except InvalidSlug as exc:
+            raise ApiError("slug_invalid", str(exc), status_code=400) from exc
+        if await slug_svc.is_taken(payload.slug):
+            raise ApiError("slug_taken", "slug already taken", status_code=409)
+        master.slug = payload.slug
+
+    if payload.timezone is not None:
+        try:
+            ZoneInfo(payload.timezone)
+        except Exception as exc:
+            raise ApiError(
+                "bad_input",
+                f"unknown timezone '{payload.timezone}'",
+                status_code=400,
+            ) from exc
+        master.timezone = payload.timezone
+
+    if payload.name is not None:
+        master.name = payload.name.strip()
+    if payload.specialty is not None:
+        master.specialty_text = payload.specialty.strip()
+    if payload.phone is not None:
+        master.phone = payload.phone.strip() or None
+    if payload.lang is not None:
+        master.lang = payload.lang
+    if payload.is_public is not None:
+        master.is_public = payload.is_public
+
+    await session.commit()
+    return _profile_out(master)
 
 
 @router.get("/schedule", response_model=MasterScheduleOut)

@@ -172,6 +172,27 @@ class MasterScheduleIn(BaseModel):
     slot_step_min: int | None = Field(default=None, ge=5, le=120)
 
 
+class MasterProfileOut(BaseModel):
+    id: UUID
+    name: str
+    specialty: str
+    slug: str
+    phone: str | None = None
+    timezone: str
+    lang: str
+    is_public: bool
+
+
+class MasterProfileIn(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    specialty: str | None = Field(default=None, max_length=200)
+    slug: str | None = Field(default=None, min_length=3, max_length=32)
+    phone: str | None = Field(default=None, max_length=40)
+    timezone: str | None = Field(default=None, max_length=64)
+    lang: str | None = Field(default=None, pattern="^(ru|hy)$")
+    is_public: bool | None = None
+
+
 class MasterServiceOut(BaseModel):
     """Service row as seen by the owning master (includes inactive ones)."""
 
