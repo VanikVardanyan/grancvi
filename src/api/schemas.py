@@ -135,6 +135,14 @@ class MasterAppointmentOut(BaseModel):
     source: str
 
 
+class MasterManualBookingIn(BaseModel):
+    service_id: UUID
+    start_at_utc: datetime
+    client_name: str = Field(..., min_length=1, max_length=120)
+    client_phone: str | None = Field(default=None, max_length=40)
+    comment: str | None = Field(default=None, max_length=500)
+
+
 class MasterServiceOut(BaseModel):
     """Service row as seen by the owning master (includes inactive ones)."""
 
