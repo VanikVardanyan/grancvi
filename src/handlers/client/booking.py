@@ -35,8 +35,7 @@ async def _resolve_master_id(session: AsyncSession, data: dict[str, Any]) -> UUI
     raw = data.get("master_id")
     if raw:
         return UUID(raw)
-    m = await MasterRepository(session).get_singleton()
-    return m.id if m else None
+    return None
 
 
 async def _load_master_service(
@@ -44,8 +43,8 @@ async def _load_master_service(
 ) -> tuple[Master | None, Service | None]:
     m_repo = MasterRepository(session)
     s_repo = ServiceRepository(session)
-    master = await m_repo.get_singleton()
-    if master is None or master.id != master_id:
+    master = await m_repo.by_id(master_id)
+    if master is None or master.blocked_at is not None or not master.is_public:
         return None, None
     service = await s_repo.get(service_id, master_id=master_id)
     return master, service

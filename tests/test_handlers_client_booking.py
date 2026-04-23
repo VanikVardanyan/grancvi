@@ -133,6 +133,7 @@ async def test_service_pick_saves_id_and_renders_calendar(
     )
     state = _make_fsm(55)
     await state.set_state(ClientBooking.ChoosingService)
+    await state.update_data(master_id=str(master.id))
 
     cb_data = ClientServicePick(service_id=service.id)
     await handle_service_pick(cb, callback_data=cb_data, state=state, session=session)
@@ -171,7 +172,7 @@ async def test_date_pick_renders_slots_or_no_slots(session: AsyncSession) -> Non
     )
     state = _make_fsm(66)
     await state.set_state(ClientBooking.ChoosingDate)
-    await state.update_data(service_id=str(service.id))
+    await state.update_data(service_id=str(service.id), master_id=str(master.id))
 
     cb_data = CalendarCallback(action="pick", year=2026, month=5, day=4)
     await handle_date_pick(cb, callback_data=cb_data, state=state, session=session)
