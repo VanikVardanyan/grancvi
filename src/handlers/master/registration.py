@@ -11,7 +11,6 @@ from src.exceptions import InvalidSlug, ReservedSlug, SlugTaken
 from src.fsm.master_register import MasterRegister
 from src.keyboards.common import main_menu
 from src.keyboards.registration import slug_confirm_kb, specialty_hints_kb
-from src.repositories.masters import MasterRepository
 from src.services.master_registration import MasterRegistrationService
 from src.services.slug import SlugService
 from src.strings import set_current_lang, strings
@@ -130,8 +129,8 @@ async def register_handle_custom_slug(
         await message.answer(strings.REGISTER_SLUG_INVALID)
         return
 
-    repo = MasterRepository(session)
-    if await repo.by_slug(slug) is not None:
+    slug_svc = SlugService(session)
+    if await slug_svc.is_taken(slug):
         await message.answer(strings.REGISTER_SLUG_TAKEN)
         return
 

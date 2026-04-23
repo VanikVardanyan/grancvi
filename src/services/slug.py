@@ -8,7 +8,7 @@ from typing import Final
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.db.models import Master
+from src.db.models import Master, Salon
 from src.exceptions import InvalidSlug, ReservedSlug
 
 _SLUG_RE: Final[re.Pattern[str]] = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -111,6 +111,15 @@ class SlugService:
         if not _SLUG_RE.match(slug):
             raise InvalidSlug("must match ^[a-z0-9]+(-[a-z0-9]+)*$")
 
+    async def is_taken(self, slug: str) -> bool:
+        master_hit = await self._session.scalar(
+            select(Master.id).where(Master.slug == slug).limit(1)
+        )
+        if master_hit is not None:
+            return True
+        salon_hit = await self._session.scalar(select(Salon.id).where(Salon.slug == slug).limit(1))
+        return salon_hit is not None
+
     @staticmethod
     def transliterate(text: str) -> str:
         s = text.strip().lower()
@@ -145,8 +154,7 @@ class SlugService:
                 self.validate(candidate)
             except (InvalidSlug, ReservedSlug):
                 continue
-            existing = await self._session.scalar(select(Master).where(Master.slug == candidate))
-            if existing is None:
+            if not await self.is_taken(candidate):
                 return candidate
         # Fallback: master-<6hex>
         return f"master-{secrets.token_hex(3)}"

@@ -127,8 +127,15 @@ async def cmd_profile_save_slug(
         return
 
     repo = MasterRepository(session)
-    existing = await repo.by_slug(slug)
-    if existing is not None and existing.id != master.id:
+    existing_master = await repo.by_slug(slug)
+    if existing_master is not None and existing_master.id != master.id:
+        await message.answer(strings.REGISTER_SLUG_TAKEN)
+        return
+    # Also check salons (salon slugs are global)
+    from src.repositories.salons import SalonRepository
+
+    salon_repo = SalonRepository(session)
+    if await salon_repo.by_slug(slug) is not None:
         await message.answer(strings.REGISTER_SLUG_TAKEN)
         return
 
