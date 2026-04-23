@@ -43,6 +43,8 @@ class Settings(BaseSettings):
 
     bot_token: str
     bot_username: str = "GrancviBot"
+    app_bot_token: str = ""  # @grancviWebBot — TMA launcher; empty until provisioned
+    app_bot_username: str = "grancviWebBot"
     database_url: str
     redis_url: str
     # Env var accepts comma-separated integers: "111,222,333"
