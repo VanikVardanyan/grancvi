@@ -63,8 +63,6 @@ async def require_tg_user(
     if not settings.app_bot_token:
         raise HTTPException(status_code=503, detail="app_bot_token not configured")
     try:
-        return parse_and_validate_init_data(
-            x_telegram_init_data, bot_token=settings.app_bot_token
-        )
+        return parse_and_validate_init_data(x_telegram_init_data, bot_token=settings.app_bot_token)
     except InvalidInitData as exc:
         raise HTTPException(status_code=401, detail=str(exc)) from exc
