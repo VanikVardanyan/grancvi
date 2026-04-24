@@ -48,6 +48,18 @@ class SalonRedirectIn(BaseModel):
     to_salon_id: UUID | None = None
 
 
+class SearchHitOut(BaseModel):
+    kind: str  # "master" | "salon"
+    id: UUID
+    name: str
+    slug: str
+    specialty: str | None = None  # masters only
+
+
+class SearchResultOut(BaseModel):
+    hits: list[SearchHitOut]
+
+
 class VisitedMasterOut(BaseModel):
     """Compact master card for the client's 'previously booked' list.
 
