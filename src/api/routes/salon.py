@@ -37,7 +37,7 @@ _VISIBLE_STATUSES: frozenset[str] = frozenset({"pending", "confirmed", "complete
 
 
 def _invite_link(code: str) -> str:
-    return f"https://t.me/{settings.bot_username}?start=invite_{code}"
+    return f"https://t.me/{settings.app_bot_username}?start=invite_{code}"
 
 
 @router.get("", response_model=SalonProfileOut)

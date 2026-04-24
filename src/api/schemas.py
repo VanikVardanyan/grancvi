@@ -60,6 +60,34 @@ class SearchResultOut(BaseModel):
     hits: list[SearchHitOut]
 
 
+class InviteInfoOut(BaseModel):
+    """Pre-flight read of an invite code — used by the TMA registration
+    page to decide which form to render (master vs salon) and whether
+    it's still valid before the user fills anything in.
+    """
+
+    code: str
+    kind: str  # "master" | "salon_owner"
+    valid: bool
+    reason: str | None = None  # "expired" | "used" | "not_found" when invalid
+    salon_id: UUID | None = None
+    salon_name: str | None = None
+
+
+class RegisterMasterIn(BaseModel):
+    invite_code: str
+    name: str = Field(..., min_length=1, max_length=200)
+    specialty: str = Field(default="", max_length=200)
+    slug: str | None = Field(default=None, min_length=3, max_length=32)
+    lang: str = Field(default="ru", pattern="^(ru|hy)$")
+
+
+class RegisterSalonIn(BaseModel):
+    invite_code: str
+    name: str = Field(..., min_length=1, max_length=200)
+    slug: str | None = Field(default=None, min_length=3, max_length=32)
+
+
 class VisitedMasterOut(BaseModel):
     """Compact master card for the client's 'previously booked' list.
 

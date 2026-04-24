@@ -29,7 +29,10 @@ router = APIRouter(prefix="/v1/admin", tags=["admin"])
 
 
 def _invite_link(code: str) -> str:
-    return f"https://t.me/{settings.bot_username}?start=invite_{code}"
+    # Point new invites at the TMA launcher bot — the in-TMA /register
+    # page handles the flow so the user never has to chat with the
+    # legacy bot.
+    return f"https://t.me/{settings.app_bot_username}?start=invite_{code}"
 
 
 @router.get("/stats", response_model=AdminStatsOut)
