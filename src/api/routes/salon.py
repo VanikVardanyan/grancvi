@@ -388,7 +388,25 @@ async def salon_create_manual_appointment(
             time=local.strftime("%H:%M"),
             weekday=strings.WEEKDAY_SHORT[local.weekday()],
         )
-        await notify_user(app_bot=app_bot, fallback_bot=bot, chat_id=master.tg_id, text=text)
+        from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+
+        kb = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="🚀 Открыть приложение",
+                        web_app=WebAppInfo(url="https://app.jampord.am"),
+                    )
+                ]
+            ]
+        )
+        await notify_user(
+            app_bot=app_bot,
+            fallback_bot=bot,
+            chat_id=master.tg_id,
+            text=text,
+            reply_markup=kb,
+        )
     except Exception:
         pass
 

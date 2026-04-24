@@ -22,6 +22,7 @@ from src.api.schemas import (
     OkOut,
     VisitedMasterOut,
 )
+from src.config import settings
 from src.db.models import Appointment, Client, Master, Service
 from src.exceptions import InvalidState, NotFound, SlotAlreadyTaken
 from src.repositories.clients import ClientRepository
@@ -32,6 +33,24 @@ from src.services.reminders import ReminderService
 from src.strings import strings
 from src.utils.client_notify import notify_user
 from src.utils.time import now_utc
+
+
+def _open_app_kb() -> object:
+    """InlineKeyboard with one WebApp button → TMA master dashboard.
+
+    Works via both @grancviWebBot (primary) and the legacy token
+    (fallback) — WebApp buttons only require the URL, no callback
+    handler lives on the bot side.
+    """
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+
+    url = "https://app.jampord.am"
+    label = "🚀 Открыть приложение"
+    _ = settings  # keep import alive for future per-env overrides
+    return InlineKeyboardMarkup(
+        inline_keyboard=[[InlineKeyboardButton(text=label, web_app=WebAppInfo(url=url))]]
+    )
+
 
 router = APIRouter(prefix="/v1/bookings", tags=["bookings"])
 log: structlog.stdlib.BoundLogger = structlog.get_logger()
@@ -100,16 +119,15 @@ async def create_booking(
         time=local.strftime("%H:%M"),
         weekday=strings.WEEKDAY_SHORT[local.weekday()],
     )
-    # Try @grancviWebBot first — the master likely already opened it to
-    # register / manage their dashboard, so the approve/reject action
-    # can stay inside the TMA. Callbacks buttons are omitted because the
-    # new bot doesn't host them; the master taps "Approve" on the
-    # dashboard card instead.
+    # Notification carries a WebApp button → TMA dashboard, where the
+    # pending card exposes Approve / Reject. WebApp buttons work on
+    # both bots, so fallback still delivers a useful message.
     await notify_user(
         app_bot=app_bot,
         fallback_bot=bot,
         chat_id=master.tg_id,
         text=text,
+        reply_markup=_open_app_kb(),
     )
 
     return BookingCreateOut(appointment_id=appt.id, status=appt.status)
@@ -240,6 +258,7 @@ async def cancel_booking(
         fallback_bot=bot,
         chat_id=master.tg_id,
         text=text,
+        reply_markup=_open_app_kb(),
     )
 
     return OkOut(ok=True)
