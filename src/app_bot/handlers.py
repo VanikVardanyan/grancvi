@@ -45,11 +45,7 @@ def _launch_kb(start_param: str | None, lang_code: str | None) -> InlineKeyboard
         url = f"{_WEB_APP_URL}?tgWebAppStartParam={start_param}"
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text=_inline_label_for(lang_code), web_app=WebAppInfo(url=url)
-                )
-            ]
+            [InlineKeyboardButton(text=_inline_label_for(lang_code), web_app=WebAppInfo(url=url))]
         ]
     )
 
@@ -77,9 +73,7 @@ async def handle_start(
         start_param=start_param,
     )
     lang_code = (
-        getattr(message.from_user, "language_code", None)
-        if message.from_user is not None
-        else None
+        getattr(message.from_user, "language_code", None) if message.from_user is not None else None
     )
     is_hy = (lang_code or "").lower().startswith("hy")
     if is_hy:
