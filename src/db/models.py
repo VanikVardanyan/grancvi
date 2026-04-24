@@ -253,8 +253,9 @@ class Invite(Base):
     __tablename__ = "invites"
     __table_args__ = (
         CheckConstraint(
-            "(used_by_tg_id IS NULL) = (used_at IS NULL) "
-            "AND (used_at IS NULL) = (used_for_master_id IS NULL)",
+            # used_by_tg_id and used_at move together; used_for_master_id
+            # is optional (salon-owner invites don't create a master).
+            "(used_by_tg_id IS NULL) = (used_at IS NULL)",
             name="ck_invites_usage_tuple",
         ),
         CheckConstraint(
