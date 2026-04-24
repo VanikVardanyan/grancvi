@@ -6,12 +6,46 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 
+class MasterRedirectOut(BaseModel):
+    """When a master has left a salon, GET /v1/masters/by-slug returns this
+    attached to MasterOut so the client can render a "переехал" banner.
+    """
+
+    kind: str  # "master" | "salon"
+    slug: str
+    name: str
+
+
 class MasterOut(BaseModel):
     id: UUID
     name: str
     specialty: str
     is_public: bool
     timezone: str
+    redirect_to: MasterRedirectOut | None = None
+
+
+class SalonPublicMasterOut(BaseModel):
+    id: UUID
+    name: str
+    slug: str
+    specialty: str
+
+
+class SalonPublicOut(BaseModel):
+    id: UUID
+    name: str
+    slug: str
+    masters: list[SalonPublicMasterOut]
+
+
+class SalonRedirectIn(BaseModel):
+    """Only one of `to_master_id` / `to_salon_id` may be set. Both None
+    clears the redirect.
+    """
+
+    to_master_id: UUID | None = None
+    to_salon_id: UUID | None = None
 
 
 class VisitedMasterOut(BaseModel):

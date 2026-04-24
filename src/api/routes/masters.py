@@ -4,6 +4,7 @@ from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.deps import get_session
@@ -11,10 +12,12 @@ from src.api.errors import ApiError
 from src.api.schemas import (
     DayCapacityOut,
     MasterOut,
+    MasterRedirectOut,
     MonthSlotsOut,
     ServiceOut,
     SlotOut,
 )
+from src.db.models import Salon
 from src.repositories.masters import MasterRepository
 from src.repositories.services import ServiceRepository
 from src.services.booking import BookingService
@@ -36,14 +39,32 @@ async def get_master_by_slug(
     session: AsyncSession = Depends(get_session),
 ) -> MasterOut:
     master = await MasterRepository(session).by_slug(slug)
-    if master is None or not _master_is_available(master):
+    if master is None:
         raise ApiError("not_found", "master not found", status_code=404)
+
+    redirect: MasterRedirectOut | None = None
+    if master.redirect_master_id is not None:
+        target = await MasterRepository(session).by_id(master.redirect_master_id)
+        if target is not None and _master_is_available(target):
+            redirect = MasterRedirectOut(kind="master", slug=target.slug, name=target.name)
+    elif master.redirect_salon_id is not None:
+        salon = await session.scalar(select(Salon).where(Salon.id == master.redirect_salon_id))
+        if salon is not None:
+            redirect = MasterRedirectOut(kind="salon", slug=salon.slug, name=salon.name)
+
+    # If the master themselves is no longer available but a redirect is
+    # set, still return their row so the client can show the banner. If
+    # neither available nor redirecting — 404.
+    if not _master_is_available(master) and redirect is None:
+        raise ApiError("not_found", "master not found", status_code=404)
+
     return MasterOut(
         id=master.id,
         name=master.name,
         specialty=master.specialty_text,
         is_public=master.is_public,
         timezone=master.timezone,
+        redirect_to=redirect,
     )
 
 

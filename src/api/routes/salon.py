@@ -17,6 +17,7 @@ from src.api.schemas import (
     SalonAppointmentOut,
     SalonMasterOut,
     SalonProfileOut,
+    SalonRedirectIn,
 )
 from src.config import settings
 from src.db.models import Appointment, Client, Master, Salon, Service
@@ -242,5 +243,63 @@ async def salon_remove_master(
     if master is None:
         raise ApiError("not_found", "master not in this salon", status_code=404)
     master.salon_id = None
+    await session.commit()
+    return OkOut(ok=True)
+
+
+@router.post("/masters/{master_id}/redirect", response_model=OkOut)
+async def salon_set_master_redirect(
+    master_id: UUID,
+    payload: SalonRedirectIn,
+    salon: Salon = Depends(require_salon),
+    session: AsyncSession = Depends(get_session),
+) -> OkOut:
+    """Redirect a master's public slug to another master or the salon landing.
+
+    Both None → clear the redirect. Exactly one target must be set. The
+    master must have belonged to this salon at least at some point —
+    we accept both currently-linked (`salon_id = salon.id`) and detached
+    masters whose existing `redirect_salon_id` already points here, so a
+    salon owner can still edit the redirect after detaching.
+    """
+    if payload.to_master_id is not None and payload.to_salon_id is not None:
+        raise ApiError("bad_input", "set only one redirect target", status_code=400)
+
+    master = await session.scalar(
+        select(Master).where(
+            Master.id == master_id,
+            (Master.salon_id == salon.id) | (Master.redirect_salon_id == salon.id),
+        )
+    )
+    if master is None:
+        raise ApiError("not_found", "master not in this salon", status_code=404)
+
+    if payload.to_master_id is None and payload.to_salon_id is None:
+        master.redirect_master_id = None
+        master.redirect_salon_id = None
+        await session.commit()
+        return OkOut(ok=True)
+
+    if payload.to_master_id is not None:
+        # Target must be a master in this salon to avoid arbitrary cross-
+        # salon redirects.
+        target = await session.scalar(
+            select(Master).where(
+                Master.id == payload.to_master_id,
+                Master.salon_id == salon.id,
+            )
+        )
+        if target is None:
+            raise ApiError("not_found", "target master not in this salon", status_code=404)
+        if target.id == master.id:
+            raise ApiError("bad_input", "cannot redirect to self", status_code=400)
+        master.redirect_master_id = target.id
+        master.redirect_salon_id = None
+    else:
+        if payload.to_salon_id != salon.id:
+            raise ApiError("bad_input", "can only redirect to own salon", status_code=400)
+        master.redirect_master_id = None
+        master.redirect_salon_id = salon.id
+
     await session.commit()
     return OkOut(ok=True)

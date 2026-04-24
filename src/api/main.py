@@ -10,6 +10,7 @@ from src.api.routes import master as master_routes
 from src.api.routes import masters as masters_routes
 from src.api.routes import me as me_routes
 from src.api.routes import salon as salon_routes
+from src.api.routes import salons as salons_routes
 from src.config import settings
 
 app = FastAPI(title="grancvi api", version="0.1.0", docs_url=None, redoc_url=None)
@@ -30,6 +31,7 @@ app.include_router(master_routes.router)
 app.include_router(bookings_routes.router)
 app.include_router(admin_routes.router)
 app.include_router(salon_routes.router)
+app.include_router(salons_routes.router)
 
 
 @app.get("/v1/health")

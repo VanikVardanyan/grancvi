@@ -79,6 +79,16 @@ class Master(Base):
     slug_changed_at: Mapped[datetime | None] = mapped_column(
         TIMESTAMP(timezone=True), nullable=True
     )
+    redirect_master_id: Mapped[UUID | None] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("masters.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    redirect_salon_id: Mapped[UUID | None] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("salons.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
 
 class Service(Base):
