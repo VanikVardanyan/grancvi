@@ -17,20 +17,6 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  app:
-    restart: always
-    healthcheck:
-      test: ["CMD", "python", "/app/scripts/healthcheck.py"]
-      interval: 60s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
   api:
     restart: always
     healthcheck:
