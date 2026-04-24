@@ -25,19 +25,6 @@ services:
       timeout: 3s
       retries: 20
 
-  app:
-    build: .
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    env_file: .env
-    environment:
-      DATABASE_URL: postgresql+asyncpg://botik:botik@postgres:5432/botik
-      REDIS_URL: redis://redis:6379/0
-    restart: unless-stopped
-
   api:
     build: .
     command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000
@@ -52,9 +39,17 @@ services:
       - "127.0.0.1:8000:8000"
     restart: unless-stopped
 
+  # Runs @grancviWebBot (TMA launcher + notifications + APScheduler for
+  # reminders and pending-expiry) and also applies Alembic migrations
+  # on boot — the container that used to own migrations is gone.
   app_bot:
     build: .
-    command: python -m src.app_bot_main
+    command: sh -c "alembic upgrade head && exec python -m src.app_bot_main"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     env_file: .env
     environment:
       DATABASE_URL: postgresql+asyncpg://botik:botik@postgres:5432/botik

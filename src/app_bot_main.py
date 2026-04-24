@@ -1,8 +1,8 @@
 """Entry point for the TMA launcher bot (@grancviWebBot).
 
-Runs as a separate container from the main bot. Its only job is to
-listen for /start and reply with a WebApp-launcher button. No DB access,
-no FSM, no scheduler — everything else happens in the mini-app.
+Owns the Telegram side of the stack now that the legacy @GrancviBot
+has been retired: handles /start, runs the reminder scheduler, and
+sends all user-facing notifications that originate server-side.
 """
 
 from __future__ import annotations
@@ -10,13 +10,18 @@ from __future__ import annotations
 import asyncio
 import logging
 import sys
+from functools import partial
 
 import structlog
 from aiogram import Bot, Dispatcher
 from aiogram.types import MenuButtonWebApp, WebAppInfo
+from apscheduler.triggers.cron import CronTrigger
 
 from src.app_bot.handlers import router as app_bot_router
 from src.config import settings
+from src.db.base import SessionMaker
+from src.scheduler.jobs import expire_pending_appointments, send_due_reminders
+from src.scheduler.setup import build_scheduler
 
 _TMA_URL = "https://app.jampord.am"
 _MENU_BUTTON_TEXT = "Գրանցվել"
@@ -63,10 +68,35 @@ async def main() -> None:
     except Exception as exc:
         log.warning("set_menu_button_failed", err=repr(exc))
 
+    # Reminder + pending-expiry jobs. Both pass `app_bot` as both the
+    # primary and the fallback since the legacy bot is gone — the
+    # notify_user helper still works with identical bots, it just skips
+    # the fallback branch on success.
+    scheduler = build_scheduler()
+    scheduler.add_job(
+        partial(send_due_reminders, bot=bot, app_bot=bot, session_factory=SessionMaker),
+        trigger=CronTrigger(minute="*"),
+        id="send_due_reminders",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        partial(
+            expire_pending_appointments,
+            bot=bot,
+            app_bot=bot,
+            session_factory=SessionMaker,
+        ),
+        trigger=CronTrigger(minute="*/5"),
+        id="expire_pending_appointments",
+        replace_existing=True,
+    )
+
     log.info("app_bot_starting")
+    scheduler.start()
     try:
         await dp.start_polling(bot)
     finally:
+        scheduler.shutdown(wait=True)
         await bot.session.close()
 
 
