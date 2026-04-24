@@ -24,7 +24,7 @@ def _launch_kb(start_param: str | None) -> InlineKeyboardMarkup:
         url = f"{_WEB_APP_URL}?tgWebAppStartParam={start_param}"
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="Գրանցվել", web_app=WebAppInfo(url=url))]
+            [InlineKeyboardButton(text="Open App", web_app=WebAppInfo(url=url))]
         ]
     )
 

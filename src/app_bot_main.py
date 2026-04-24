@@ -25,7 +25,7 @@ from src.scheduler.jobs import expire_pending_appointments, send_due_reminders
 from src.scheduler.setup import build_scheduler
 
 _TMA_URL = "https://app.jampord.am"
-_MENU_BUTTON_TEXT = "Գրանցվել"
+_MENU_BUTTON_TEXT = "Open App"
 
 
 def configure_logging() -> None:
