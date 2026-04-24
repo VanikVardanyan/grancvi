@@ -34,8 +34,17 @@ def configure_logging() -> None:
     )
 
 
+def _init_sentry() -> None:
+    if not settings.sentry_dsn:
+        return
+    import sentry_sdk
+
+    sentry_sdk.init(dsn=settings.sentry_dsn, traces_sample_rate=0.0, send_default_pii=False)
+
+
 async def main() -> None:
     configure_logging()
+    _init_sentry()
     log: structlog.stdlib.BoundLogger = structlog.get_logger()
 
     if not settings.app_bot_token:

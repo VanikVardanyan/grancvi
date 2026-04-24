@@ -15,6 +15,30 @@ from src.api.routes import salons as salons_routes
 from src.api.routes import search as search_routes
 from src.config import settings
 
+
+def _init_sentry() -> None:
+    """Turn on Sentry error reporting if SENTRY_DSN is set in env.
+
+    Uses the FastAPI integration so unhandled 5xx in route handlers get
+    reported automatically. Performance tracing stays off — we're just
+    looking for crashes, not latency histograms.
+    """
+    if not settings.sentry_dsn:
+        return
+    import sentry_sdk
+    from sentry_sdk.integrations.fastapi import FastApiIntegration
+    from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+
+    sentry_sdk.init(
+        dsn=settings.sentry_dsn,
+        traces_sample_rate=0.0,
+        integrations=[FastApiIntegration(), SqlalchemyIntegration()],
+        send_default_pii=False,
+    )
+
+
+_init_sentry()
+
 app = FastAPI(title="grancvi api", version="0.1.0", docs_url=None, redoc_url=None)
 
 app.add_middleware(
