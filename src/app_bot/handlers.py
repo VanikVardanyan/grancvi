@@ -1,3 +1,4 @@
+# ruff: noqa: RUF001
 from __future__ import annotations
 
 import structlog
@@ -29,13 +30,26 @@ def _menu_label_for(lang_code: str | None) -> str:
     return "Приложение"
 
 
-def _launch_kb(start_param: str | None) -> InlineKeyboardMarkup:
+def _inline_label_for(lang_code: str | None) -> str:
+    """CTA-style label for the inline WebApp button under the welcome
+    message. Armenian → verb `Գրանցվել`, else Russian `Записаться`.
+    """
+    if (lang_code or "").lower().startswith("hy"):
+        return "Գրանցվել"
+    return "Записаться"
+
+
+def _launch_kb(start_param: str | None, lang_code: str | None) -> InlineKeyboardMarkup:
     url = _WEB_APP_URL
     if start_param:
         url = f"{_WEB_APP_URL}?tgWebAppStartParam={start_param}"
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="Գրանցվել", web_app=WebAppInfo(url=url))]
+            [
+                InlineKeyboardButton(
+                    text=_inline_label_for(lang_code), web_app=WebAppInfo(url=url)
+                )
+            ]
         ]
     )
 
@@ -62,19 +76,31 @@ async def handle_start(
         tg_id=message.from_user.id if message.from_user else None,
         start_param=start_param,
     )
-    text = (
-        "Открой запись в пару тапов.\n\n"
-        if not start_param
-        else "Открой приложение, чтобы продолжить запись.\n\n"
+    lang_code = (
+        getattr(message.from_user, "language_code", None)
+        if message.from_user is not None
+        else None
     )
+    is_hy = (lang_code or "").lower().startswith("hy")
+    if is_hy:
+        text = (
+            "Բացիր գրանցումը մի քանի թափով։\n\n"
+            if not start_param
+            else "Բաց հավելվածը շարունակելու համար։\n\n"
+        )
+    else:
+        text = (
+            "Открой запись в пару тапов.\n\n"
+            if not start_param
+            else "Открой приложение, чтобы продолжить запись.\n\n"
+        )
     _ = settings  # reference kept for future per-env URL config
-    await message.answer(text, reply_markup=_launch_kb(start_param))
+    await message.answer(text, reply_markup=_launch_kb(start_param, lang_code))
 
     # Per-user menu button localization — only the chat this /start
     # came from is affected; other users keep seeing whatever default
     # was set bot-wide.
-    if message.from_user is not None and message.chat is not None:
-        lang_code = getattr(message.from_user, "language_code", None)
+    if message.chat is not None:
         label = _menu_label_for(lang_code)
         try:
             await bot.set_chat_menu_button(
