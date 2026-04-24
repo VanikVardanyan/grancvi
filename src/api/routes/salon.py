@@ -13,6 +13,8 @@ from src.api.deps import get_session
 from src.api.errors import ApiError
 from src.api.schemas import (
     AdminInviteOut,
+    BookingCreateOut,
+    MasterManualBookingIn,
     OkOut,
     SalonAppointmentOut,
     SalonMasterOut,
@@ -21,7 +23,11 @@ from src.api.schemas import (
 )
 from src.config import settings
 from src.db.models import Appointment, Client, Master, Salon, Service
+from src.exceptions import SlotAlreadyTaken
+from src.repositories.clients import ClientRepository
 from src.repositories.invites import InviteRepository
+from src.services.booking import BookingService
+from src.services.reminders import ReminderService
 from src.utils.time import now_utc
 
 router = APIRouter(prefix="/v1/salon/me", tags=["salon"])
@@ -303,3 +309,62 @@ async def salon_set_master_redirect(
 
     await session.commit()
     return OkOut(ok=True)
+
+
+@router.post("/masters/{master_id}/appointments", response_model=BookingCreateOut, status_code=201)
+async def salon_create_manual_appointment(
+    master_id: UUID,
+    payload: MasterManualBookingIn,
+    salon: Salon = Depends(require_salon),
+    session: AsyncSession = Depends(get_session),
+) -> BookingCreateOut:
+    """Salon receptionist books a walk-in / call-in onto one of the salon's
+    masters. Same semantics as POST /v1/master/me/appointments — the
+    appointment goes in as `confirmed`, the master sees it in their
+    dashboard, and the salon-level calendar picks it up via the
+    shared master_id.
+    """
+    master = await session.scalar(
+        select(Master).where(Master.id == master_id, Master.salon_id == salon.id)
+    )
+    if master is None:
+        raise ApiError("not_found", "master not in this salon", status_code=404)
+
+    service = await session.scalar(
+        select(Service).where(Service.id == payload.service_id, Service.master_id == master.id)
+    )
+    if service is None or not service.active:
+        raise ApiError("not_found", "service not found", status_code=404)
+
+    from datetime import UTC as _UTC
+
+    start_at_utc = (
+        payload.start_at_utc
+        if payload.start_at_utc.tzinfo is not None
+        else payload.start_at_utc.replace(tzinfo=_UTC)
+    )
+
+    client_repo = ClientRepository(session)
+    phone = (payload.client_phone or "").strip() or None
+    name = payload.client_name.strip()
+    if phone:
+        client = await client_repo.upsert_by_phone(
+            master_id=master.id, phone=phone, name=name, tg_id=None
+        )
+    else:
+        client = await client_repo.create_anonymous(master_id=master.id, name=name)
+
+    reminder_svc = ReminderService(session)
+    svc = BookingService(session, reminder_service=reminder_svc)
+    try:
+        appt = await svc.create_manual(
+            master=master,
+            client=client,
+            service=service,
+            start_at=start_at_utc,
+            comment=(payload.comment or "").strip() or None,
+        )
+    except SlotAlreadyTaken as exc:
+        raise ApiError("slot_taken", "slot already taken", status_code=409) from exc
+
+    return BookingCreateOut(appointment_id=appt.id, status=appt.status)
