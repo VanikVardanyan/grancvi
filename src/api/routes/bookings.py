@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
 from src.api.auth import require_tg_user
-from src.api.deps import get_bot, get_session
+from src.api.deps import get_app_bot, get_bot, get_session
 from src.api.errors import ApiError
 from src.api.schemas import (
     BookingCreateIn,
@@ -30,6 +30,7 @@ from src.repositories.services import ServiceRepository
 from src.services.booking import BookingService
 from src.services.reminders import ReminderService
 from src.strings import strings
+from src.utils.client_notify import notify_user
 from src.utils.time import now_utc
 
 router = APIRouter(prefix="/v1/bookings", tags=["bookings"])
@@ -46,6 +47,7 @@ async def create_booking(
     tg_user: dict[str, Any] = Depends(require_tg_user),
     session: AsyncSession = Depends(get_session),
     bot: Bot = Depends(get_bot),
+    app_bot: Bot | None = Depends(get_app_bot),
 ) -> BookingCreateOut:
     master = await MasterRepository(session).by_id(payload.master_id)
     if master is None or not _master_is_available(master):
@@ -98,12 +100,17 @@ async def create_booking(
         time=local.strftime("%H:%M"),
         weekday=strings.WEEKDAY_SHORT[local.weekday()],
     )
-    from src.keyboards.slots import approval_kb
-
-    try:
-        await bot.send_message(chat_id=master.tg_id, text=text, reply_markup=approval_kb(appt.id))
-    except Exception:
-        log.warning("api_master_notify_failed", master_tg=master.tg_id)
+    # Try @grancviWebBot first — the master likely already opened it to
+    # register / manage their dashboard, so the approve/reject action
+    # can stay inside the TMA. Callbacks buttons are omitted because the
+    # new bot doesn't host them; the master taps "Approve" on the
+    # dashboard card instead.
+    await notify_user(
+        app_bot=app_bot,
+        fallback_bot=bot,
+        chat_id=master.tg_id,
+        text=text,
+    )
 
     return BookingCreateOut(appointment_id=appt.id, status=appt.status)
 
@@ -202,6 +209,7 @@ async def cancel_booking(
     tg_user: dict[str, Any] = Depends(require_tg_user),
     session: AsyncSession = Depends(get_session),
     bot: Bot = Depends(get_bot),
+    app_bot: Bot | None = Depends(get_app_bot),
 ) -> OkOut:
     tg_id = int(tg_user["id"])
     svc = BookingService(session)
@@ -227,9 +235,11 @@ async def cancel_booking(
         time=local.strftime("%H:%M"),
         service=service.name,
     )
-    try:
-        await bot.send_message(chat_id=master.tg_id, text=text)
-    except Exception:
-        log.warning("api_cancel_notify_failed", master_tg=master.tg_id)
+    await notify_user(
+        app_bot=app_bot,
+        fallback_bot=bot,
+        chat_id=master.tg_id,
+        text=text,
+    )
 
     return OkOut(ok=True)

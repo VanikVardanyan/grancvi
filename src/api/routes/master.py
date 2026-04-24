@@ -4,12 +4,13 @@ from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
+from aiogram import Bot
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.auth import require_master
-from src.api.deps import get_session
+from src.api.deps import get_app_bot, get_bot, get_session
 from src.api.errors import ApiError
 from src.api.schemas import (
     BookingCreateOut,
@@ -32,6 +33,8 @@ from src.repositories.masters import MasterRepository
 from src.services.booking import BookingService
 from src.services.reminders import ReminderService
 from src.services.slug import SlugService
+from src.strings import strings
+from src.utils.client_notify import notify_user
 
 router = APIRouter(prefix="/v1/master/me", tags=["master"])
 
@@ -388,20 +391,122 @@ async def update_my_service(
     return _service_to_out(service)
 
 
+async def _notify_client_of_appointment(
+    *,
+    app_bot: Bot | None,
+    fallback_bot: Bot,
+    session: AsyncSession,
+    appt: Appointment,
+    text_template: str,
+) -> None:
+    """Shared helper — push an appointment-status update to the client's TG.
+
+    No-op when the client has no linked tg_id (master added them manually
+    by name only). Failures are logged, not raised.
+    """
+    client = await session.get(Client, appt.client_id)
+    if client is None or client.tg_id is None:
+        return
+    master = await session.get(Master, appt.master_id)
+    service = await session.get(Service, appt.service_id)
+    if master is None or service is None:
+        return
+    from src.config import settings as _settings
+
+    tz = ZoneInfo(master.timezone)
+    local = appt.start_at.astimezone(tz)
+    link = f"https://t.me/{_settings.app_bot_username}?start=master_{master.slug}"
+    text = text_template.format(
+        master=master.name,
+        service=service.name,
+        date=local.strftime("%d.%m.%Y"),
+        time=local.strftime("%H:%M"),
+        link=link,
+    )
+    await notify_user(
+        app_bot=app_bot,
+        fallback_bot=fallback_bot,
+        chat_id=client.tg_id,
+        text=text,
+    )
+
+
+@router.post("/appointments/{appointment_id}/approve", response_model=OkOut)
+async def approve_my_appointment(
+    appointment_id: UUID,
+    master: Master = Depends(require_master),
+    session: AsyncSession = Depends(get_session),
+    bot: Bot = Depends(get_bot),
+    app_bot: Bot | None = Depends(get_app_bot),
+) -> OkOut:
+    """Master confirms a pending request from the TMA.
+
+    Mirrors the bot-side confirm flow: status → confirmed, reminders
+    scheduled, client notified via @grancviWebBot (fallback to legacy
+    bot if the client never opened the new one).
+    """
+    appt = await AppointmentRepository(session).get(appointment_id)
+    if appt is None or appt.master_id != master.id:
+        raise ApiError("not_found", "appointment not found", status_code=404)
+
+    reminder_svc = ReminderService(session)
+    svc = BookingService(session, reminder_service=reminder_svc)
+    try:
+        await svc.confirm(appt.id, master_id=master.id)
+    except (NotFound, InvalidState) as exc:
+        raise ApiError("cannot_confirm", "cannot confirm", status_code=409) from exc
+    await session.commit()
+    await session.refresh(appt)
+
+    await _notify_client_of_appointment(
+        app_bot=app_bot,
+        fallback_bot=bot,
+        session=session,
+        appt=appt,
+        text_template=strings.CLIENT_APPT_CONFIRMED,
+    )
+    return OkOut(ok=True)
+
+
+@router.post("/appointments/{appointment_id}/reject", response_model=OkOut)
+async def reject_my_appointment(
+    appointment_id: UUID,
+    master: Master = Depends(require_master),
+    session: AsyncSession = Depends(get_session),
+    bot: Bot = Depends(get_bot),
+    app_bot: Bot | None = Depends(get_app_bot),
+) -> OkOut:
+    appt = await AppointmentRepository(session).get(appointment_id)
+    if appt is None or appt.master_id != master.id:
+        raise ApiError("not_found", "appointment not found", status_code=404)
+
+    svc = BookingService(session)
+    try:
+        await svc.reject(appt.id, master_id=master.id)
+    except (NotFound, InvalidState) as exc:
+        raise ApiError("cannot_reject", "cannot reject", status_code=409) from exc
+    await session.commit()
+    await session.refresh(appt)
+
+    await _notify_client_of_appointment(
+        app_bot=app_bot,
+        fallback_bot=bot,
+        session=session,
+        appt=appt,
+        text_template=strings.CLIENT_APPT_REJECTED,
+    )
+    return OkOut(ok=True)
+
+
 @router.post("/appointments/{appointment_id}/cancel", response_model=OkOut)
 async def cancel_my_appointment(
     appointment_id: UUID,
     master: Master = Depends(require_master),
     session: AsyncSession = Depends(get_session),
+    bot: Bot = Depends(get_bot),
+    app_bot: Bot | None = Depends(get_app_bot),
 ) -> OkOut:
-    """Master cancels one of their appointments from the TMA dashboard.
-
-    Only pending/confirmed can be cancelled. Triggers the same
-    side-effects as the bot flow: status → cancelled, cancelled_by =
-    "master", reminders suppressed. Client notification via the bot is
-    handled by the existing cancel-notify path (not yet wired for API
-    cancels — can be added in a follow-up).
-    """
+    """Master cancels one of their appointments from the TMA dashboard."""
     appt_repo = AppointmentRepository(session)
     appt = await appt_repo.get(appointment_id)
     if appt is None or appt.master_id != master.id:
@@ -416,6 +521,15 @@ async def cancel_my_appointment(
     reminder_svc = ReminderService(session)
     await reminder_svc.suppress_for_appointment(appt.id)
     await session.commit()
+    await session.refresh(appt)
+
+    await _notify_client_of_appointment(
+        app_bot=app_bot,
+        fallback_bot=bot,
+        session=session,
+        appt=appt,
+        text_template=strings.CLIENT_APPT_CANCELLED_BY_MASTER,
+    )
     return OkOut(ok=True)
 
 

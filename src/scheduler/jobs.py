@@ -203,7 +203,7 @@ async def expire_pending_appointments(
             from src.utils.client_notify import notify_client
 
             ok = await notify_client(
-                app_bot=app_bot, master_bot=bot, chat_id=client.tg_id, text=text
+                app_bot=app_bot, fallback_bot=bot, chat_id=client.tg_id, text=text
             )
             if not ok:
                 log.warning(

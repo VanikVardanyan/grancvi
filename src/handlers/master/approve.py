@@ -38,7 +38,7 @@ async def _notify_client(
         return
     from src.utils.client_notify import notify_client
 
-    await notify_client(app_bot=app_bot, master_bot=bot, chat_id=client_tg_id, text=text)
+    await notify_client(app_bot=app_bot, fallback_bot=bot, chat_id=client_tg_id, text=text)
 
 
 @router.callback_query(ApprovalCallback.filter())

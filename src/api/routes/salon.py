@@ -4,12 +4,13 @@ from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
+from aiogram import Bot
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.auth import require_salon
-from src.api.deps import get_session
+from src.api.deps import get_app_bot, get_bot, get_session
 from src.api.errors import ApiError
 from src.api.schemas import (
     AdminInviteOut,
@@ -28,6 +29,8 @@ from src.repositories.clients import ClientRepository
 from src.repositories.invites import InviteRepository
 from src.services.booking import BookingService
 from src.services.reminders import ReminderService
+from src.strings import strings
+from src.utils.client_notify import notify_user
 from src.utils.time import now_utc
 
 router = APIRouter(prefix="/v1/salon/me", tags=["salon"])
@@ -317,6 +320,8 @@ async def salon_create_manual_appointment(
     payload: MasterManualBookingIn,
     salon: Salon = Depends(require_salon),
     session: AsyncSession = Depends(get_session),
+    bot: Bot = Depends(get_bot),
+    app_bot: Bot | None = Depends(get_app_bot),
 ) -> BookingCreateOut:
     """Salon receptionist books a walk-in / call-in onto one of the salon's
     masters. Same semantics as POST /v1/master/me/appointments — the
@@ -366,5 +371,25 @@ async def salon_create_manual_appointment(
         )
     except SlotAlreadyTaken as exc:
         raise ApiError("slot_taken", "slot already taken", status_code=409) from exc
+
+    # Salon receptionist booked: tell the master so they see the new
+    # appointment even before opening the dashboard.
+    from zoneinfo import ZoneInfo as _Zone
+
+    tz = _Zone(master.timezone)
+    local = appt.start_at.astimezone(tz)
+    try:
+        text = strings.APPT_NOTIFY_MASTER.format(
+            name=client.name,
+            phone=client.phone or "—",
+            service=service.name,
+            duration=service.duration_min,
+            date=local.strftime("%d.%m.%Y"),
+            time=local.strftime("%H:%M"),
+            weekday=strings.WEEKDAY_SHORT[local.weekday()],
+        )
+        await notify_user(app_bot=app_bot, fallback_bot=bot, chat_id=master.tg_id, text=text)
+    except Exception:
+        pass
 
     return BookingCreateOut(appointment_id=appt.id, status=appt.status)

@@ -552,7 +552,7 @@ async def cb_confirm_save(
 
         await notify_client(
             app_bot=app_bot,
-            master_bot=bot,
+            fallback_bot=bot,
             chat_id=client.tg_id,
             text=text,
             reply_markup=client_cancel_kb(appt.id),

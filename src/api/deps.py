@@ -30,3 +30,21 @@ async def get_bot() -> AsyncGenerator[Bot, None]:
         yield bot
     finally:
         await bot.session.close()
+
+
+async def get_app_bot() -> AsyncGenerator[Bot | None, None]:
+    """Yield an aiogram Bot for @grancviWebBot (TMA launcher), or None.
+
+    None is returned when app_bot_token isn't configured — callers fall
+    back to the legacy bot. Using two separate clients lets us prefer
+    the new bot for notifications while keeping legacy ones alive for
+    users who haven't opened the new bot yet.
+    """
+    if not settings.app_bot_token:
+        yield None
+        return
+    bot = Bot(token=settings.app_bot_token)
+    try:
+        yield bot
+    finally:
+        await bot.session.close()
