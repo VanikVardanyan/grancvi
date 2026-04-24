@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock
 
 import pytest
 import pytest_asyncio
@@ -9,7 +10,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.auth import require_tg_user
-from src.api.deps import get_session
+from src.api.deps import get_app_bot, get_bot, get_session
 from src.api.main import app
 from src.db.models import Appointment, Client, Master, Service
 
@@ -18,7 +19,17 @@ def _install_overrides(session: AsyncSession, *, tg_id: int) -> None:
     async def _session_override() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
+    async def _bot_override() -> AsyncGenerator[AsyncMock, None]:
+        # Stand-in for the legacy bot — tests exercise route logic,
+        # not the Telegram client side. AsyncMock swallows any call.
+        yield AsyncMock()
+
+    async def _app_bot_override() -> AsyncGenerator[None, None]:
+        yield None
+
     app.dependency_overrides[get_session] = _session_override
+    app.dependency_overrides[get_bot] = _bot_override
+    app.dependency_overrides[get_app_bot] = _app_bot_override
     app.dependency_overrides[require_tg_user] = lambda: {
         "id": tg_id,
         "first_name": "U",

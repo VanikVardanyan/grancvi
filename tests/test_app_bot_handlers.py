@@ -20,9 +20,11 @@ async def _truncate_tables() -> AsyncGenerator[None, None]:
 @pytest.mark.asyncio
 async def test_start_no_payload_sends_launcher() -> None:
     message = AsyncMock()
-    message.from_user = MagicMock(id=42)
+    message.from_user = MagicMock(id=42, language_code="ru")
+    message.chat = MagicMock(id=42)
+    bot = AsyncMock()
 
-    await handle_start(message=message, command=CommandObject(command="start"))
+    await handle_start(message=message, bot=bot, command=CommandObject(command="start"))
 
     message.answer.assert_awaited_once()
     kwargs = message.answer.await_args.kwargs
@@ -36,10 +38,14 @@ async def test_start_no_payload_sends_launcher() -> None:
 @pytest.mark.asyncio
 async def test_start_with_payload_forwards_start_param() -> None:
     message = AsyncMock()
-    message.from_user = MagicMock(id=42)
+    message.from_user = MagicMock(id=42, language_code="ru")
+    message.chat = MagicMock(id=42)
+    bot = AsyncMock()
 
     await handle_start(
-        message=message, command=CommandObject(command="start", args="master_anna-1234")
+        message=message,
+        bot=bot,
+        command=CommandObject(command="start", args="master_anna-1234"),
     )
 
     kb = message.answer.await_args.kwargs["reply_markup"]
