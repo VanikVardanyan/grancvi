@@ -35,20 +35,37 @@ from src.utils.client_notify import notify_user
 from src.utils.time import now_utc
 
 
-def _open_app_kb() -> object:
-    """InlineKeyboard with one WebApp button → TMA master dashboard.
+def _approve_kb(appointment_id: UUID) -> object:
+    """Approve / Reject inline buttons — one tap from the notification.
 
-    Works via both @grancviWebBot (primary) and the legacy token
-    (fallback) — WebApp buttons only require the URL, no callback
-    handler lives on the bot side.
+    Callbacks are handled by @grancviWebBot (src/app_bot/approval.py).
+    Legacy bot no longer processes them, so if the fallback path is
+    taken (master hasn't opened the new bot yet) the buttons will look
+    present but be inert — acceptable during migration; all new masters
+    register via the new bot and hit the primary path.
     """
-    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-    url = "https://app.jampord.am"
-    label = "🚀 Открыть приложение"
-    _ = settings  # keep import alive for future per-env overrides
+    from src.callback_data.approval import ApprovalCallback
+
+    _ = settings
     return InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text=label, web_app=WebAppInfo(url=url))]]
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="✓ Подтвердить",
+                    callback_data=ApprovalCallback(
+                        action="confirm", appointment_id=appointment_id
+                    ).pack(),
+                ),
+                InlineKeyboardButton(
+                    text="✕ Отклонить",
+                    callback_data=ApprovalCallback(
+                        action="reject", appointment_id=appointment_id
+                    ).pack(),
+                ),
+            ],
+        ]
     )
 
 
@@ -127,7 +144,7 @@ async def create_booking(
         fallback_bot=bot,
         chat_id=master.tg_id,
         text=text,
-        reply_markup=_open_app_kb(),
+        reply_markup=_approve_kb(appt.id),
     )
 
     return BookingCreateOut(appointment_id=appt.id, status=appt.status)
@@ -253,12 +270,12 @@ async def cancel_booking(
         time=local.strftime("%H:%M"),
         service=service.name,
     )
+    # Client cancel → informational only; no approve/reject needed.
     await notify_user(
         app_bot=app_bot,
         fallback_bot=bot,
         chat_id=master.tg_id,
         text=text,
-        reply_markup=_open_app_kb(),
     )
 
     return OkOut(ok=True)
