@@ -18,9 +18,12 @@ from src.api.schemas import (
     AdminSalonOut,
     AdminStatsOut,
     OkOut,
+    SpecialtyCreateIn,
+    SpecialtyOut,
+    SpecialtyUpdateIn,
 )
 from src.config import settings
-from src.db.models import Appointment, Client, Master, Salon
+from src.db.models import Appointment, Client, Master, Salon, Specialty
 from src.repositories.invites import InviteRepository
 from src.repositories.masters import MasterRepository
 from src.services.moderation import ModerationService
@@ -256,3 +259,62 @@ async def admin_create_invite(
         link=_invite_link(invite.code),
         expires_at=invite.expires_at,
     )
+
+
+@router.post("/specialties", response_model=SpecialtyOut, status_code=201)
+async def admin_create_specialty(
+    payload: SpecialtyCreateIn,
+    _: dict[str, Any] = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> SpecialtyOut:
+    """Add a new profession. `code` must be unique and snake_case."""
+    existing = await session.scalar(select(Specialty).where(Specialty.code == payload.code))
+    if existing is not None:
+        raise ApiError("code_taken", "specialty code already exists", status_code=409)
+    sp = Specialty(
+        code=payload.code,
+        name_ru=payload.name_ru,
+        name_hy=payload.name_hy,
+        position=payload.position,
+    )
+    session.add(sp)
+    await session.commit()
+    return SpecialtyOut(code=sp.code, name_ru=sp.name_ru, name_hy=sp.name_hy, position=sp.position)
+
+
+@router.patch("/specialties/{code}", response_model=SpecialtyOut)
+async def admin_update_specialty(
+    code: str,
+    payload: SpecialtyUpdateIn,
+    _: dict[str, Any] = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> SpecialtyOut:
+    sp = await session.scalar(select(Specialty).where(Specialty.code == code))
+    if sp is None:
+        raise ApiError("not_found", "specialty not found", status_code=404)
+    if payload.name_ru is not None:
+        sp.name_ru = payload.name_ru
+    if payload.name_hy is not None:
+        sp.name_hy = payload.name_hy
+    if payload.position is not None:
+        sp.position = payload.position
+    await session.commit()
+    return SpecialtyOut(code=sp.code, name_ru=sp.name_ru, name_hy=sp.name_hy, position=sp.position)
+
+
+@router.delete("/specialties/{code}", response_model=OkOut)
+async def admin_delete_specialty(
+    code: str,
+    _: dict[str, Any] = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> OkOut:
+    """Delete a profession. Existing masters keep the legacy code in
+    their specialty_text — UI renders it as raw text since the lookup
+    fails. Use update instead of delete if you want the rename to flow.
+    """
+    sp = await session.scalar(select(Specialty).where(Specialty.code == code))
+    if sp is None:
+        raise ApiError("not_found", "specialty not found", status_code=404)
+    await session.delete(sp)
+    await session.commit()
+    return OkOut(ok=True)

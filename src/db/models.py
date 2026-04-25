@@ -304,6 +304,18 @@ class Invite(Base):
     )
 
 
+class Specialty(Base):
+    __tablename__ = "specialties"
+
+    code: Mapped[str] = mapped_column(String(64), primary_key=True)
+    name_ru: Mapped[str] = mapped_column(Text, nullable=False)
+    name_hy: Mapped[str] = mapped_column(Text, nullable=False)
+    position: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
 class Salon(Base):
     __tablename__ = "salons"
 

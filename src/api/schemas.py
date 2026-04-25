@@ -207,6 +207,26 @@ class AdminMasterOut(BaseModel):
     appointments_30d: int
 
 
+class SpecialtyOut(BaseModel):
+    code: str
+    name_ru: str
+    name_hy: str
+    position: int
+
+
+class SpecialtyCreateIn(BaseModel):
+    code: str = Field(..., min_length=2, max_length=64, pattern=r"^[a-z][a-z0-9_]*$")
+    name_ru: str = Field(..., min_length=1, max_length=200)
+    name_hy: str = Field(..., min_length=1, max_length=200)
+    position: int = 0
+
+
+class SpecialtyUpdateIn(BaseModel):
+    name_ru: str | None = Field(default=None, min_length=1, max_length=200)
+    name_hy: str | None = Field(default=None, min_length=1, max_length=200)
+    position: int | None = None
+
+
 class AdminSalonOut(BaseModel):
     id: UUID
     name: str
