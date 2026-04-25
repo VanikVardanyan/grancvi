@@ -35,12 +35,24 @@ class MasterRegistrationService:
         if existing is not None:
             raise SlugTaken(slug)
 
+        # Sensible default — Mon-Sat 09:00-20:00, Sunday off. Lets a new
+        # master be immediately bookable; the onboarding wizard step 1
+        # still walks them through tweaking it.
+        default_hours = {
+            "mon": [["09:00", "20:00"]],
+            "tue": [["09:00", "20:00"]],
+            "wed": [["09:00", "20:00"]],
+            "thu": [["09:00", "20:00"]],
+            "fri": [["09:00", "20:00"]],
+            "sat": [["09:00", "20:00"]],
+        }
         master = Master(
             tg_id=tg_id,
             name=name,
             slug=slug,
             specialty_text=specialty,
             lang=lang,
+            work_hours=default_hours,
         )
         self._session.add(master)
         try:
