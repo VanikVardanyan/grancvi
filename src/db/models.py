@@ -206,6 +206,14 @@ class Appointment(Base):
     end_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
     status: Mapped[str] = mapped_column(Text, nullable=False)
     source: Mapped[str] = mapped_column(Text, nullable=False)
+    # Set when the client landed via a salon's `start=salon_<slug>`
+    # link. Lets the salon dashboard distinguish bookings their QR
+    # pulled in from ones the master brought directly.
+    source_salon_id: Mapped[UUID | None] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("salons.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), nullable=False, server_default=func.now()

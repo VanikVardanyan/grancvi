@@ -125,6 +125,19 @@ async def create_booking(
     except SlotAlreadyTaken as exc:
         raise ApiError("slot_taken", "slot is no longer available", status_code=409) from exc
 
+    # Attribution: if the client came in through a salon QR, mark the
+    # booking with that salon's id so its dashboard can show "via us"
+    # vs. bookings the master pulled in via their own link.
+    if payload.source_salon_slug:
+        from src.db.models import Salon as _Salon
+
+        salon_for_attribution = await session.scalar(
+            select(_Salon).where(_Salon.slug == payload.source_salon_slug)
+        )
+        if salon_for_attribution is not None:
+            appt.source_salon_id = salon_for_attribution.id
+            await session.commit()
+
     tz = ZoneInfo(master.timezone)
     local = appt.start_at.astimezone(tz)
     text = strings.APPT_NOTIFY_MASTER.format(

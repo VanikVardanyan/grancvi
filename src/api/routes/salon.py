@@ -180,6 +180,7 @@ async def salon_appointments(
             Appointment.start_at,
             Appointment.end_at,
             Appointment.status,
+            Appointment.source_salon_id,
             Client.name.label("client_name"),
             Client.phone.label("client_phone"),
             Service.name.label("service_name"),
@@ -204,6 +205,7 @@ async def salon_appointments(
             start_at_utc=row.start_at.astimezone(UTC),
             end_at_utc=row.end_at.astimezone(UTC),
             status=row.status,
+            via_this_salon=row.source_salon_id == salon.id,
         )
         for row in rows
     ]

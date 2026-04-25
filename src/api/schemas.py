@@ -133,6 +133,9 @@ class BookingCreateIn(BaseModel):
     start_at_utc: datetime
     client_name: str = Field(..., min_length=1, max_length=120)
     client_phone: str | None = Field(default=None, max_length=40)
+    # When the client opened the TMA via a salon QR, frontend forwards
+    # the salon's slug so we can attribute the booking.
+    source_salon_slug: str | None = Field(default=None, max_length=32)
 
 
 class BookingCreateOut(BaseModel):
@@ -240,6 +243,7 @@ class SalonAppointmentOut(BaseModel):
     start_at_utc: datetime
     end_at_utc: datetime
     status: str
+    via_this_salon: bool = False
 
 
 class MasterAppointmentOut(BaseModel):
