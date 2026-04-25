@@ -88,6 +88,10 @@ class RegisterSalonIn(BaseModel):
     slug: str | None = Field(default=None, min_length=3, max_length=32)
 
 
+class JoinSalonIn(BaseModel):
+    invite_code: str
+
+
 class VisitedMasterOut(BaseModel):
     """Compact master card for the client's 'previously booked' list.
 

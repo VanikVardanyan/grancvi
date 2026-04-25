@@ -12,6 +12,7 @@ from src.api.deps import get_session
 from src.api.errors import ApiError
 from src.api.schemas import (
     InviteInfoOut,
+    JoinSalonIn,
     MeOut,
     MeProfileOut,
     RegisterMasterIn,
@@ -197,6 +198,74 @@ async def register_salon(
             salon_id=salon.id,
             salon_name=salon.name,
             slug=salon.slug,
+        ),
+        is_admin=is_admin,
+    )
+
+
+@router.post("/join-salon", response_model=MeOut)
+async def join_salon(
+    payload: JoinSalonIn,
+    tg_user: dict[str, Any] = Depends(require_tg_user),
+    session: AsyncSession = Depends(get_session),
+) -> MeOut:
+    """Existing master attaches themselves to a salon via that salon's
+    invite code.
+
+    Differs from `/register/master`: caller must already have a Master
+    row. Errors out if they're already in a different salon — they have
+    to leave that salon first (product decision: explicit moves only,
+    no silent reassignment).
+    """
+    tg_id = int(tg_user["id"])
+    first_name = str(tg_user.get("first_name") or "")
+
+    master = await session.scalar(select(Master).where(Master.tg_id == tg_id))
+    if master is None:
+        raise ApiError("not_a_master", "register as a master first", status_code=400)
+
+    invite = await InviteRepository(session).by_code(payload.invite_code)
+    if invite is None:
+        raise ApiError("invite_not_found", "invite not found", status_code=404)
+    if invite.kind != "master":
+        raise ApiError("invite_wrong_kind", "wrong invite kind", status_code=400)
+    if invite.salon_id is None:
+        raise ApiError("invite_no_salon", "invite is not salon-scoped", status_code=400)
+    from datetime import UTC, datetime
+
+    if invite.used_at is not None:
+        raise ApiError("invite_used", "invite already used", status_code=409)
+    if invite.expires_at <= datetime.now(UTC):
+        raise ApiError("invite_expired", "invite expired", status_code=410)
+
+    # Already in some salon? Block — let the master leave first.
+    if master.salon_id is not None and master.salon_id != invite.salon_id:
+        current_salon = await session.scalar(
+            select(Salon).where(Salon.id == master.salon_id)
+        )
+        raise ApiError(
+            "already_in_salon",
+            f"already in salon '{current_salon.name if current_salon else master.salon_id}'",
+            status_code=409,
+        )
+
+    master.salon_id = invite.salon_id
+    invite.used_by_tg_id = tg_id
+    invite.used_for_master_id = master.id
+    invite.used_at = datetime.now(UTC)
+    await session.commit()
+    await session.refresh(master)
+
+    is_admin = tg_id in settings.admin_tg_ids
+    return MeOut(
+        role="master",
+        profile=MeProfileOut(
+            tg_id=tg_id,
+            first_name=first_name,
+            master_id=master.id,
+            master_name=master.name,
+            slug=master.slug,
+            specialty=master.specialty_text or None,
         ),
         is_admin=is_admin,
     )
