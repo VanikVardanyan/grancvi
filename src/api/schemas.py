@@ -207,6 +207,15 @@ class AdminMasterOut(BaseModel):
     appointments_30d: int
 
 
+class AdminSalonOut(BaseModel):
+    id: UUID
+    name: str
+    slug: str
+    owner_tg_id: int
+    masters_count: int
+    created_at: datetime
+
+
 class AdminInviteCreateIn(BaseModel):
     kind: str = Field(..., pattern="^(master|salon_owner)$")
 

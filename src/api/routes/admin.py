@@ -15,11 +15,12 @@ from src.api.schemas import (
     AdminInviteCreateIn,
     AdminInviteOut,
     AdminMasterOut,
+    AdminSalonOut,
     AdminStatsOut,
     OkOut,
 )
 from src.config import settings
-from src.db.models import Appointment, Client, Master
+from src.db.models import Appointment, Client, Master, Salon
 from src.repositories.invites import InviteRepository
 from src.repositories.masters import MasterRepository
 from src.services.moderation import ModerationService
@@ -157,6 +158,56 @@ async def admin_unblock_master(
     if (await MasterRepository(session).by_id(master_id)) is None:
         raise ApiError("not_found", "master not found", status_code=404)
     await ModerationService(session).unblock_master(master_id)
+    await session.commit()
+    return OkOut(ok=True)
+
+
+@router.get("/salons", response_model=list[AdminSalonOut])
+async def admin_salons(
+    _: dict[str, Any] = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> list[AdminSalonOut]:
+    """All salons with the count of masters attached, newest first."""
+    masters_sq = (
+        select(Master.salon_id, func.count(Master.id).label("cnt"))
+        .where(Master.salon_id.is_not(None))
+        .group_by(Master.salon_id)
+        .subquery()
+    )
+    stmt = (
+        select(Salon, func.coalesce(masters_sq.c.cnt, 0))
+        .outerjoin(masters_sq, masters_sq.c.salon_id == Salon.id)
+        .order_by(Salon.created_at.desc())
+    )
+    rows = (await session.execute(stmt)).all()
+    return [
+        AdminSalonOut(
+            id=s.id,
+            name=s.name,
+            slug=s.slug,
+            owner_tg_id=s.owner_tg_id,
+            masters_count=int(cnt),
+            created_at=s.created_at,
+        )
+        for (s, cnt) in rows
+    ]
+
+
+@router.delete("/salons/{salon_id}", response_model=OkOut)
+async def admin_delete_salon(
+    salon_id: UUID,
+    _: dict[str, Any] = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> OkOut:
+    """Hard-delete a salon. Masters' salon_id flips to NULL via the FK
+    (they keep working as standalone). Salon-scoped invites cascade
+    away. The owner_tg_id frees up so the same Telegram account can be
+    re-invited as either kind.
+    """
+    salon = await session.scalar(select(Salon).where(Salon.id == salon_id))
+    if salon is None:
+        raise ApiError("not_found", "salon not found", status_code=404)
+    await session.delete(salon)
     await session.commit()
     return OkOut(ok=True)
 
