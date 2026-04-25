@@ -147,6 +147,24 @@ async def create_booking(
         reply_markup=_approve_kb(appt.id),
     )
 
+    # The bot's per-chat menu button URL was baked with the master's
+    # start_param when the client did `/start master_<slug>`. Now
+    # that they've actually booked, reset the menu back to the plain
+    # TMA root so future taps don't keep landing on this master.
+    if app_bot is not None and tg_id:
+        from aiogram.types import MenuButtonWebApp, WebAppInfo
+
+        try:
+            await app_bot.set_chat_menu_button(
+                chat_id=tg_id,
+                menu_button=MenuButtonWebApp(
+                    text="Open App",
+                    web_app=WebAppInfo(url="https://app.jampord.am"),
+                ),
+            )
+        except Exception:
+            log.warning("menu_reset_failed", chat_id=tg_id)
+
     return BookingCreateOut(appointment_id=appt.id, status=appt.status)
 
 
