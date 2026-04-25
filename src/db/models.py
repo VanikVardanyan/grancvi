@@ -89,9 +89,7 @@ class Master(Base):
         ForeignKey("salons.id", ondelete="SET NULL"),
         nullable=True,
     )
-    onboarded_at: Mapped[datetime | None] = mapped_column(
-        TIMESTAMP(timezone=True), nullable=True
-    )
+    onboarded_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
 
 
 class Service(Base):
