@@ -91,9 +91,11 @@ async def handle_start(
     _ = settings  # reference kept for future per-env URL config
     await message.answer(text, reply_markup=_launch_kb(start_param, lang_code))
 
-    # Per-user menu button localization — only the chat this /start
-    # came from is affected; other users keep seeing whatever default
-    # was set bot-wide.
+    # Per-user menu-button override — language only. The menu button
+    # always points at the TMA root: even if the user mis-taps it
+    # right after a deep link, /me's "Recent" section (built from
+    # localStorage on /m/<slug>) puts the master they came from one
+    # tap away.
     if message.chat is not None:
         label = _menu_label_for(lang_code)
         try:
