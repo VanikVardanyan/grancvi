@@ -51,6 +51,16 @@ class BookingService:
             master.id, day_start_utc=day_start_utc, day_end_utc=day_end_utc
         )
         booked = [(a.start_at, a.end_at) for a in appts]
+        # Load blackout dates for this master so a manually-marked day off
+        # zeroes out the slot grid.
+        from sqlalchemy import select as _select
+
+        from src.db.models import MasterBlackout
+
+        bo_rows = await self._session.scalars(
+            _select(MasterBlackout.date).where(MasterBlackout.master_id == master.id)
+        )
+        blackouts = set(bo_rows.all())
         return calculate_free_slots(
             work_hours=master.work_hours,
             breaks=master.breaks,
@@ -60,6 +70,7 @@ class BookingService:
             slot_step_min=master.slot_step_min,
             service_duration_min=service.duration_min,
             now=now,
+            blackouts=blackouts,
         )
 
     async def create_pending(
@@ -249,6 +260,15 @@ class BookingService:
             local_day = a.start_at.astimezone(tz).date()
             booked_by_day[local_day].append((a.start_at, a.end_at))
 
+        from sqlalchemy import select as _select
+
+        from src.db.models import MasterBlackout
+
+        bo_rows = await self._session.scalars(
+            _select(MasterBlackout.date).where(MasterBlackout.master_id == master.id)
+        )
+        blackouts = set(bo_rows.all())
+
         return calculate_day_loads(
             work_hours=master.work_hours,
             breaks=master.breaks,
@@ -258,6 +278,7 @@ class BookingService:
             slot_step_min=master.slot_step_min,
             service_duration_min=service.duration_min,
             now=n,
+            blackouts=blackouts,
         )
 
     async def _mark_past(

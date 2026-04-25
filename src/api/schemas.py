@@ -207,6 +207,17 @@ class AdminMasterOut(BaseModel):
     appointments_30d: int
 
 
+class BlackoutOut(BaseModel):
+    date: date
+    reason: str | None = None
+    created_at: datetime
+
+
+class BlackoutCreateIn(BaseModel):
+    date: date
+    reason: str | None = Field(default=None, max_length=200)
+
+
 class SpecialtyOut(BaseModel):
     code: str
     name_ru: str

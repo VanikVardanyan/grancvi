@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date as date_t
 from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
@@ -8,6 +9,7 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     CheckConstraint,
+    Date,
     ForeignKey,
     Index,
     Integer,
@@ -308,6 +310,24 @@ class Invite(Base):
         PgUUID(as_uuid=True),
         ForeignKey("salons.id", ondelete="CASCADE"),
         nullable=True,
+    )
+
+
+class MasterBlackout(Base):
+    """One-off non-working date for a master — overrides the weekly schedule."""
+
+    __tablename__ = "master_blackouts"
+    __table_args__ = (Index("ix_master_blackouts_master_date", "master_id", "date"),)
+
+    master_id: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("masters.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    date: Mapped[date_t] = mapped_column(Date, primary_key=True)
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
     )
 
 

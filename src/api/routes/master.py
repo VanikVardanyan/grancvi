@@ -13,6 +13,8 @@ from src.api.auth import require_master
 from src.api.deps import get_app_bot, get_bot, get_session
 from src.api.errors import ApiError
 from src.api.schemas import (
+    BlackoutCreateIn,
+    BlackoutOut,
     BookingCreateOut,
     MasterAppointmentOut,
     MasterManualBookingIn,
@@ -25,7 +27,7 @@ from src.api.schemas import (
     ServiceCreateIn,
     ServiceUpdateIn,
 )
-from src.db.models import Appointment, Client, Master, Service
+from src.db.models import Appointment, Client, Master, MasterBlackout, Service
 from src.exceptions import InvalidSlug, InvalidState, NotFound, ReservedSlug, SlotAlreadyTaken
 from src.repositories.appointments import AppointmentRepository
 from src.repositories.clients import ClientRepository
@@ -619,5 +621,69 @@ async def delete_my_service(
     if service is None:
         raise ApiError("not_found", "service not found", status_code=404)
     service.active = False
+    await session.commit()
+    return OkOut(ok=True)
+
+
+@router.get("/blackouts", response_model=list[BlackoutOut])
+async def list_blackouts(
+    master: Master = Depends(require_master),
+    session: AsyncSession = Depends(get_session),
+) -> list[BlackoutOut]:
+    """Master's one-off non-working dates, future-first."""
+    today = datetime.now(ZoneInfo(master.timezone)).date()
+    rows = (
+        await session.scalars(
+            select(MasterBlackout)
+            .where(MasterBlackout.master_id == master.id)
+            .where(MasterBlackout.date >= today)
+            .order_by(MasterBlackout.date.asc())
+        )
+    ).all()
+    return [BlackoutOut(date=r.date, reason=r.reason, created_at=r.created_at) for r in rows]
+
+
+@router.post("/blackouts", response_model=BlackoutOut, status_code=201)
+async def add_blackout(
+    payload: BlackoutCreateIn,
+    master: Master = Depends(require_master),
+    session: AsyncSession = Depends(get_session),
+) -> BlackoutOut:
+    """Mark a specific date as non-working. Idempotent — re-adding the
+    same date is a no-op (returns the existing row).
+    """
+    existing = await session.scalar(
+        select(MasterBlackout).where(
+            MasterBlackout.master_id == master.id, MasterBlackout.date == payload.date
+        )
+    )
+    if existing is not None:
+        if payload.reason and existing.reason != payload.reason:
+            existing.reason = payload.reason
+            await session.commit()
+        return BlackoutOut(
+            date=existing.date, reason=existing.reason, created_at=existing.created_at
+        )
+    row = MasterBlackout(master_id=master.id, date=payload.date, reason=payload.reason)
+    session.add(row)
+    await session.commit()
+    await session.refresh(row)
+    return BlackoutOut(date=row.date, reason=row.reason, created_at=row.created_at)
+
+
+@router.delete("/blackouts/{day}", response_model=OkOut)
+async def delete_blackout(
+    day: date,
+    master: Master = Depends(require_master),
+    session: AsyncSession = Depends(get_session),
+) -> OkOut:
+    row = await session.scalar(
+        select(MasterBlackout).where(
+            MasterBlackout.master_id == master.id, MasterBlackout.date == day
+        )
+    )
+    if row is None:
+        raise ApiError("not_found", "blackout not found", status_code=404)
+    await session.delete(row)
     await session.commit()
     return OkOut(ok=True)

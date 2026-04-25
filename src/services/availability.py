@@ -49,12 +49,18 @@ def calculate_free_slots(
     slot_step_min: int,
     service_duration_min: int,
     now: datetime | None = None,
+    blackouts: set[date] | None = None,
 ) -> list[datetime]:
     """Return tz-aware start times (in `tz`) of every slot that fits the service.
 
     Pure function — no DB, no clock access. Caller must pass `now` if they want
     past slots filtered for today; otherwise the function never looks at wall time.
+
+    `blackouts` are one-off non-working dates that override the weekly schedule —
+    if `day` is in the set, returns empty.
     """
+    if blackouts is not None and day in blackouts:
+        return []
     weekday = WEEKDAYS[day.weekday()]
     work_raw = work_hours.get(weekday)
     if not work_raw:
@@ -108,6 +114,7 @@ def calculate_day_loads(
     slot_step_min: int,
     service_duration_min: int,
     now: datetime,
+    blackouts: set[date] | None = None,
 ) -> dict[date, int]:
     """Count free slots for every day of `month`.
 
@@ -128,6 +135,9 @@ def calculate_day_loads(
         if d < now_date:
             result[d] = -1
             continue
+        if blackouts is not None and d in blackouts:
+            result[d] = -1
+            continue
         weekday = WEEKDAYS[d.weekday()]
         if not work_hours.get(weekday):
             result[d] = -1
@@ -141,6 +151,7 @@ def calculate_day_loads(
             slot_step_min=slot_step_min,
             service_duration_min=service_duration_min,
             now=now if d == now_date else None,
+            blackouts=blackouts,
         )
         result[d] = len(slots)
     return result
