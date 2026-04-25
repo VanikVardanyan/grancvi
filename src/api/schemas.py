@@ -180,6 +180,10 @@ class MeOut(BaseModel):
     role: str  # "client" | "master" | "salon_owner"
     profile: MeProfileOut
     is_admin: bool = False
+    # Master-only — true once they finish (or skip) the post-register
+    # setup wizard. Frontend uses it to decide whether to redirect into
+    # /onboarding. Always true for non-master roles.
+    onboarded: bool = True
 
 
 class AdminStatsOut(BaseModel):

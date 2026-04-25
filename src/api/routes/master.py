@@ -207,6 +207,20 @@ async def leave_salon(
     return OkOut(ok=True)
 
 
+@router.post("/onboarded", response_model=OkOut)
+async def mark_onboarded(
+    master: Master = Depends(require_master),
+    session: AsyncSession = Depends(get_session),
+) -> OkOut:
+    """Stamp the master as having completed (or skipped) the post-register
+    setup wizard. Idempotent — second call is a no-op.
+    """
+    if master.onboarded_at is None:
+        master.onboarded_at = datetime.now(UTC)
+        await session.commit()
+    return OkOut(ok=True)
+
+
 @router.patch("/profile", response_model=MasterProfileOut)
 async def update_my_profile(
     payload: MasterProfileIn,

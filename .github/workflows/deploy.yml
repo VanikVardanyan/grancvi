@@ -23,6 +23,12 @@ jobs:
             cd /opt/tg-bot
             git fetch --all --tags --prune
             git reset --hard origin/main
-            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml build
+            # Run migrations to head BEFORE restarting services so the API
+            # never queries against a stale schema. The bot container's
+            # CMD also runs alembic upgrade head — harmless no-op once
+            # we're already current.
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm bot alembic upgrade head
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
             docker image prune -f
             echo "=== deployed $(git rev-parse --short HEAD) ==="

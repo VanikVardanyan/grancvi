@@ -58,6 +58,7 @@ async def me(
                 specialty=master.specialty_text or None,
             ),
             is_admin=is_admin,
+            onboarded=master.onboarded_at is not None,
         )
 
     return MeOut(

@@ -140,6 +140,7 @@ async def register_master(
             specialty=master.specialty_text or None,
         ),
         is_admin=is_admin,
+        onboarded=master.onboarded_at is not None,
     )
 
 
@@ -266,4 +267,5 @@ async def join_salon(
             specialty=master.specialty_text or None,
         ),
         is_admin=is_admin,
+        onboarded=master.onboarded_at is not None,
     )
