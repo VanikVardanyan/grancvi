@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date as _Date
+from datetime import datetime
+
+# Re-exported under the original name so module-level annotations keep
+# working; the explicit alias avoids pydantic confusing a class field
+# named `date` with the type when both share the symbol.
+date = _Date
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -208,13 +214,17 @@ class AdminMasterOut(BaseModel):
 
 
 class BlackoutOut(BaseModel):
-    date: date
+    date: _Date
     reason: str | None = None
     created_at: datetime
 
 
 class BlackoutCreateIn(BaseModel):
-    date: date
+    date: _Date
+    # Optional inclusive end of a range — when set, the server creates
+    # one row per date in [date, date_to]. Lets the master close a
+    # whole vacation in one tap instead of N round-trips.
+    date_to: _Date | None = None
     reason: str | None = Field(default=None, max_length=200)
 
 

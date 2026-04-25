@@ -643,32 +643,53 @@ async def list_blackouts(
     return [BlackoutOut(date=r.date, reason=r.reason, created_at=r.created_at) for r in rows]
 
 
-@router.post("/blackouts", response_model=BlackoutOut, status_code=201)
+@router.post("/blackouts", response_model=list[BlackoutOut], status_code=201)
 async def add_blackout(
     payload: BlackoutCreateIn,
     master: Master = Depends(require_master),
     session: AsyncSession = Depends(get_session),
-) -> BlackoutOut:
-    """Mark a specific date as non-working. Idempotent — re-adding the
-    same date is a no-op (returns the existing row).
+) -> list[BlackoutOut]:
+    """Mark a date — or an inclusive range — as non-working. Idempotent
+    on existing dates (skipped, not duplicated). Returns every row in
+    the requested span (existing + new) so the client can refresh in
+    one round-trip.
     """
-    existing = await session.scalar(
-        select(MasterBlackout).where(
-            MasterBlackout.master_id == master.id, MasterBlackout.date == payload.date
+    end = payload.date_to or payload.date
+    if end < payload.date:
+        raise ApiError("bad_input", "`date_to` must be ≥ `date`", status_code=400)
+    if (end - payload.date).days > 365:
+        raise ApiError("bad_input", "range too wide (max 365 days)", status_code=400)
+
+    existing_rows = (
+        await session.scalars(
+            select(MasterBlackout).where(
+                MasterBlackout.master_id == master.id,
+                MasterBlackout.date >= payload.date,
+                MasterBlackout.date <= end,
+            )
         )
-    )
-    if existing is not None:
-        if payload.reason and existing.reason != payload.reason:
-            existing.reason = payload.reason
-            await session.commit()
-        return BlackoutOut(
-            date=existing.date, reason=existing.reason, created_at=existing.created_at
-        )
-    row = MasterBlackout(master_id=master.id, date=payload.date, reason=payload.reason)
-    session.add(row)
+    ).all()
+    have = {r.date for r in existing_rows}
+    span = (end - payload.date).days
+    for offset in range(span + 1):
+        d = payload.date + timedelta(days=offset)
+        if d in have:
+            continue
+        session.add(MasterBlackout(master_id=master.id, date=d, reason=payload.reason))
     await session.commit()
-    await session.refresh(row)
-    return BlackoutOut(date=row.date, reason=row.reason, created_at=row.created_at)
+
+    rows = (
+        await session.scalars(
+            select(MasterBlackout)
+            .where(
+                MasterBlackout.master_id == master.id,
+                MasterBlackout.date >= payload.date,
+                MasterBlackout.date <= end,
+            )
+            .order_by(MasterBlackout.date.asc())
+        )
+    ).all()
+    return [BlackoutOut(date=r.date, reason=r.reason, created_at=r.created_at) for r in rows]
 
 
 @router.delete("/blackouts/{day}", response_model=OkOut)
