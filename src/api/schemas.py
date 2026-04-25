@@ -292,6 +292,8 @@ class MasterProfileOut(BaseModel):
     lang: str
     is_public: bool
     slug_next_change_at: datetime | None = None
+    salon_id: UUID | None = None
+    salon_name: str | None = None
 
 
 class MasterProfileIn(BaseModel):

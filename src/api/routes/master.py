@@ -153,7 +153,7 @@ def _validate_schedule_map(
 _SLUG_COOLDOWN = timedelta(days=30)
 
 
-def _profile_out(m: Master) -> MasterProfileOut:
+def _profile_out(m: Master, salon_name: str | None = None) -> MasterProfileOut:
     next_change = m.slug_changed_at + _SLUG_COOLDOWN if m.slug_changed_at is not None else None
     return MasterProfileOut(
         id=m.id,
@@ -165,14 +165,46 @@ def _profile_out(m: Master) -> MasterProfileOut:
         lang=m.lang,
         is_public=m.is_public,
         slug_next_change_at=next_change,
+        salon_id=m.salon_id,
+        salon_name=salon_name,
     )
+
+
+async def _profile_out_with_salon(m: Master, session: AsyncSession) -> MasterProfileOut:
+    """_profile_out + lazy-load the linked salon's display name."""
+    from src.db.models import Salon as _Salon
+
+    salon_name: str | None = None
+    if m.salon_id is not None:
+        salon = await session.scalar(select(_Salon).where(_Salon.id == m.salon_id))
+        if salon is not None:
+            salon_name = salon.name
+    return _profile_out(m, salon_name=salon_name)
 
 
 @router.get("/profile", response_model=MasterProfileOut)
 async def get_my_profile(
     master: Master = Depends(require_master),
+    session: AsyncSession = Depends(get_session),
 ) -> MasterProfileOut:
-    return _profile_out(master)
+    return await _profile_out_with_salon(master, session)
+
+
+@router.post("/leave-salon", response_model=OkOut)
+async def leave_salon(
+    master: Master = Depends(require_master),
+    session: AsyncSession = Depends(get_session),
+) -> OkOut:
+    """Master detaches themselves from their current salon.
+
+    Symmetric to /v1/salon/me/masters/{id}/remove but initiated by the
+    master, not the salon owner. No-op if not in a salon.
+    """
+    if master.salon_id is None:
+        return OkOut(ok=True)
+    master.salon_id = None
+    await session.commit()
+    return OkOut(ok=True)
 
 
 @router.patch("/profile", response_model=MasterProfileOut)
@@ -228,7 +260,7 @@ async def update_my_profile(
         master.is_public = payload.is_public
 
     await session.commit()
-    return _profile_out(master)
+    return await _profile_out_with_salon(master, session)
 
 
 @router.get("/schedule", response_model=MasterScheduleOut)

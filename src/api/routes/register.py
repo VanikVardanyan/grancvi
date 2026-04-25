@@ -240,9 +240,7 @@ async def join_salon(
 
     # Already in some salon? Block — let the master leave first.
     if master.salon_id is not None and master.salon_id != invite.salon_id:
-        current_salon = await session.scalar(
-            select(Salon).where(Salon.id == master.salon_id)
-        )
+        current_salon = await session.scalar(select(Salon).where(Salon.id == master.salon_id))
         raise ApiError(
             "already_in_salon",
             f"already in salon '{current_salon.name if current_salon else master.salon_id}'",
