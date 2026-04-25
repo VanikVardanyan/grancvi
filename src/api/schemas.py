@@ -107,6 +107,7 @@ class ServiceOut(BaseModel):
     name: str
     duration_min: int
     price_amd: int | None = None
+    preset_code: str | None = None
 
 
 class DayCapacityOut(BaseModel):
@@ -307,12 +308,14 @@ class MasterServiceOut(BaseModel):
     duration_min: int
     price_amd: int | None = None
     active: bool
+    preset_code: str | None = None
 
 
 class ServiceCreateIn(BaseModel):
     name: str = Field(..., min_length=1, max_length=120)
     duration_min: int = Field(..., ge=1, le=24 * 60)
     price_amd: int | None = Field(default=None, ge=0)
+    preset_code: str | None = Field(default=None, max_length=64)
 
 
 class ServiceUpdateIn(BaseModel):
@@ -322,3 +325,4 @@ class ServiceUpdateIn(BaseModel):
     duration_min: int | None = Field(default=None, ge=1, le=24 * 60)
     price_amd: int | None = Field(default=None, ge=0)
     active: bool | None = None
+    preset_code: str | None = Field(default=None, max_length=64)

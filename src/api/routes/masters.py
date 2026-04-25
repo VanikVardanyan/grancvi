@@ -78,7 +78,13 @@ async def list_master_services(
         raise ApiError("not_found", "master not found", status_code=404)
     services = await ServiceRepository(session).list_active(master_id)
     return [
-        ServiceOut(id=s.id, name=s.name, duration_min=s.duration_min, price_amd=s.price_amd)
+        ServiceOut(
+            id=s.id,
+            name=s.name,
+            duration_min=s.duration_min,
+            price_amd=s.price_amd,
+            preset_code=s.preset_code,
+        )
         for s in services
     ]
 

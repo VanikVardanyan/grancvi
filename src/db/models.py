@@ -117,6 +117,9 @@ class Service(Base):
     price_amd: Mapped[int | None] = mapped_column(Integer, nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
     position: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    # Optional reference to a SERVICE_PRESETS entry on the frontend so
+    # the booking UI can render `name` in the client's language.
+    preset_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
     )

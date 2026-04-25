@@ -324,6 +324,7 @@ def _service_to_out(s: Service) -> MasterServiceOut:
         duration_min=s.duration_min,
         price_amd=s.price_amd,
         active=s.active,
+        preset_code=s.preset_code,
     )
 
 
@@ -357,6 +358,7 @@ async def create_my_service(
         name=payload.name.strip(),
         duration_min=payload.duration_min,
         price_amd=payload.price_amd,
+        preset_code=payload.preset_code,
     )
     session.add(service)
     await session.flush()
@@ -386,6 +388,8 @@ async def update_my_service(
         service.price_amd = payload.price_amd
     if payload.active is not None:
         service.active = payload.active
+    if payload.preset_code is not None:
+        service.preset_code = payload.preset_code or None
 
     await session.commit()
     return _service_to_out(service)
