@@ -66,6 +66,8 @@ async def _seed(session: AsyncSession) -> Master:
         tg_id=8201,
         name="M",
         timezone="Asia/Yerevan",
+        # Open every day so date-relative tests (today/tomorrow) don't
+        # land on a "выходной" row when run on a weekend.
         work_hours={
             "mon": [["10:00", "19:00"]],
             "tue": [["10:00", "19:00"]],
@@ -73,6 +75,7 @@ async def _seed(session: AsyncSession) -> Master:
             "thu": [["10:00", "19:00"]],
             "fri": [["10:00", "19:00"]],
             "sat": [["10:00", "16:00"]],
+            "sun": [["10:00", "16:00"]],
         },
     )
     session.add(master)

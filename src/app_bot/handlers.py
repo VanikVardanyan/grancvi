@@ -91,17 +91,22 @@ async def handle_start(
     _ = settings  # reference kept for future per-env URL config
     await message.answer(text, reply_markup=_launch_kb(start_param, lang_code))
 
-    # Per-user menu-button override — language only. The menu button
-    # always points at the TMA root: even if the user mis-taps it
-    # right after a deep link, /me's "Recent" section (built from
-    # localStorage on /m/<slug>) puts the master they came from one
-    # tap away.
+    # Per-user menu-button override: language + bake the current
+    # /start payload into the URL so the menu button (next to the
+    # input) deep-links to the same place as the inline CTA. Without
+    # this, a user tapping the menu button right after a deep link
+    # would miss the master/salon they came for; the localStorage
+    # "Recent" list only catches that case on the second visit.
+    # `/start` without an arg resets the menu URL back to plain root.
     if message.chat is not None:
         label = _menu_label_for(lang_code)
+        menu_url = _WEB_APP_URL
+        if start_param:
+            menu_url = f"{_WEB_APP_URL}?tgWebAppStartParam={start_param}"
         try:
             await bot.set_chat_menu_button(
                 chat_id=message.chat.id,
-                menu_button=MenuButtonWebApp(text=label, web_app=WebAppInfo(url=_WEB_APP_URL)),
+                menu_button=MenuButtonWebApp(text=label, web_app=WebAppInfo(url=menu_url)),
             )
         except Exception as exc:
             log.warning("set_chat_menu_button_failed", err=repr(exc))
