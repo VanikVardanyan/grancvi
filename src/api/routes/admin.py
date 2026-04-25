@@ -161,6 +161,27 @@ async def admin_unblock_master(
     return OkOut(ok=True)
 
 
+@router.delete("/masters/{master_id}", response_model=OkOut)
+async def admin_delete_master(
+    master_id: UUID,
+    _: dict[str, Any] = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> OkOut:
+    """Hard-delete a master and everything dangling off them.
+
+    DB-level ON DELETE CASCADE on services / clients / appointments /
+    reminders does the cleanup. invites.used_for_master_id flips to
+    NULL — the used flag stays so the same invite can't be reused.
+    Frees up the tg_id so the user can re-register from scratch.
+    """
+    master = await MasterRepository(session).by_id(master_id)
+    if master is None:
+        raise ApiError("not_found", "master not found", status_code=404)
+    await session.delete(master)
+    await session.commit()
+    return OkOut(ok=True)
+
+
 @router.post("/invites", response_model=AdminInviteOut, status_code=201)
 async def admin_create_invite(
     payload: AdminInviteCreateIn,
