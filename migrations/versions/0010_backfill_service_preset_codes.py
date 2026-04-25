@@ -15,6 +15,7 @@ Custom-named services stay untouched.
 
 from typing import Sequence, Union
 
+import sqlalchemy as sa
 from alembic import op
 
 revision: str = "0010"
@@ -81,13 +82,13 @@ _PRESETS: list[tuple[str, str, str]] = [
 
 def upgrade() -> None:
     bind = op.get_bind()
+    stmt = sa.text(
+        "UPDATE services SET preset_code = :code "
+        "WHERE preset_code IS NULL "
+        "AND (LOWER(TRIM(name)) = LOWER(:ru) OR LOWER(TRIM(name)) = LOWER(:hy))"
+    )
     for code, ru, hy in _PRESETS:
-        bind.exec_driver_sql(
-            "UPDATE services SET preset_code = %(c)s "
-            "WHERE preset_code IS NULL "
-            "AND (LOWER(TRIM(name)) = LOWER(%(ru)s) OR LOWER(TRIM(name)) = LOWER(%(hy)s))",
-            {"c": code, "ru": ru, "hy": hy},
-        )
+        bind.execute(stmt, {"code": code, "ru": ru, "hy": hy})
 
 
 def downgrade() -> None:
