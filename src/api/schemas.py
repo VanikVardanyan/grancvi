@@ -2,14 +2,15 @@ from __future__ import annotations
 
 from datetime import date as _Date
 from datetime import datetime
-
-# Re-exported under the original name so module-level annotations keep
-# working; the explicit alias avoids pydantic confusing a class field
-# named `date` with the type when both share the symbol.
-date = _Date
 from uuid import UUID
 
 from pydantic import BaseModel, Field
+
+# Re-exported under the original name so module-level annotations
+# elsewhere in this file keep working; the explicit alias is needed
+# because BlackoutCreateIn has a field literally named `date`, which
+# would otherwise shadow the type when annotating other fields.
+date = _Date
 
 
 class MasterRedirectOut(BaseModel):
