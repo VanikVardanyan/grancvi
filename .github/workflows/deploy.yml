@@ -28,7 +28,7 @@ jobs:
             # never queries against a stale schema. The bot container's
             # CMD also runs alembic upgrade head — harmless no-op once
             # we're already current.
-            docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm bot alembic upgrade head
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm api alembic upgrade head
             docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
             docker image prune -f
             echo "=== deployed $(git rev-parse --short HEAD) ==="
