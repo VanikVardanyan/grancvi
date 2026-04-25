@@ -145,6 +145,8 @@ _RU: dict[str, Any] = {
     ),
     "APPT_BTN_CONFIRM": "✅ Подтвердить",
     "APPT_BTN_REJECT": "❌ Отклонить",
+    "MASTER_APPT_CONFIRMED_AFTER": "✅ Запись подтверждена",
+    "MASTER_APPT_REJECTED_AFTER": "❌ Запись отклонена",
     "APPT_BTN_HISTORY": "📋 История клиента",
     "APPT_ALREADY_PROCESSED": "Эта заявка уже обработана.",
     "APPT_CONFIRMED_STAMP": "\n\n✅ Подтверждено в {time}",

@@ -225,6 +225,13 @@ class Appointment(Base):
     )
     cancelled_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
     cancelled_by: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # When the bot DMs the master with the approve/reject keyboard we
+    # stash (chat_id, msg_id, which_bot) so a later approve/reject —
+    # including from the TMA — can edit the message and clear stale
+    # buttons. NULL when there's no bot-side notify (manual booking).
+    master_notify_chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    master_notify_msg_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    master_notify_via: Mapped[str | None] = mapped_column(String(16), nullable=True)
 
 
 REMINDER_KINDS = ("day_before", "two_hours", "master_before")

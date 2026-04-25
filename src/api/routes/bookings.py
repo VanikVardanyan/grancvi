@@ -152,13 +152,20 @@ async def create_booking(
     # Notification carries a WebApp button → TMA dashboard, where the
     # pending card exposes Approve / Reject. WebApp buttons work on
     # both bots, so fallback still delivers a useful message.
-    await notify_user(
+    sent = await notify_user(
         app_bot=app_bot,
         fallback_bot=bot,
         chat_id=master.tg_id,
         text=text,
         reply_markup=_approve_kb(appt.id),
     )
+    if sent is not None:
+        # Stash the message id so a later approve/reject from any
+        # surface can clear the now-stale buttons in the master's chat.
+        appt.master_notify_chat_id = sent.chat_id
+        appt.master_notify_msg_id = sent.message_id
+        appt.master_notify_via = sent.via
+        await session.commit()
 
     # The bot's per-chat menu button URL was baked with the master's
     # start_param when the client did `/start master_<slug>`. Now

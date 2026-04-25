@@ -202,10 +202,10 @@ async def expire_pending_appointments(
             )
             from src.utils.client_notify import notify_client
 
-            ok = await notify_client(
+            sent = await notify_client(
                 app_bot=app_bot, fallback_bot=bot, chat_id=client.tg_id, text=text
             )
-            if not ok:
+            if sent is None:
                 log.warning(
                     "pending_expire_notify_failed",
                     appointment_id=str(appt.id),

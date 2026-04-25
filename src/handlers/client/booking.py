@@ -387,9 +387,15 @@ async def handle_confirm(
         time=local.strftime("%H:%M"),
         weekday=weekday_ru,
     )
-    await bot.send_message(
+    msg = await bot.send_message(
         chat_id=master.tg_id,
         text=text,
         reply_markup=approval_kb(appt.id),
     )
+    # Save the message id so a later approve/reject from anywhere can
+    # edit the chat message and strip the stale keyboard.
+    appt.master_notify_chat_id = master.tg_id
+    appt.master_notify_msg_id = msg.message_id
+    appt.master_notify_via = "fallback_bot"
+    await session.commit()
     log.info("pending_created", appointment_id=str(appt.id), master_tg=master.tg_id)

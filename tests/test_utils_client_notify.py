@@ -28,8 +28,8 @@ def _make_bad_request() -> TelegramBadRequest:
 async def test_sends_via_app_bot_when_available() -> None:
     app_bot = AsyncMock()
     master_bot = AsyncMock()
-    ok = await notify_client(app_bot=app_bot, fallback_bot=master_bot, chat_id=123, text="hi")
-    assert ok is True
+    sent = await notify_client(app_bot=app_bot, fallback_bot=master_bot, chat_id=123, text="hi")
+    assert sent is not None
     app_bot.send_message.assert_awaited_once_with(chat_id=123, text="hi", reply_markup=None)
     master_bot.send_message.assert_not_awaited()
 
@@ -39,8 +39,8 @@ async def test_forbidden_on_app_bot_falls_back_to_master_bot() -> None:
     app_bot = AsyncMock()
     app_bot.send_message.side_effect = _make_forbidden()
     master_bot = AsyncMock()
-    ok = await notify_client(app_bot=app_bot, fallback_bot=master_bot, chat_id=123, text="hi")
-    assert ok is True
+    sent = await notify_client(app_bot=app_bot, fallback_bot=master_bot, chat_id=123, text="hi")
+    assert sent is not None
     master_bot.send_message.assert_awaited_once_with(chat_id=123, text="hi", reply_markup=None)
 
 
@@ -49,16 +49,16 @@ async def test_bad_request_on_app_bot_also_falls_back() -> None:
     app_bot = AsyncMock()
     app_bot.send_message.side_effect = _make_bad_request()
     master_bot = AsyncMock()
-    ok = await notify_client(app_bot=app_bot, fallback_bot=master_bot, chat_id=123, text="hi")
-    assert ok is True
+    sent = await notify_client(app_bot=app_bot, fallback_bot=master_bot, chat_id=123, text="hi")
+    assert sent is not None
     master_bot.send_message.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_no_app_bot_uses_master_bot_directly() -> None:
     master_bot = AsyncMock()
-    ok = await notify_client(app_bot=None, fallback_bot=master_bot, chat_id=123, text="hi")
-    assert ok is True
+    sent = await notify_client(app_bot=None, fallback_bot=master_bot, chat_id=123, text="hi")
+    assert sent is not None
     master_bot.send_message.assert_awaited_once()
 
 
@@ -68,8 +68,8 @@ async def test_both_fail_returns_false() -> None:
     app_bot.send_message.side_effect = _make_forbidden()
     master_bot = AsyncMock()
     master_bot.send_message.side_effect = _make_forbidden()
-    ok = await notify_client(app_bot=app_bot, fallback_bot=master_bot, chat_id=123, text="hi")
-    assert ok is False
+    sent = await notify_client(app_bot=app_bot, fallback_bot=master_bot, chat_id=123, text="hi")
+    assert sent is None
 
 
 @pytest.mark.asyncio

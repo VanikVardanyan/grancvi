@@ -34,7 +34,7 @@ from src.services.booking import BookingService
 from src.services.reminders import ReminderService
 from src.services.slug import SlugService
 from src.strings import strings
-from src.utils.client_notify import notify_user
+from src.utils.client_notify import clear_master_notification, notify_user
 
 router = APIRouter(prefix="/v1/master/me", tags=["master"])
 
@@ -515,6 +515,17 @@ async def approve_my_appointment(
         appt=appt,
         text_template=strings.CLIENT_APPT_CONFIRMED,
     )
+    # Strip the approve/reject keyboard from the master's chat DM —
+    # otherwise it sits there with stale buttons that no longer reflect
+    # the appointment's state.
+    await clear_master_notification(
+        app_bot=app_bot,
+        fallback_bot=bot,
+        chat_id=appt.master_notify_chat_id,
+        message_id=appt.master_notify_msg_id,
+        via=appt.master_notify_via,
+        new_text=strings.MASTER_APPT_CONFIRMED_AFTER,
+    )
     return OkOut(ok=True)
 
 
@@ -544,6 +555,14 @@ async def reject_my_appointment(
         session=session,
         appt=appt,
         text_template=strings.CLIENT_APPT_REJECTED,
+    )
+    await clear_master_notification(
+        app_bot=app_bot,
+        fallback_bot=bot,
+        chat_id=appt.master_notify_chat_id,
+        message_id=appt.master_notify_msg_id,
+        via=appt.master_notify_via,
+        new_text=strings.MASTER_APPT_REJECTED_AFTER,
     )
     return OkOut(ok=True)
 
