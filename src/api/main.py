@@ -13,6 +13,7 @@ from src.api.routes import register as register_routes
 from src.api.routes import salon as salon_routes
 from src.api.routes import salons as salons_routes
 from src.api.routes import search as search_routes
+from src.api.routes import public as public_routes
 from src.api.routes import specialties as specialties_routes
 from src.config import settings
 
@@ -62,6 +63,7 @@ app.include_router(salons_routes.router)
 app.include_router(search_routes.router)
 app.include_router(register_routes.router)
 app.include_router(specialties_routes.router)
+app.include_router(public_routes.router)
 
 
 @app.get("/v1/health")
