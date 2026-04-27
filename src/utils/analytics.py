@@ -30,7 +30,7 @@ def _get_client() -> Any:
     if not settings.posthog_api_key:
         return None
     try:
-        from posthog import Posthog  # type: ignore[import-not-found]
+        from posthog import Posthog
 
         _client = Posthog(
             project_api_key=settings.posthog_api_key,
