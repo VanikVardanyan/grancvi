@@ -45,6 +45,8 @@ class Settings(BaseSettings):
     bot_username: str = "GrancviBot"
     app_bot_token: str = ""  # @grancviWebBot — TMA launcher; empty until provisioned
     app_bot_username: str = "grancviWebBot"
+    # Public TMA URL — used in WebAppInfo buttons sent by the bot.
+    tma_url: str = "https://app.grancvi.am"
     database_url: str
     redis_url: str
     # CORS allowlist for FastAPI. Include the TMA origin(s) + localhost

@@ -179,7 +179,7 @@ async def create_booking(
                 chat_id=tg_id,
                 menu_button=MenuButtonWebApp(
                     text="Open App",
-                    web_app=WebAppInfo(url="https://app.jampord.am"),
+                    web_app=WebAppInfo(url=settings.tma_url),
                 ),
             )
         except Exception:

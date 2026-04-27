@@ -24,7 +24,7 @@ from src.db.base import SessionMaker
 from src.scheduler.jobs import expire_pending_appointments, send_due_reminders
 from src.scheduler.setup import build_scheduler
 
-_TMA_URL = "https://app.jampord.am"
+_TMA_URL = settings.tma_url
 _MENU_BUTTON_TEXT = "Open App"
 
 

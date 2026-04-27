@@ -17,7 +17,7 @@ from src.config import settings
 router = Router(name="app_bot")
 log: structlog.stdlib.BoundLogger = structlog.get_logger()
 
-_WEB_APP_URL = "https://app.jampord.am"
+_WEB_APP_URL = settings.tma_url
 
 
 def _menu_label_for(lang_code: str | None) -> str:

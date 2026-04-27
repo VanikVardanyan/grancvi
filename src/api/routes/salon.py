@@ -397,7 +397,7 @@ async def salon_create_manual_appointment(
                 [
                     InlineKeyboardButton(
                         text="Գրանցվել",
-                        web_app=WebAppInfo(url="https://app.jampord.am"),
+                        web_app=WebAppInfo(url=settings.tma_url),
                     )
                 ]
             ]
