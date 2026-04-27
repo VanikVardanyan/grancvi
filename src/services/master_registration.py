@@ -8,6 +8,7 @@ from src.db.models import Master
 from src.exceptions import SlugTaken
 from src.repositories.masters import MasterRepository
 from src.services.invite import InviteService
+from src.utils.time import now_utc
 
 
 class MasterRegistrationService:
@@ -101,6 +102,10 @@ class MasterRegistrationService:
             "fri": [["09:00", "20:00"]],
             "sat": [["09:00", "20:00"]],
         }
+        # Set slug_changed_at = now so the cooldown kicks in from
+        # registration, not from the first manual rename. Otherwise the
+        # master could rename their slug repeatedly right after creating
+        # the account, breaking shared QR/links.
         return Master(
             tg_id=tg_id,
             name=name,
@@ -108,4 +113,5 @@ class MasterRegistrationService:
             specialty_text=specialty,
             lang=lang,
             work_hours=default_hours,
+            slug_changed_at=now_utc(),
         )
