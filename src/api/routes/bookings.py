@@ -30,7 +30,7 @@ from src.repositories.masters import MasterRepository
 from src.repositories.services import ServiceRepository
 from src.services.booking import BookingService
 from src.services.reminders import ReminderService
-from src.strings import strings
+from src.strings import set_current_lang, strings
 from src.utils.client_notify import notify_user
 from src.utils.time import now_utc
 
@@ -140,6 +140,12 @@ async def create_booking(
 
     tz = ZoneInfo(master.timezone)
     local = appt.start_at.astimezone(tz)
+
+    # FastAPI doesn't go through LangMiddleware, so the strings proxy
+    # is stuck on its DEFAULT_LANG (ru) unless we set the contextvar
+    # ourselves. Format master-bound text in master's lang, then flip
+    # to the client's Telegram language_code for the client message.
+    set_current_lang(master.lang)
     text = strings.APPT_NOTIFY_MASTER.format(
         name=client.name,
         phone=client.phone or "—",
@@ -169,6 +175,8 @@ async def create_booking(
 
     # Confirm to the client in their bot chat — TMA closes after submit and
     # without this they get no persistent record of the booking.
+    client_lang_raw = (tg_user.get("language_code") or "").lower()
+    set_current_lang("hy" if client_lang_raw.startswith("hy") else "ru")
     client_text = strings.CLIENT_APPT_PENDING.format(
         date=local.strftime("%d.%m.%Y"),
         time=local.strftime("%H:%M"),
