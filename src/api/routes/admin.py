@@ -318,3 +318,21 @@ async def admin_delete_specialty(
     await session.delete(sp)
     await session.commit()
     return OkOut(ok=True)
+
+
+@router.post("/masters/{master_id}/approve", response_model=OkOut)
+async def admin_approve_master(
+    master_id: UUID,
+    _: dict[str, Any] = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> OkOut:
+    """Mark a self-registered master as moderated → flips is_public=true.
+    Idempotent — re-approving an already-public master is a no-op.
+    """
+    m = await MasterRepository(session).by_id(master_id)
+    if m is None:
+        raise ApiError("not_found", "master not found", status_code=404)
+    if not m.is_public:
+        m.is_public = True
+        await session.commit()
+    return OkOut(ok=True)

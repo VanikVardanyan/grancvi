@@ -35,24 +35,8 @@ class MasterRegistrationService:
         if existing is not None:
             raise SlugTaken(slug)
 
-        # Sensible default — Mon-Sat 09:00-20:00, Sunday off. Lets a new
-        # master be immediately bookable; the onboarding wizard step 1
-        # still walks them through tweaking it.
-        default_hours = {
-            "mon": [["09:00", "20:00"]],
-            "tue": [["09:00", "20:00"]],
-            "wed": [["09:00", "20:00"]],
-            "thu": [["09:00", "20:00"]],
-            "fri": [["09:00", "20:00"]],
-            "sat": [["09:00", "20:00"]],
-        }
-        master = Master(
-            tg_id=tg_id,
-            name=name,
-            slug=slug,
-            specialty_text=specialty,
-            lang=lang,
-            work_hours=default_hours,
+        master = self._build_master(
+            tg_id=tg_id, name=name, specialty=specialty, slug=slug, lang=lang
         )
         self._session.add(master)
         try:
@@ -67,3 +51,61 @@ class MasterRegistrationService:
         if redeemed.salon_id is not None:
             master.salon_id = redeemed.salon_id
         return master
+
+    async def register_self(
+        self,
+        *,
+        tg_id: int,
+        name: str,
+        specialty: str,
+        slug: str,
+        lang: str,
+    ) -> Master:
+        """Self-service registration — no invite required. Master starts
+        with `is_public = false` so they don't show up in catalogs / search
+        until an admin moderates and approves. Otherwise identical to the
+        invite-flow registration: same defaults, same UX afterwards.
+        """
+        existing = await self._session.scalar(select(Master).where(Master.slug == slug))
+        if existing is not None:
+            raise SlugTaken(slug)
+
+        master = self._build_master(
+            tg_id=tg_id, name=name, specialty=specialty, slug=slug, lang=lang
+        )
+        master.is_public = False  # awaiting admin moderation
+        self._session.add(master)
+        try:
+            await self._session.flush()
+        except IntegrityError as e:
+            raise SlugTaken(slug) from e
+        return master
+
+    def _build_master(
+        self,
+        *,
+        tg_id: int,
+        name: str,
+        specialty: str,
+        slug: str,
+        lang: str,
+    ) -> Master:
+        # Sensible default — Mon-Sat 09:00-20:00, Sunday off. Lets a new
+        # master be immediately bookable; the onboarding wizard step 1
+        # still walks them through tweaking it.
+        default_hours = {
+            "mon": [["09:00", "20:00"]],
+            "tue": [["09:00", "20:00"]],
+            "wed": [["09:00", "20:00"]],
+            "thu": [["09:00", "20:00"]],
+            "fri": [["09:00", "20:00"]],
+            "sat": [["09:00", "20:00"]],
+        }
+        return Master(
+            tg_id=tg_id,
+            name=name,
+            slug=slug,
+            specialty_text=specialty,
+            lang=lang,
+            work_hours=default_hours,
+        )

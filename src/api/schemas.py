@@ -81,6 +81,15 @@ class InviteInfoOut(BaseModel):
     salon_name: str | None = None
 
 
+class RegisterMasterSelfIn(BaseModel):
+    """Self-service registration — no invite, lands as is_public=false."""
+
+    name: str = Field(..., min_length=1, max_length=200)
+    specialty: str = Field(..., min_length=1, max_length=200)
+    slug: str | None = Field(default=None, max_length=32)
+    lang: str = Field(default="ru", pattern="^(ru|hy|en)$")
+
+
 class RegisterMasterIn(BaseModel):
     invite_code: str
     name: str = Field(..., min_length=1, max_length=200)

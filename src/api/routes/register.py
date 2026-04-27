@@ -16,6 +16,7 @@ from src.api.schemas import (
     MeOut,
     MeProfileOut,
     RegisterMasterIn,
+    RegisterMasterSelfIn,
     RegisterSalonIn,
 )
 from src.config import settings
@@ -81,6 +82,55 @@ async def _resolve_slug(session: AsyncSession, name: str, suggested: str | None)
             raise ApiError("slug_taken", "slug already taken", status_code=409)
         return suggested
     return await slug_svc.generate_default(name)
+
+
+@router.post("/master/self", response_model=MeOut, status_code=201)
+async def register_master_self(
+    payload: RegisterMasterSelfIn,
+    tg_user: dict[str, Any] = Depends(require_tg_user),
+    session: AsyncSession = Depends(get_session),
+) -> MeOut:
+    """Self-service master registration — no invite required.
+
+    Lands the new master with `is_public = false`; an admin must approve
+    in /admin before the profile shows up in catalog/search results.
+    """
+    tg_id = int(tg_user["id"])
+    first_name = str(tg_user.get("first_name") or payload.name)
+
+    if await session.scalar(select(Master).where(Master.tg_id == tg_id)):
+        raise ApiError("already_registered", "already a master", status_code=409)
+    if await session.scalar(select(Salon).where(Salon.owner_tg_id == tg_id)):
+        raise ApiError("already_registered", "already a salon owner", status_code=409)
+
+    slug = await _resolve_slug(session, payload.name, payload.slug)
+
+    try:
+        master = await MasterRegistrationService(session).register_self(
+            tg_id=tg_id,
+            name=payload.name.strip(),
+            specialty=payload.specialty.strip(),
+            slug=slug,
+            lang=payload.lang,
+        )
+    except SlugTaken as exc:
+        raise ApiError("slug_taken", "slug already taken", status_code=409) from exc
+
+    await session.commit()
+    is_admin = tg_id in settings.admin_tg_ids
+    return MeOut(
+        role="master",
+        profile=MeProfileOut(
+            tg_id=tg_id,
+            first_name=first_name,
+            master_id=master.id,
+            master_name=master.name,
+            slug=master.slug,
+            specialty=master.specialty_text or None,
+        ),
+        is_admin=is_admin,
+        onboarded=master.onboarded_at is not None,
+    )
 
 
 @router.post("/master", response_model=MeOut, status_code=201)
