@@ -241,7 +241,12 @@ async def test_create_booking_happy_path(session: AsyncSession, api_client: Asyn
     assert r.status_code == 201, r.text
     body = r.json()
     assert body["status"] in ("pending", "confirmed")
-    assert bot_mock.send_message.await_count == 1
+    # Two messages: master gets the approval card, client gets the
+    # «Заявка отправлена, ждём мастера» confirmation in the bot chat.
+    assert bot_mock.send_message.await_count == 2
+    chat_ids = {call.kwargs["chat_id"] for call in bot_mock.send_message.await_args_list}
+    assert FAKE_TG_ID in chat_ids  # client
+    assert master.tg_id in chat_ids  # master
 
 
 @pytest.mark.asyncio
