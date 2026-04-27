@@ -163,6 +163,7 @@ def _profile_out(m: Master, salon_name: str | None = None) -> MasterProfileOut:
         specialty=m.specialty_text or "",
         slug=m.slug,
         phone=m.phone,
+        phone_public=m.phone_public,
         timezone=m.timezone,
         lang=m.lang,
         is_public=m.is_public,
@@ -270,6 +271,8 @@ async def update_my_profile(
         master.specialty_text = payload.specialty.strip()
     if payload.phone is not None:
         master.phone = payload.phone.strip() or None
+    if payload.phone_public is not None:
+        master.phone_public = payload.phone_public
     if payload.lang is not None:
         master.lang = payload.lang
     if payload.is_public is not None:

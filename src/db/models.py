@@ -45,6 +45,7 @@ class Master(Base):
     tg_id: Mapped[int] = mapped_column(BigInteger, unique=True, nullable=False)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     phone: Mapped[str | None] = mapped_column(Text, nullable=True)
+    phone_public: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
     timezone: Mapped[str] = mapped_column(Text, nullable=False, server_default="Asia/Yerevan")
     work_hours: Mapped[dict[str, Any]] = mapped_column(
         JSONB, nullable=False, server_default=text("'{}'::jsonb")

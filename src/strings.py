@@ -513,6 +513,8 @@ _HY: dict[str, Any] = {
     ),
     "APPT_BTN_CONFIRM": "✅ Հաստատել",
     "APPT_BTN_REJECT": "❌ Մերժել",
+    "MASTER_APPT_CONFIRMED_AFTER": "✅ Գրանցումը հաստատվեց",
+    "MASTER_APPT_REJECTED_AFTER": "❌ Գրանցումը մերժվեց",
     "APPT_BTN_HISTORY": "📋 Հաճախորդի պատմություն",
     "APPT_ALREADY_PROCESSED": "Այս հայտը արդեն մշակված է։",
     "APPT_CONFIRMED_STAMP": "\n\n✅ Հաստատված {time}-ին",

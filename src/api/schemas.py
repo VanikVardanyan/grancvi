@@ -379,6 +379,7 @@ class MasterProfileOut(BaseModel):
     specialty: str
     slug: str
     phone: str | None = None
+    phone_public: bool = True
     timezone: str
     lang: str
     is_public: bool
@@ -392,6 +393,7 @@ class MasterProfileIn(BaseModel):
     specialty: str | None = Field(default=None, max_length=200)
     slug: str | None = Field(default=None, min_length=3, max_length=32)
     phone: str | None = Field(default=None, max_length=40)
+    phone_public: bool | None = None
     timezone: str | None = Field(default=None, max_length=64)
     lang: str | None = Field(default=None, pattern="^(ru|hy)$")
     is_public: bool | None = None
