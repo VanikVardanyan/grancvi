@@ -245,6 +245,20 @@ class BlackoutCreateIn(BaseModel):
     reason: str | None = Field(default=None, max_length=200)
 
 
+class PublicSlugOut(BaseModel):
+    """Resolved by GET /v1/public/by-slug/{slug} — used by the
+    grancvi.am/<slug> smart-redirect lander to figure out whether a
+    short URL points to a master or a salon, and to render a fallback
+    card when Telegram isn't available.
+    """
+
+    kind: str  # "master" | "salon"
+    slug: str
+    name: str
+    specialty: str | None = None  # master only
+    is_public: bool = True
+
+
 class SpecialtyOut(BaseModel):
     code: str
     name_ru: str

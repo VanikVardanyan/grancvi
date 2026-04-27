@@ -16,7 +16,46 @@ _MIN: Final[int] = 3
 _MAX: Final[int] = 32
 
 _RESERVED: Final[frozenset[str]] = frozenset(
-    {"admin", "bot", "api", "grancvi", "master", "client", "invite"}
+    {
+        # Original reserved core
+        "admin",
+        "bot",
+        "api",
+        "grancvi",
+        "master",
+        "client",
+        "invite",
+        # Reserved by URL routing — top-level paths on grancvi.am can't
+        # collide with master/salon slugs, otherwise the smart-redirect
+        # lander breaks.
+        "app",
+        "salon",
+        "salons",
+        "m",
+        "s",
+        "register",
+        "preview",
+        "media",
+        "static",
+        "assets",
+        "img",
+        "images",
+        "css",
+        "js",
+        "www",
+        "mail",
+        "help",
+        "support",
+        "blog",
+        "news",
+        "about",
+        "contact",
+        "privacy",
+        "terms",
+        "go",
+        "robots",
+        "sitemap",
+    }
 )
 
 # Russian + Armenian to latin.
