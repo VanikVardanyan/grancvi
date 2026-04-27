@@ -65,6 +65,10 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     sentry_dsn: str | None = None
     default_timezone: str = "Asia/Yerevan"
+    # PostHog analytics. When unset (default), all track_event calls
+    # become silent no-ops — the rest of the code stays the same.
+    posthog_api_key: str | None = None
+    posthog_host: str = "https://eu.i.posthog.com"
 
     @classmethod
     def settings_customise_sources(

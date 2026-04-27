@@ -31,6 +31,7 @@ from src.repositories.services import ServiceRepository
 from src.services.booking import BookingService
 from src.services.reminders import ReminderService
 from src.strings import set_current_lang, strings
+from src.utils.analytics import track_event
 from src.utils.client_notify import notify_user
 from src.utils.time import now_utc
 
@@ -115,6 +116,11 @@ async def create_booking(
 
     booking_svc = BookingService(session)
 
+    # Snapshot before create_pending — if it raises SlotAlreadyTaken the
+    # session has rolled back and ORM objects expire, so reading
+    # master.slug from the catch block would trigger a lazy load.
+    master_slug_for_analytics = master.slug
+
     try:
         appt = await booking_svc.create_pending(
             master=master,
@@ -123,7 +129,27 @@ async def create_booking(
             start_at=start_at_utc,
         )
     except SlotAlreadyTaken as exc:
+        track_event(
+            tg_id,
+            "booking_failed",
+            {"reason": "slot_taken", "master_slug": master_slug_for_analytics},
+        )
         raise ApiError("slot_taken", "slot is no longer available", status_code=409) from exc
+
+    track_event(
+        tg_id,
+        "booking_created",
+        {
+            "master_id": str(master.id),
+            "master_slug": master.slug,
+            "service_id": str(service.id),
+            "service_name": service.name,
+            "duration_min": service.duration_min,
+            "via_salon": bool(payload.source_salon_slug),
+            "source_salon_slug": payload.source_salon_slug,
+            "status": appt.status,
+        },
+    )
 
     # Attribution: if the client came in through a salon QR, mark the
     # booking with that salon's id so its dashboard can show "via us"

@@ -32,6 +32,7 @@ from src.repositories.invites import InviteRepository
 from src.repositories.salons import SalonRepository
 from src.services.master_registration import MasterRegistrationService
 from src.services.slug import SlugService
+from src.utils.analytics import track_event
 
 router = APIRouter(prefix="/v1/register", tags=["register"])
 
@@ -118,6 +119,11 @@ async def register_master_self(
         raise ApiError("slug_taken", "slug already taken", status_code=409) from exc
 
     await session.commit()
+    track_event(
+        tg_id,
+        "master_registered",
+        {"method": "self_service", "slug": master.slug, "specialty": master.specialty_text or ""},
+    )
     is_admin = tg_id in settings.admin_tg_ids
     return MeOut(
         role="master",
@@ -179,6 +185,11 @@ async def register_master(
         raise ApiError("invite_expired", "invite expired", status_code=410) from exc
 
     await session.commit()
+    track_event(
+        tg_id,
+        "master_registered",
+        {"method": "invite", "slug": master.slug, "specialty": master.specialty_text or ""},
+    )
     is_admin = tg_id in settings.admin_tg_ids
     return MeOut(
         role="master",
@@ -225,6 +236,7 @@ async def register_salon_self(
     salon.is_public = False  # awaiting admin moderation
 
     await session.commit()
+    track_event(tg_id, "salon_registered", {"method": "self_service", "slug": salon.slug})
     is_admin = tg_id in settings.admin_tg_ids
     return MeOut(
         role="salon_owner",

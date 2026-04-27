@@ -13,6 +13,7 @@ from aiogram.types import (
 )
 
 from src.config import settings
+from src.utils.analytics import track_event
 
 router = Router(name="app_bot")
 log: structlog.stdlib.BoundLogger = structlog.get_logger()
@@ -67,11 +68,34 @@ async def handle_start(
     see `Հավելված`. Errors are logged but never bubble up.
     """
     start_param = command.args if command and command.args else None
+    user_tg_id = message.from_user.id if message.from_user else None
     log.info(
         "app_bot_start",
-        tg_id=message.from_user.id if message.from_user else None,
+        tg_id=user_tg_id,
         start_param=start_param,
     )
+    if user_tg_id is not None:
+        # Categorize the param so the funnel groups «scanned a master QR»
+        # vs «came from CTA на лендинге» without dimension explosion.
+        if not start_param:
+            kind = "direct"
+        elif start_param.startswith("master_"):
+            kind = "master_link"
+        elif start_param.startswith("salon_"):
+            kind = "salon_link"
+        elif start_param.startswith("invite_"):
+            kind = "invite"
+        elif start_param == "signup":
+            kind = "signup_master"
+        elif start_param == "signup-salon":
+            kind = "signup_salon"
+        else:
+            kind = "other"
+        track_event(
+            user_tg_id,
+            "bot_start",
+            {"kind": kind, "start_param": start_param or ""},
+        )
     lang_code = (
         getattr(message.from_user, "language_code", None) if message.from_user is not None else None
     )
