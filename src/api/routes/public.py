@@ -12,9 +12,7 @@ from src.db.models import Master, Salon, Specialty
 router = APIRouter(prefix="/v1/public", tags=["public"])
 
 
-async def _resolve_specialty_text(
-    session: AsyncSession, raw: str | None, lang: str
-) -> str | None:
+async def _resolve_specialty_text(session: AsyncSession, raw: str | None, lang: str) -> str | None:
     """Convert a comma-separated mix of specialty codes and free-form
     text into a single human-readable string in `lang` (ru/hy).
 
