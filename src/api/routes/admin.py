@@ -191,6 +191,7 @@ async def admin_salons(
             owner_tg_id=s.owner_tg_id,
             masters_count=int(cnt),
             created_at=s.created_at,
+            is_public=s.is_public,
         )
         for (s, cnt) in rows
     ]
@@ -334,5 +335,21 @@ async def admin_approve_master(
         raise ApiError("not_found", "master not found", status_code=404)
     if not m.is_public:
         m.is_public = True
+        await session.commit()
+    return OkOut(ok=True)
+
+
+@router.post("/salons/{salon_id}/approve", response_model=OkOut)
+async def admin_approve_salon(
+    salon_id: UUID,
+    _: dict[str, Any] = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> OkOut:
+    """Mark a self-registered salon as moderated → flips is_public=true."""
+    s = await session.scalar(select(Salon).where(Salon.id == salon_id))
+    if s is None:
+        raise ApiError("not_found", "salon not found", status_code=404)
+    if not s.is_public:
+        s.is_public = True
         await session.commit()
     return OkOut(ok=True)

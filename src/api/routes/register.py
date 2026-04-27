@@ -18,6 +18,7 @@ from src.api.schemas import (
     RegisterMasterIn,
     RegisterMasterSelfIn,
     RegisterSalonIn,
+    RegisterSalonSelfIn,
 )
 from src.config import settings
 from src.db.models import Master, Salon
@@ -191,6 +192,50 @@ async def register_master(
         ),
         is_admin=is_admin,
         onboarded=master.onboarded_at is not None,
+    )
+
+
+@router.post("/salon/self", response_model=MeOut, status_code=201)
+async def register_salon_self(
+    payload: RegisterSalonSelfIn,
+    tg_user: dict[str, Any] = Depends(require_tg_user),
+    session: AsyncSession = Depends(get_session),
+) -> MeOut:
+    """Self-service salon registration — no invite required.
+
+    Lands the salon with `is_public = false`; an admin must approve in
+    /admin before the salon's masters surface in the public catalog.
+    """
+    tg_id = int(tg_user["id"])
+    first_name = str(tg_user.get("first_name") or payload.name)
+
+    if await session.scalar(select(Salon).where(Salon.owner_tg_id == tg_id)):
+        raise ApiError("already_registered", "already a salon owner", status_code=409)
+    if await session.scalar(select(Master).where(Master.tg_id == tg_id)):
+        raise ApiError("already_registered", "already a master", status_code=409)
+
+    slug = await _resolve_slug(session, payload.name, payload.slug)
+
+    try:
+        salon = await SalonRepository(session).create(
+            owner_tg_id=tg_id, name=payload.name.strip(), slug=slug
+        )
+    except IntegrityError as exc:
+        raise ApiError("slug_taken", "slug already taken", status_code=409) from exc
+    salon.is_public = False  # awaiting admin moderation
+
+    await session.commit()
+    is_admin = tg_id in settings.admin_tg_ids
+    return MeOut(
+        role="salon_owner",
+        profile=MeProfileOut(
+            tg_id=tg_id,
+            first_name=first_name,
+            salon_id=salon.id,
+            salon_name=salon.name,
+            slug=salon.slug,
+        ),
+        is_admin=is_admin,
     )
 
 

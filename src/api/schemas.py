@@ -104,6 +104,13 @@ class RegisterSalonIn(BaseModel):
     slug: str | None = Field(default=None, min_length=3, max_length=32)
 
 
+class RegisterSalonSelfIn(BaseModel):
+    """Self-service salon registration — no invite, lands as is_public=false."""
+
+    name: str = Field(..., min_length=1, max_length=200)
+    slug: str | None = Field(default=None, min_length=3, max_length=32)
+
+
 class JoinSalonIn(BaseModel):
     invite_code: str
 
@@ -265,6 +272,7 @@ class AdminSalonOut(BaseModel):
     owner_tg_id: int
     masters_count: int
     created_at: datetime
+    is_public: bool = True
 
 
 class AdminInviteCreateIn(BaseModel):
