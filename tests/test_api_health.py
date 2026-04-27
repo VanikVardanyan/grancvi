@@ -26,13 +26,13 @@ def test_cors_preflight_allows_app_origin() -> None:
     r = client.options(
         "/v1/health",
         headers={
-            "Origin": "https://app.jampord.am",
+            "Origin": "https://app.grancvi.am",
             "Access-Control-Request-Method": "GET",
             "Access-Control-Request-Headers": "X-Telegram-Init-Data",
         },
     )
     assert r.status_code in (200, 204)
-    assert r.headers.get("access-control-allow-origin") == "https://app.jampord.am"
+    assert r.headers.get("access-control-allow-origin") == "https://app.grancvi.am"
 
 
 def test_cors_rejects_unknown_origin() -> None:

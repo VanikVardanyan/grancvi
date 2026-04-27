@@ -32,7 +32,7 @@ async def test_start_no_payload_sends_launcher() -> None:
     assert isinstance(kb, InlineKeyboardMarkup)
     button = kb.inline_keyboard[0][0]
     assert isinstance(button.web_app, WebAppInfo)
-    assert button.web_app.url == "https://app.jampord.am"
+    assert button.web_app.url == "https://app.grancvi.am"
 
 
 @pytest.mark.asyncio
