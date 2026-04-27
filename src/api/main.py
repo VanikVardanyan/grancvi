@@ -9,11 +9,11 @@ from src.api.routes import bookings as bookings_routes
 from src.api.routes import master as master_routes
 from src.api.routes import masters as masters_routes
 from src.api.routes import me as me_routes
+from src.api.routes import public as public_routes
 from src.api.routes import register as register_routes
 from src.api.routes import salon as salon_routes
 from src.api.routes import salons as salons_routes
 from src.api.routes import search as search_routes
-from src.api.routes import public as public_routes
 from src.api.routes import specialties as specialties_routes
 from src.config import settings
 
