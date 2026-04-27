@@ -256,6 +256,7 @@ class PublicSlugOut(BaseModel):
     slug: str
     name: str
     specialty: str | None = None  # master only
+    phone: str | None = None  # master only — surfaced to no-Telegram fallback
     is_public: bool = True
 
 

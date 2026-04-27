@@ -31,6 +31,7 @@ async def by_slug(
             slug=master.slug,
             name=master.name,
             specialty=master.specialty_text or None,
+            phone=master.phone or None,
             is_public=master.is_public,
         )
     salon = await session.scalar(select(Salon).where(Salon.slug == slug))
