@@ -51,12 +51,11 @@ class Settings(BaseSettings):
     redis_url: str
     # CORS allowlist for FastAPI. Include the TMA origin(s) + localhost
     # dev. Override in prod via env var API_CORS_ORIGINS as a JSON list:
-    #   API_CORS_ORIGINS=["https://app.grancvi.am","https://app.jampord.am"]
+    #   API_CORS_ORIGINS=["https://app.grancvi.am"]
     api_cors_origins: list[str] = Field(
         default_factory=lambda: [
             "https://app.grancvi.am",
             "https://grancvi.am",
-            "https://app.jampord.am",
             "http://localhost:5173",
             "http://127.0.0.1:5173",
         ]

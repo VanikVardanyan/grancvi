@@ -133,6 +133,11 @@ _RU: dict[str, Any] = {
     "CLIENT_CANCELLED": "Запись отменена.",
     "CLIENT_BOOK_AGAIN_BTN": "📅 Записаться ещё раз",
     "CLIENT_SLOT_TAKEN": "Этот слот только что заняли. Выберите другое время.",
+    "CLIENT_APPT_PENDING": (
+        "✅ Заявка отправлена\n"
+        "📅 {date} в {time} — {service}\n\n"
+        "Ждём подтверждения от мастера — пришлём уведомление, когда подтвердит."
+    ),
     "CLIENT_APPT_CONFIRMED": "Мастер подтвердил вашу запись на {date} в {time}. До встречи!",
     "CLIENT_APPT_REJECTED": "К сожалению, мастер отклонил запись на {date} в {time}.",
     # --- Epic 4: master approval ---
@@ -491,6 +496,11 @@ _HY: dict[str, Any] = {
     "CLIENT_CANCELLED": "Գրանցումը չեղարկվեց։",
     "CLIENT_BOOK_AGAIN_BTN": "📅 Գրանցվել նորից",
     "CLIENT_SLOT_TAKEN": "Այս ժամը արդեն զբաղված է։ Ընտրեք այլ ժամանակ։",
+    "CLIENT_APPT_PENDING": (
+        "✅ Հայտը ուղարկված է\n"
+        "📅 {date} {time} — {service}\n\n"
+        "Սպասում ենք վարպետի հաստատմանը — կհայտնենք, երբ հաստատի։"
+    ),
     "CLIENT_APPT_CONFIRMED": "Վարպետը հաստատեց ձեր գրանցումը {date} {time}-ին։ Կտեսնվենք։",
     "CLIENT_APPT_REJECTED": "Ցավոք, վարպետը մերժեց գրանցումը {date} {time}-ին։",
     # --- Epic 4: master approval ---

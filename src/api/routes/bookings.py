@@ -167,6 +167,20 @@ async def create_booking(
         appt.master_notify_via = sent.via
         await session.commit()
 
+    # Confirm to the client in their bot chat — TMA closes after submit and
+    # without this they get no persistent record of the booking.
+    client_text = strings.CLIENT_APPT_PENDING.format(
+        date=local.strftime("%d.%m.%Y"),
+        time=local.strftime("%H:%M"),
+        service=service.name,
+    )
+    await notify_user(
+        app_bot=app_bot,
+        fallback_bot=bot,
+        chat_id=tg_id,
+        text=client_text,
+    )
+
     # The bot's per-chat menu button URL was baked with the master's
     # start_param when the client did `/start master_<slug>`. Now
     # that they've actually booked, reset the menu back to the plain
