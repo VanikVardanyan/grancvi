@@ -42,7 +42,7 @@ from src.utils.client_notify import notify_user
 log: structlog.stdlib.BoundLogger = structlog.get_logger()
 
 
-async def _notify_admins_of_moderation(
+async def _notify_admins_of_new_signup(
     *,
     app_bot: Bot | None,
     bot: Bot,
@@ -52,7 +52,11 @@ async def _notify_admins_of_moderation(
     tg_id: int,
     first_name: str,
 ) -> None:
-    """DM each admin with a card about a fresh self-service registration.
+    """DM each admin with a heads-up about a fresh self-service registration.
+
+    Self-service skips moderation (master/salon is public on creation),
+    so this notification is informational + abuse-handle: if the slug
+    looks bad / impersonates someone, admin can /block it.
 
     Best-effort: failures (admin never started the bot, transient
     Telegram errors) are swallowed by notify_user so one bad admin
@@ -62,10 +66,10 @@ async def _notify_admins_of_moderation(
         return
     label = "мастер" if kind == "master" else "салон"
     text = (
-        f"🆕 Новый {label} на модерации\n"
+        f"🆕 Новый {label}\n"
         f"👤 {name} (@{first_name}, tg_id={tg_id})\n"
         f"🔗 grancvi.am/{slug}\n\n"
-        f"Открой /admin в приложении чтобы одобрить или отклонить."
+        f"Если что-то не то — /block {slug}"
     )
     for admin_id in settings.admin_tg_ids:
         try:
@@ -173,7 +177,7 @@ async def register_master_self(
         "master_registered",
         {"method": "self_service", "slug": master.slug, "specialty": master.specialty_text or ""},
     )
-    await _notify_admins_of_moderation(
+    await _notify_admins_of_new_signup(
         app_bot=app_bot,
         bot=bot,
         kind="master",
@@ -295,7 +299,7 @@ async def register_salon_self(
 
     await session.commit()
     track_event(tg_id, "salon_registered", {"method": "self_service", "slug": salon.slug})
-    await _notify_admins_of_moderation(
+    await _notify_admins_of_new_signup(
         app_bot=app_bot,
         bot=bot,
         kind="salon",
