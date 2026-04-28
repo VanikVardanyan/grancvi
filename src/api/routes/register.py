@@ -25,9 +25,11 @@ from src.api.schemas import (
 from src.config import settings
 from src.db.models import Master, Salon
 from src.exceptions import (
+    InvalidSlug,
     InviteAlreadyUsed,
     InviteExpired,
     InviteNotFound,
+    ReservedSlug,
     SlugTaken,
 )
 from src.repositories.invites import InviteRepository
@@ -40,7 +42,7 @@ from src.utils.client_notify import notify_user
 log: structlog.stdlib.BoundLogger = structlog.get_logger()
 
 
-async def _notify_admins_of_moderation(
+async def _notify_admins_of_new_signup(
     *,
     app_bot: Bot | None,
     bot: Bot,
@@ -50,7 +52,11 @@ async def _notify_admins_of_moderation(
     tg_id: int,
     first_name: str,
 ) -> None:
-    """DM each admin with a card about a fresh self-service registration.
+    """DM each admin with a heads-up about a fresh self-service registration.
+
+    Self-service skips moderation (master/salon is public on creation),
+    so this notification is informational + abuse-handle: if the slug
+    looks bad / impersonates someone, admin can /block it.
 
     Best-effort: failures (admin never started the bot, transient
     Telegram errors) are swallowed by notify_user so one bad admin
@@ -60,10 +66,10 @@ async def _notify_admins_of_moderation(
         return
     label = "мастер" if kind == "master" else "салон"
     text = (
-        f"🆕 Новый {label} на модерации\n"
+        f"🆕 Новый {label}\n"
         f"👤 {name} (@{first_name}, tg_id={tg_id})\n"
         f"🔗 grancvi.am/{slug}\n\n"
-        f"Открой /admin в приложении чтобы одобрить или отклонить."
+        f"Если что-то не то — /block {slug}"
     )
     for admin_id in settings.admin_tg_ids:
         try:
@@ -121,7 +127,9 @@ async def _resolve_slug(session: AsyncSession, name: str, suggested: str | None)
     if suggested:
         try:
             SlugService.validate(suggested)
-        except Exception as exc:
+        except ReservedSlug as exc:
+            raise ApiError("slug_reserved", str(exc), status_code=409) from exc
+        except InvalidSlug as exc:
             raise ApiError("slug_invalid", str(exc), status_code=400) from exc
         if await slug_svc.is_taken(suggested):
             raise ApiError("slug_taken", "slug already taken", status_code=409)
@@ -169,7 +177,7 @@ async def register_master_self(
         "master_registered",
         {"method": "self_service", "slug": master.slug, "specialty": master.specialty_text or ""},
     )
-    await _notify_admins_of_moderation(
+    await _notify_admins_of_new_signup(
         app_bot=app_bot,
         bot=bot,
         kind="master",
@@ -270,8 +278,7 @@ async def register_salon_self(
 ) -> MeOut:
     """Self-service salon registration — no invite required.
 
-    Lands the salon with `is_public = false`; an admin must approve in
-    /admin before the salon's masters surface in the public catalog.
+    Lands the salon as `is_public = true` immediately; no admin moderation step.
     """
     tg_id = int(tg_user["id"])
     first_name = str(tg_user.get("first_name") or payload.name)
@@ -289,11 +296,10 @@ async def register_salon_self(
         )
     except IntegrityError as exc:
         raise ApiError("slug_taken", "slug already taken", status_code=409) from exc
-    salon.is_public = False  # awaiting admin moderation
 
     await session.commit()
     track_event(tg_id, "salon_registered", {"method": "self_service", "slug": salon.slug})
-    await _notify_admins_of_moderation(
+    await _notify_admins_of_new_signup(
         app_bot=app_bot,
         bot=bot,
         kind="salon",

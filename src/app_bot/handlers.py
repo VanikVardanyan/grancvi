@@ -11,6 +11,8 @@ from aiogram.types import (
     Message,
     WebAppInfo,
 )
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import settings
 from src.utils.analytics import track_event
@@ -21,32 +23,130 @@ log: structlog.stdlib.BoundLogger = structlog.get_logger()
 _WEB_APP_URL = settings.tma_url
 
 
-def _menu_label_for(lang_code: str | None) -> str:
-    """Pick the menu-button text for this user based on their Telegram
-    language_code. Armenian → Armenian, everyone else → Russian (the
-    product's primary non-Armenian market).
+def _menu_label_for(lang: str) -> str:
+    """Pick the menu-button text from the resolved lang. Driven by the
+    user's stored preference (or Armenian default), NOT by Telegram
+    language_code — see `_resolve_lang_default`.
     """
-    if (lang_code or "").lower().startswith("hy"):
+    if lang == "hy":
         return "Հավելված"
+    if lang == "en":
+        return "App"
     return "Приложение"
 
 
-def _inline_label_for(lang_code: str | None) -> str:
-    """CTA-style label for the inline WebApp button under the welcome
-    message. Armenian → verb `Գրանցվել`, else Russian `Записаться`.
+_INLINE_LABELS: dict[tuple[str, str], str] = {
+    # (lang, kind) → label.  kind ∈ {"signup", "signup-salon", "invite",
+    # "master_link", "salon_link", "default"}
+    ("hy", "signup"): "Դառնալ վարպետ",
+    ("ru", "signup"): "Стать мастером",
+    ("en", "signup"): "Become a master",
+    ("hy", "signup-salon"): "Գրանցել սրահ",
+    ("ru", "signup-salon"): "Зарегистрировать салон",
+    ("en", "signup-salon"): "Register a salon",
+    ("hy", "invite"): "Ընդունել հրավերը",
+    ("ru", "invite"): "Принять приглашение",
+    ("en", "invite"): "Accept invite",
+    ("hy", "master_link"): "Գրանցվել",
+    ("ru", "master_link"): "Записаться",
+    ("en", "master_link"): "Book",
+    ("hy", "salon_link"): "Գրանցվել",
+    ("ru", "salon_link"): "Записаться",
+    ("en", "salon_link"): "Book",
+    ("hy", "default"): "Բացել",
+    ("ru", "default"): "Открыть",
+    ("en", "default"): "Open",
+}
+
+
+_WELCOME_TEXTS: dict[tuple[str, str], str] = {
+    ("hy", "default"): "Բացիր Grancvi-ն.",
+    ("ru", "default"): "Открой Grancvi.",
+    ("en", "default"): "Open Grancvi.",
+    ("hy", "signup"): "Վարպետի գրանցում՝ մի քանի թափով.",
+    ("ru", "signup"): "Регистрация мастера — пара тапов.",
+    ("en", "signup"): "Master registration — a couple of taps.",
+    ("hy", "signup-salon"): "Սրահի գրանցում՝ մի քանի թափով.",
+    ("ru", "signup-salon"): "Регистрация салона — пара тапов.",
+    ("en", "signup-salon"): "Salon registration — a couple of taps.",
+    ("hy", "invite"): "Բացիր հավելվածը՝ հրավերն ընդունելու համար.",
+    ("ru", "invite"): "Открой приложение чтобы принять приглашение.",
+    ("en", "invite"): "Open the app to accept the invite.",
+    ("hy", "master_link"): "Բացիր հավելվածը՝ գրանցվելու համար.",
+    ("ru", "master_link"): "Открой приложение чтобы записаться.",
+    ("en", "master_link"): "Open the app to book.",
+    ("hy", "salon_link"): "Բացիր հավելվածը՝ գրանցվելու համար.",
+    ("ru", "salon_link"): "Открой приложение чтобы записаться.",
+    ("en", "salon_link"): "Open the app to book.",
+}
+
+
+def _kind_for(start_param: str | None) -> str:
+    if not start_param:
+        return "default"
+    if start_param == "signup":
+        return "signup"
+    if start_param == "signup-salon":
+        return "signup-salon"
+    if start_param.startswith("invite_"):
+        return "invite"
+    if start_param.startswith("master_"):
+        return "master_link"
+    if start_param.startswith("salon_"):
+        return "salon_link"
+    return "default"
+
+
+def _inline_label_for(start_param: str | None, lang: str) -> str:
+    """CTA-style label for the inline WebApp button. Driven by
+    (start_param kind, resolved lang).
     """
-    if (lang_code or "").lower().startswith("hy"):
-        return "Գրանցվել"
-    return "Записаться"
+    kind = _kind_for(start_param)
+    return _INLINE_LABELS.get((lang, kind), _INLINE_LABELS[(lang, "default")])
 
 
-def _launch_kb(start_param: str | None, lang_code: str | None) -> InlineKeyboardMarkup:
+def _welcome_text_for(start_param: str | None, lang: str) -> str:
+    """Welcome text shown above the launcher button."""
+    kind = _kind_for(start_param)
+    return _WELCOME_TEXTS.get((lang, kind), _WELCOME_TEXTS[(lang, "default")])
+
+
+def _resolve_lang_default(saved_lang: str | None) -> str:
+    """Pick the lang for messages BEFORE the user has picked one in
+    the TMA: armenian-first. Saved preference (Master.lang) overrides.
+    Telegram language_code is intentionally NOT consulted — it biased
+    non-Armenian Telegrams toward Russian.
+    """
+    if saved_lang in ("ru", "hy", "en"):
+        return saved_lang
+    return "hy"
+
+
+async def _lookup_saved_lang(session: AsyncSession | None, tg_id: int) -> str | None:
+    """Best-effort lookup of the user's last-used lang from the masters
+    table. Returns None if the user is not yet a master, or session is
+    unavailable.
+    """
+    if session is None:
+        return None
+    from src.db.models import Master  # local import to avoid circular
+
+    result: str | None = await session.scalar(select(Master.lang).where(Master.tg_id == tg_id))
+    return result
+
+
+def _launch_kb(start_param: str | None, lang: str) -> InlineKeyboardMarkup:
     url = _WEB_APP_URL
     if start_param:
         url = f"{_WEB_APP_URL}?tgWebAppStartParam={start_param}"
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text=_inline_label_for(lang_code), web_app=WebAppInfo(url=url))]
+            [
+                InlineKeyboardButton(
+                    text=_inline_label_for(start_param, lang),
+                    web_app=WebAppInfo(url=url),
+                )
+            ]
         ]
     )
 
@@ -55,6 +155,7 @@ def _launch_kb(start_param: str | None, lang_code: str | None) -> InlineKeyboard
 async def handle_start(
     message: Message,
     bot: Bot,
+    session: AsyncSession,
     command: CommandObject | None = None,
 ) -> None:
     """Reply with a single WebApp-launcher button.
@@ -64,8 +165,8 @@ async def handle_start(
     the user directly to the intended master/salon page on open.
 
     Side effect: overrides the menu-button label for this specific chat to
-    match the user's language_code — ru users see `Приложение`, hy users
-    see `Հավելված`. Errors are logged but never bubble up.
+    match the resolved lang — ru users see `Приложение`, hy users see
+    `Հավելված`. Errors are logged but never bubble up.
     """
     start_param = command.args if command and command.args else None
     user_tg_id = message.from_user.id if message.from_user else None
@@ -96,24 +197,11 @@ async def handle_start(
             "bot_start",
             {"kind": kind, "start_param": start_param or ""},
         )
-    lang_code = (
-        getattr(message.from_user, "language_code", None) if message.from_user is not None else None
-    )
-    is_hy = (lang_code or "").lower().startswith("hy")
-    if is_hy:
-        text = (
-            "Բացիր գրանցումը մի քանի թափով։\n\n"
-            if not start_param
-            else "Բաց հավելվածը շարունակելու համար։\n\n"
-        )
-    else:
-        text = (
-            "Открой запись в пару тапов.\n\n"
-            if not start_param
-            else "Открой приложение, чтобы продолжить запись.\n\n"
-        )
+    saved_lang = await _lookup_saved_lang(session, user_tg_id) if user_tg_id is not None else None
+    lang = _resolve_lang_default(saved_lang)
+    text = _welcome_text_for(start_param, lang)
     _ = settings  # reference kept for future per-env URL config
-    await message.answer(text, reply_markup=_launch_kb(start_param, lang_code))
+    await message.answer(text, reply_markup=_launch_kb(start_param, lang))
 
     # Per-user menu-button override: language + bake the current
     # /start payload into the URL so the menu button (next to the
@@ -123,7 +211,7 @@ async def handle_start(
     # "Recent" list only catches that case on the second visit.
     # `/start` without an arg resets the menu URL back to plain root.
     if message.chat is not None:
-        label = _menu_label_for(lang_code)
+        label = _menu_label_for(lang)
         menu_url = _WEB_APP_URL
         if start_param:
             menu_url = f"{_WEB_APP_URL}?tgWebAppStartParam={start_param}"

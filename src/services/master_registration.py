@@ -62,10 +62,10 @@ class MasterRegistrationService:
         slug: str,
         lang: str,
     ) -> Master:
-        """Self-service registration — no invite required. Master starts
-        with `is_public = false` so they don't show up in catalogs / search
-        until an admin moderates and approves. Otherwise identical to the
-        invite-flow registration: same defaults, same UX afterwards.
+        """Self-service registration — no invite required. Master lands
+        public (`is_public=True`) and marked onboarded immediately. Slug
+        squat-protection is handled by the SlugService reserved-list;
+        post-hoc abuse handling via /block.
         """
         existing = await self._session.scalar(select(Master).where(Master.slug == slug))
         if existing is not None:
@@ -74,7 +74,6 @@ class MasterRegistrationService:
         master = self._build_master(
             tg_id=tg_id, name=name, specialty=specialty, slug=slug, lang=lang
         )
-        master.is_public = False  # awaiting admin moderation
         self._session.add(master)
         try:
             await self._session.flush()
@@ -114,4 +113,5 @@ class MasterRegistrationService:
             lang=lang,
             work_hours=default_hours,
             slug_changed_at=now_utc(),
+            onboarded_at=now_utc(),
         )

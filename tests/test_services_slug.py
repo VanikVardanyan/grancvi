@@ -86,3 +86,44 @@ async def test_generate_default_fallback_after_collisions(session: AsyncSession)
     svc = SlugService(session)
     slug = await svc.generate_default("Анна")
     assert slug
+
+
+@pytest.mark.parametrize(
+    "popular_name",
+    [
+        # Армянские топ-имена
+        "anna",
+        "hayk",
+        "narek",
+        "tigran",
+        "armen",
+        "ashot",
+        "vahe",
+        "ani",
+        "mariam",
+        "nare",
+        "lilit",
+        "anush",
+        "gohar",
+        # Русские топ-имена
+        "marina",
+        "elena",
+        "olga",
+        "natalia",
+        "ekaterina",
+        "irina",
+        "alex",
+        "andrey",
+        "dmitry",
+        "sergey",
+    ],
+)
+def test_validate_rejects_popular_names(popular_name: str) -> None:
+    with pytest.raises(ReservedSlug):
+        SlugService.validate(popular_name)
+
+
+def test_validate_allows_compound_names_with_reserved_prefix() -> None:
+    """`salon-anna` must pass: only exact-match reserved tokens are blocked."""
+    SlugService.validate("salon-anna")  # should NOT raise
+    SlugService.validate("anna-master")  # should NOT raise

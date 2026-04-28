@@ -71,3 +71,31 @@ async def test_register_rejects_taken_slug(session: AsyncSession) -> None:
             lang="ru",
             invite_code="REG-TK01",
         )
+
+
+@pytest.mark.asyncio
+async def test_register_self_master_is_public_immediately(session: AsyncSession) -> None:
+    """Self-service registration must NOT land on moderation. is_public=True from creation."""
+    svc = MasterRegistrationService(session)
+    master = await svc.register_self(
+        tg_id=99001,
+        name="Anna Test",
+        specialty="hairdresser_women",
+        slug="anna-test-public",
+        lang="hy",
+    )
+    assert master.is_public is True, "self-service registration must skip moderation"
+
+
+@pytest.mark.asyncio
+async def test_register_self_master_marked_onboarded(session: AsyncSession) -> None:
+    """register_self must set onboarded_at — there's no separate Onboarding wizard anymore."""
+    svc = MasterRegistrationService(session)
+    master = await svc.register_self(
+        tg_id=99002,
+        name="Hayk Test",
+        specialty="barber",
+        slug="hayk-test-onb",
+        lang="hy",
+    )
+    assert master.onboarded_at is not None, "register_self must auto-set onboarded_at"
