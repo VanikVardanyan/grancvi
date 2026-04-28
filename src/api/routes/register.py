@@ -274,8 +274,7 @@ async def register_salon_self(
 ) -> MeOut:
     """Self-service salon registration — no invite required.
 
-    Lands the salon with `is_public = false`; an admin must approve in
-    /admin before the salon's masters surface in the public catalog.
+    Lands the salon as `is_public = true` immediately; no admin moderation step.
     """
     tg_id = int(tg_user["id"])
     first_name = str(tg_user.get("first_name") or payload.name)
@@ -293,7 +292,6 @@ async def register_salon_self(
         )
     except IntegrityError as exc:
         raise ApiError("slug_taken", "slug already taken", status_code=409) from exc
-    salon.is_public = False  # awaiting admin moderation
 
     await session.commit()
     track_event(tg_id, "salon_registered", {"method": "self_service", "slug": salon.slug})

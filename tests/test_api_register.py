@@ -6,11 +6,13 @@ from unittest.mock import AsyncMock
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.auth import require_tg_user
 from src.api.deps import get_app_bot, get_bot, get_session
 from src.api.main import app
+from src.db.models import Salon
 
 
 def _install_overrides(session: AsyncSession, *, tg_id: int) -> None:
@@ -57,3 +59,21 @@ async def test_register_master_self_reserved_slug_returns_409(
     assert r.status_code == 409
     body = r.json()
     assert body["error"]["code"] == "slug_reserved"
+
+
+@pytest.mark.asyncio
+async def test_register_salon_self_is_public_immediately(
+    session: AsyncSession, api_client: AsyncClient
+) -> None:
+    _install_overrides(session, tg_id=55002)
+    r = await api_client.post(
+        "/v1/register/salon/self",
+        json={
+            "name": "Test Salon",
+            "slug": "test-salon-public",
+        },
+    )
+    assert r.status_code == 201
+    salon = await session.scalar(select(Salon).where(Salon.slug == "test-salon-public"))
+    assert salon is not None
+    assert salon.is_public is True
