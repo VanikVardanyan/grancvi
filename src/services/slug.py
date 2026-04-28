@@ -17,7 +17,7 @@ _MAX: Final[int] = 32
 
 _RESERVED: Final[frozenset[str]] = frozenset(
     {
-        # Original reserved core
+        # System / brand / URL routing
         "admin",
         "bot",
         "api",
@@ -25,9 +25,6 @@ _RESERVED: Final[frozenset[str]] = frozenset(
         "master",
         "client",
         "invite",
-        # Reserved by URL routing — top-level paths on grancvi.am can't
-        # collide with master/salon slugs, otherwise the smart-redirect
-        # lander breaks.
         "app",
         "salon",
         "salons",
@@ -55,6 +52,67 @@ _RESERVED: Final[frozenset[str]] = frozenset(
         "go",
         "robots",
         "sitemap",
+        # Popular Armenian first names
+        "anna",
+        "ani",
+        "mariam",
+        "lilit",
+        "anush",
+        "gohar",
+        "nare",
+        "narine",
+        "nairi",
+        "shushan",
+        "armine",
+        "hayk",
+        "narek",
+        "tigran",
+        "armen",
+        "ashot",
+        "vahe",
+        "vahan",
+        "aram",
+        "arman",
+        "arsen",
+        "artur",
+        "davit",
+        "gor",
+        "karen",
+        "levon",
+        "petros",
+        "rafayel",
+        "samvel",
+        "sargis",
+        "vardan",
+        # Popular Russian first names
+        "marina",
+        "elena",
+        "olga",
+        "natalia",
+        "natasha",
+        "ekaterina",
+        "katya",
+        "irina",
+        "tatyana",
+        "svetlana",
+        "yulia",
+        "anastasia",
+        "alex",
+        "andrey",
+        "dmitry",
+        "sergey",
+        "maxim",
+        "ivan",
+        "pavel",
+        "roman",
+        "vlad",
+        # Common test/dummy values
+        "test",
+        "demo",
+        "example",
+        "user",
+        "guest",
+        "anonymous",
     }
 )
 
