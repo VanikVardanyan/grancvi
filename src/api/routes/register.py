@@ -2,13 +2,15 @@ from __future__ import annotations
 
 from typing import Any
 
+import structlog
+from aiogram import Bot
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.auth import require_tg_user
-from src.api.deps import get_session
+from src.api.deps import get_app_bot, get_bot, get_session
 from src.api.errors import ApiError
 from src.api.schemas import (
     InviteInfoOut,
@@ -33,6 +35,47 @@ from src.repositories.salons import SalonRepository
 from src.services.master_registration import MasterRegistrationService
 from src.services.slug import SlugService
 from src.utils.analytics import track_event
+from src.utils.client_notify import notify_user
+
+log: structlog.stdlib.BoundLogger = structlog.get_logger()
+
+
+async def _notify_admins_of_moderation(
+    *,
+    app_bot: Bot | None,
+    bot: Bot,
+    kind: str,
+    name: str,
+    slug: str,
+    tg_id: int,
+    first_name: str,
+) -> None:
+    """DM each admin with a card about a fresh self-service registration.
+
+    Best-effort: failures (admin never started the bot, transient
+    Telegram errors) are swallowed by notify_user so one bad admin
+    doesn't break delivery to the others.
+    """
+    if not settings.admin_tg_ids:
+        return
+    label = "мастер" if kind == "master" else "салон"
+    text = (
+        f"🆕 Новый {label} на модерации\n"
+        f"👤 {name} (@{first_name}, tg_id={tg_id})\n"
+        f"🔗 grancvi.am/{slug}\n\n"
+        f"Открой /admin в приложении чтобы одобрить или отклонить."
+    )
+    for admin_id in settings.admin_tg_ids:
+        try:
+            await notify_user(
+                app_bot=app_bot,
+                fallback_bot=bot,
+                chat_id=admin_id,
+                text=text,
+            )
+        except Exception as exc:
+            log.warning("admin_notify_failed", admin_id=admin_id, err=repr(exc))
+
 
 router = APIRouter(prefix="/v1/register", tags=["register"])
 
@@ -91,6 +134,8 @@ async def register_master_self(
     payload: RegisterMasterSelfIn,
     tg_user: dict[str, Any] = Depends(require_tg_user),
     session: AsyncSession = Depends(get_session),
+    bot: Bot = Depends(get_bot),
+    app_bot: Bot | None = Depends(get_app_bot),
 ) -> MeOut:
     """Self-service master registration — no invite required.
 
@@ -123,6 +168,15 @@ async def register_master_self(
         tg_id,
         "master_registered",
         {"method": "self_service", "slug": master.slug, "specialty": master.specialty_text or ""},
+    )
+    await _notify_admins_of_moderation(
+        app_bot=app_bot,
+        bot=bot,
+        kind="master",
+        name=master.name,
+        slug=master.slug,
+        tg_id=tg_id,
+        first_name=first_name,
     )
     is_admin = tg_id in settings.admin_tg_ids
     return MeOut(
@@ -211,6 +265,8 @@ async def register_salon_self(
     payload: RegisterSalonSelfIn,
     tg_user: dict[str, Any] = Depends(require_tg_user),
     session: AsyncSession = Depends(get_session),
+    bot: Bot = Depends(get_bot),
+    app_bot: Bot | None = Depends(get_app_bot),
 ) -> MeOut:
     """Self-service salon registration — no invite required.
 
@@ -237,6 +293,15 @@ async def register_salon_self(
 
     await session.commit()
     track_event(tg_id, "salon_registered", {"method": "self_service", "slug": salon.slug})
+    await _notify_admins_of_moderation(
+        app_bot=app_bot,
+        bot=bot,
+        kind="salon",
+        name=salon.name,
+        slug=salon.slug,
+        tg_id=tg_id,
+        first_name=first_name,
+    )
     is_admin = tg_id in settings.admin_tg_ids
     return MeOut(
         role="salon_owner",
