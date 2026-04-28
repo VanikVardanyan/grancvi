@@ -25,9 +25,11 @@ from src.api.schemas import (
 from src.config import settings
 from src.db.models import Master, Salon
 from src.exceptions import (
+    InvalidSlug,
     InviteAlreadyUsed,
     InviteExpired,
     InviteNotFound,
+    ReservedSlug,
     SlugTaken,
 )
 from src.repositories.invites import InviteRepository
@@ -121,7 +123,9 @@ async def _resolve_slug(session: AsyncSession, name: str, suggested: str | None)
     if suggested:
         try:
             SlugService.validate(suggested)
-        except Exception as exc:
+        except ReservedSlug as exc:
+            raise ApiError("slug_reserved", str(exc), status_code=409) from exc
+        except InvalidSlug as exc:
             raise ApiError("slug_invalid", str(exc), status_code=400) from exc
         if await slug_svc.is_taken(suggested):
             raise ApiError("slug_taken", "slug already taken", status_code=409)
