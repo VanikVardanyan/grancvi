@@ -44,6 +44,9 @@ def _approve_kb(appointment_id: UUID) -> object:
     taken (master hasn't opened the new bot yet) the buttons will look
     present but be inert — acceptable during migration; all new masters
     register via the new bot and hit the primary path.
+
+    Caller must set the lang contextvar to `master.lang` before invoking
+    this — the button text reads `strings.APPT_BTN_*` at call time.
     """
     from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
@@ -54,13 +57,13 @@ def _approve_kb(appointment_id: UUID) -> object:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="✓ Подтвердить",
+                    text=strings.APPT_BTN_CONFIRM,
                     callback_data=ApprovalCallback(
                         action="confirm", appointment_id=appointment_id
                     ).pack(),
                 ),
                 InlineKeyboardButton(
-                    text="✕ Отклонить",
+                    text=strings.APPT_BTN_REJECT,
                     callback_data=ApprovalCallback(
                         action="reject", appointment_id=appointment_id
                     ).pack(),
