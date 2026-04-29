@@ -53,7 +53,7 @@ class Master(Base):
     breaks: Mapped[dict[str, Any]] = mapped_column(
         JSONB, nullable=False, server_default=text("'{}'::jsonb")
     )
-    slot_step_min: Mapped[int] = mapped_column(Integer, nullable=False, server_default="20")
+    slot_step_min: Mapped[int] = mapped_column(Integer, nullable=False, server_default="10")
     auto_confirm: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("false")
     )
