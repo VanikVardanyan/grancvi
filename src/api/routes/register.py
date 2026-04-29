@@ -155,8 +155,11 @@ async def register_master_self(
 
     if await session.scalar(select(Master).where(Master.tg_id == tg_id)):
         raise ApiError("already_registered", "already a master", status_code=409)
-    if await session.scalar(select(Salon).where(Salon.owner_tg_id == tg_id)):
-        raise ApiError("already_registered", "already a salon owner", status_code=409)
+    # Salon ownership is no longer mutually exclusive with master role —
+    # a salon owner working in their own salon is a common case. Capture
+    # the existing salon (if any) so we can auto-link the new master to
+    # it after creation.
+    existing_salon = await session.scalar(select(Salon).where(Salon.owner_tg_id == tg_id))
 
     slug = await _resolve_slug(session, payload.name, payload.slug)
 
@@ -170,6 +173,11 @@ async def register_master_self(
         )
     except SlugTaken as exc:
         raise ApiError("slug_taken", "slug already taken", status_code=409) from exc
+
+    # If the user is a salon owner, auto-link the new master to their
+    # salon — they show up in the salon catalog without a separate step.
+    if existing_salon is not None:
+        master.salon_id = existing_salon.id
 
     await session.commit()
     track_event(
@@ -285,8 +293,9 @@ async def register_salon_self(
 
     if await session.scalar(select(Salon).where(Salon.owner_tg_id == tg_id)):
         raise ApiError("already_registered", "already a salon owner", status_code=409)
-    if await session.scalar(select(Master).where(Master.tg_id == tg_id)):
-        raise ApiError("already_registered", "already a master", status_code=409)
+    # Master role is no longer mutually exclusive — capture the existing
+    # master row so we can back-link it to the new salon.
+    existing_master = await session.scalar(select(Master).where(Master.tg_id == tg_id))
 
     slug = await _resolve_slug(session, payload.name, payload.slug)
 
@@ -296,6 +305,11 @@ async def register_salon_self(
         )
     except IntegrityError as exc:
         raise ApiError("slug_taken", "slug already taken", status_code=409) from exc
+
+    # If the user already has a master row, link it to the new salon so
+    # they appear in their own salon's catalog automatically.
+    if existing_master is not None:
+        existing_master.salon_id = salon.id
 
     await session.commit()
     track_event(tg_id, "salon_registered", {"method": "self_service", "slug": salon.slug})
