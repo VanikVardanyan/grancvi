@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.auth import require_tg_user
 from src.api.deps import get_session
-from src.api.schemas import MeOut, MeProfileOut
+from src.api.schemas import MeMasterProfileOut, MeOut, MeProfileOut, MeSalonProfileOut
 from src.config import settings
 from src.db.models import Master, Salon
 
@@ -22,47 +22,85 @@ async def me(
 ) -> MeOut:
     """Identify the caller by their Telegram id and return their role.
 
-    Precedence: salon owner → master → client. A tg_id should only match one
-    of the two by design (salon registration rejects tg_ids that are masters,
-    and vice versa), but if both rows somehow exist the salon view wins
-    because that's the higher-privilege role on this account.
+    Both Master and Salon are always queried so dual-role users get both
+    profiles populated. Role precedence: master > salon_owner > client.
     """
     tg_id = int(tg_user["id"])
     first_name = str(tg_user.get("first_name") or "")
     is_admin = tg_id in settings.admin_tg_ids
 
-    salon = await session.scalar(select(Salon).where(Salon.owner_tg_id == tg_id))
-    if salon is not None:
-        return MeOut(
-            role="salon_owner",
-            profile=MeProfileOut(
-                tg_id=tg_id,
-                first_name=first_name,
-                salon_id=salon.id,
-                salon_name=salon.name,
-                slug=salon.slug,
-            ),
-            is_admin=is_admin,
-        )
-
     master = await session.scalar(select(Master).where(Master.tg_id == tg_id))
+    salon = await session.scalar(select(Salon).where(Salon.owner_tg_id == tg_id))
+
+    master_profile = (
+        MeMasterProfileOut(
+            master_id=master.id,
+            name=master.name,
+            slug=master.slug,
+            specialty=master.specialty_text or None,
+            is_public=master.is_public,
+        )
+        if master is not None
+        else None
+    )
+    salon_profile = (
+        MeSalonProfileOut(
+            salon_id=salon.id,
+            name=salon.name,
+            slug=salon.slug,
+            is_public=salon.is_public,
+        )
+        if salon is not None
+        else None
+    )
+
     if master is not None:
+        role = "master"
+    elif salon is not None:
+        role = "salon_owner"
+    else:
+        role = "client"
+
+    if role == "master":
+        assert master is not None
+        profile = MeProfileOut(
+            tg_id=tg_id,
+            first_name=first_name,
+            master_id=master.id,
+            master_name=master.name,
+            slug=master.slug,
+            specialty=master.specialty_text or None,
+        )
         return MeOut(
-            role="master",
-            profile=MeProfileOut(
-                tg_id=tg_id,
-                first_name=first_name,
-                master_id=master.id,
-                master_name=master.name,
-                slug=master.slug,
-                specialty=master.specialty_text or None,
-            ),
+            role=role,
+            profile=profile,
+            master_profile=master_profile,
+            salon_profile=salon_profile,
             is_admin=is_admin,
             onboarded=master.onboarded_at is not None,
+        )
+
+    if role == "salon_owner":
+        assert salon is not None
+        profile = MeProfileOut(
+            tg_id=tg_id,
+            first_name=first_name,
+            salon_id=salon.id,
+            salon_name=salon.name,
+            slug=salon.slug,
+        )
+        return MeOut(
+            role=role,
+            profile=profile,
+            master_profile=master_profile,
+            salon_profile=salon_profile,
+            is_admin=is_admin,
         )
 
     return MeOut(
         role="client",
         profile=MeProfileOut(tg_id=tg_id, first_name=first_name),
+        master_profile=None,
+        salon_profile=None,
         is_admin=is_admin,
     )

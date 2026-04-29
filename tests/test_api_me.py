@@ -90,11 +90,10 @@ async def test_me_salon_owner_returns_salon_profile(
 
 
 @pytest.mark.asyncio
-async def test_me_salon_wins_when_tg_id_matches_both(
+async def test_me_master_wins_when_tg_id_matches_both(
     session: AsyncSession, api_client: AsyncClient
 ) -> None:
-    """Defensive: if a tg_id somehow has both a salon and a master row,
-    the response shows salon_owner (higher-privilege view)."""
+    """Dual-role: master takes precedence over salon_owner as the primary role."""
     salon = Salon(owner_tg_id=888, name="S", slug="s-888")
     session.add(salon)
     session.add(Master(tg_id=888, name="M", slug="m-888"))
@@ -103,4 +102,33 @@ async def test_me_salon_wins_when_tg_id_matches_both(
     _install_overrides(session, tg_id=888)
     r = await api_client.get("/v1/me")
     body = r.json()
-    assert body["role"] == "salon_owner"
+    assert body["role"] == "master"
+    assert body["master_profile"] is not None
+    assert body["salon_profile"] is not None
+
+
+@pytest.mark.asyncio
+async def test_me_returns_both_profiles_when_dual_role(
+    session: AsyncSession, api_client: AsyncClient
+) -> None:
+    """Dual-role user gets both master_profile and salon_profile populated.
+
+    Primary role = master.
+    """
+    salon = Salon(owner_tg_id=999, name="DR Salon", slug="dr-salon")
+    session.add(salon)
+    master = Master(tg_id=999, name="DR Master", slug="dr-master", specialty_text="barber")
+    session.add(master)
+    await session.commit()
+
+    _install_overrides(session, tg_id=999, first_name="DR")
+    r = await api_client.get("/v1/me")
+    assert r.status_code == 200, r.json()
+    body = r.json()
+    assert body["role"] == "master", "primary role should be master when both exist"
+    assert body["master_profile"] is not None
+    assert body["master_profile"]["slug"] == "dr-master"
+    assert body["master_profile"]["is_public"] is True
+    assert body["salon_profile"] is not None
+    assert body["salon_profile"]["slug"] == "dr-salon"
+    assert body["salon_profile"]["is_public"] is True

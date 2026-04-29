@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date as _Date
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -199,9 +200,35 @@ class MeProfileOut(BaseModel):
     salon_name: str | None = None
 
 
+class MeMasterProfileOut(BaseModel):
+    """Compact master view for /v1/me when the user has a master row.
+
+    Distinct from MeProfileOut (which carries the user-facing identity:
+    tg_id, first_name, etc.) — this is the master *role* slice. Both
+    are present in MeOut for dual-role users.
+    """
+
+    master_id: UUID
+    name: str
+    slug: str
+    specialty: str | None = None
+    is_public: bool
+
+
+class MeSalonProfileOut(BaseModel):
+    """Compact salon view for /v1/me when the user owns a salon."""
+
+    salon_id: UUID
+    name: str
+    slug: str
+    is_public: bool
+
+
 class MeOut(BaseModel):
-    role: str  # "client" | "master" | "salon_owner"
+    role: Literal["master", "salon_owner", "client"]
     profile: MeProfileOut
+    master_profile: MeMasterProfileOut | None = None
+    salon_profile: MeSalonProfileOut | None = None
     is_admin: bool = False
     # Master-only — true once they finish (or skip) the post-register
     # setup wizard. Frontend uses it to decide whether to redirect into

@@ -77,3 +77,69 @@ async def test_register_salon_self_is_public_immediately(
     salon = await session.scalar(select(Salon).where(Salon.slug == "test-salon-public"))
     assert salon is not None
     assert salon.is_public is True
+
+
+@pytest.mark.asyncio
+async def test_register_master_self_succeeds_when_salon_exists(
+    session: AsyncSession, api_client: AsyncClient
+) -> None:
+    """Salon owner can register as master; master.salon_id auto-links to that salon."""
+    from src.db.models import Master, Salon
+
+    _install_overrides(session, tg_id=55003)
+
+    salon_resp = await api_client.post(
+        "/v1/register/salon/self",
+        json={"name": "Dual Test Salon", "slug": "dual-test-salon"},
+    )
+    assert salon_resp.status_code == 201, salon_resp.json()
+
+    master_resp = await api_client.post(
+        "/v1/register/master/self",
+        json={
+            "name": "Dual Test Master",
+            "specialty": "barber",
+            "slug": "dual-test-master",
+            "lang": "hy",
+        },
+    )
+    assert master_resp.status_code == 201, master_resp.json()
+
+    salon = await session.scalar(select(Salon).where(Salon.slug == "dual-test-salon"))
+    master = await session.scalar(select(Master).where(Master.slug == "dual-test-master"))
+    assert master is not None
+    assert salon is not None
+    assert master.salon_id == salon.id, "master.salon_id must auto-link to existing salon"
+
+
+@pytest.mark.asyncio
+async def test_register_salon_self_succeeds_when_master_exists(
+    session: AsyncSession, api_client: AsyncClient
+) -> None:
+    """Master can register as salon owner; master.salon_id back-fills to the new salon."""
+    from src.db.models import Master, Salon
+
+    _install_overrides(session, tg_id=55004)
+
+    master_resp = await api_client.post(
+        "/v1/register/master/self",
+        json={
+            "name": "Solo Master",
+            "specialty": "barber",
+            "slug": "solo-master-x",
+            "lang": "hy",
+        },
+    )
+    assert master_resp.status_code == 201, master_resp.json()
+
+    salon_resp = await api_client.post(
+        "/v1/register/salon/self",
+        json={"name": "My Salon", "slug": "my-salon-x"},
+    )
+    assert salon_resp.status_code == 201, salon_resp.json()
+
+    master = await session.scalar(select(Master).where(Master.slug == "solo-master-x"))
+    salon = await session.scalar(select(Salon).where(Salon.slug == "my-salon-x"))
+    assert master is not None
+    assert salon is not None
+    assert master.salon_id == salon.id, "existing master must auto-link to new salon"
