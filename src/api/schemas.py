@@ -257,6 +257,42 @@ class AdminMasterOut(BaseModel):
     appointments_30d: int
 
 
+class AdminAppointmentOut(BaseModel):
+    """Compact appointment row for /v1/admin/masters/{id} drill-down."""
+
+    id: UUID
+    start_at: datetime
+    end_at: datetime
+    status: str
+    source: str
+    client_name: str
+    client_phone: str | None = None
+    service_name: str
+
+
+class AdminMasterDetailOut(BaseModel):
+    """Detail page for one master + the latest 50 appointments."""
+
+    id: UUID
+    name: str
+    slug: str
+    specialty: str
+    tg_id: int | None
+    phone: str | None
+    phone_public: bool
+    lang: str
+    is_public: bool
+    blocked: bool
+    created_at: datetime
+    onboarded_at: datetime | None
+    slot_step_min: int
+    auto_confirm: bool
+    services_count: int
+    appointments_total: int
+    appointments_30d: int
+    recent_appointments: list[AdminAppointmentOut]
+
+
 class BlackoutOut(BaseModel):
     date: _Date
     reason: str | None = None

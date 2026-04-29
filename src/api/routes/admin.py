@@ -12,8 +12,10 @@ from src.api.auth import require_admin
 from src.api.deps import get_session
 from src.api.errors import ApiError
 from src.api.schemas import (
+    AdminAppointmentOut,
     AdminInviteCreateIn,
     AdminInviteOut,
+    AdminMasterDetailOut,
     AdminMasterOut,
     AdminSalonOut,
     AdminStatsOut,
@@ -23,7 +25,7 @@ from src.api.schemas import (
     SpecialtyUpdateIn,
 )
 from src.config import settings
-from src.db.models import Appointment, Client, Master, Salon, Specialty
+from src.db.models import Appointment, Client, Master, Salon, Service, Specialty
 from src.repositories.invites import InviteRepository
 from src.repositories.masters import MasterRepository
 from src.services.moderation import ModerationService
@@ -130,6 +132,92 @@ async def admin_masters(
         )
         for (m, total, last30) in rows
     ]
+
+
+@router.get("/masters/{master_id}", response_model=AdminMasterDetailOut)
+async def admin_master_detail(
+    master_id: UUID,
+    _: dict[str, Any] = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> AdminMasterDetailOut:
+    """Drill-down view: master profile fields + last 50 appointments
+    with client/service names joined for display.
+    """
+    master = await MasterRepository(session).by_id(master_id)
+    if master is None:
+        raise ApiError("not_found", "master not found", status_code=404)
+
+    now = now_utc()
+    cutoff = now - timedelta(days=30)
+
+    total_count = await session.scalar(
+        select(func.count(Appointment.id)).where(Appointment.master_id == master_id)
+    )
+    last30_count = await session.scalar(
+        select(func.count(Appointment.id)).where(
+            Appointment.master_id == master_id,
+            Appointment.created_at >= cutoff,
+        )
+    )
+    services_count = await session.scalar(
+        select(func.count(Service.id)).where(
+            Service.master_id == master_id,
+            Service.active.is_(True),
+        )
+    )
+
+    appt_rows = (
+        await session.execute(
+            select(
+                Appointment.id,
+                Appointment.start_at,
+                Appointment.end_at,
+                Appointment.status,
+                Appointment.source,
+                Client.name,
+                Client.phone,
+                Service.name.label("service_name"),
+            )
+            .join(Client, Client.id == Appointment.client_id)
+            .join(Service, Service.id == Appointment.service_id)
+            .where(Appointment.master_id == master_id)
+            .order_by(Appointment.start_at.desc())
+            .limit(50)
+        )
+    ).all()
+
+    return AdminMasterDetailOut(
+        id=master.id,
+        name=master.name,
+        slug=master.slug,
+        specialty=master.specialty_text or "",
+        tg_id=master.tg_id,
+        phone=master.phone,
+        phone_public=master.phone_public,
+        lang=master.lang,
+        is_public=master.is_public,
+        blocked=master.blocked_at is not None,
+        created_at=master.created_at,
+        onboarded_at=master.onboarded_at,
+        slot_step_min=master.slot_step_min,
+        auto_confirm=master.auto_confirm,
+        services_count=int(services_count or 0),
+        appointments_total=int(total_count or 0),
+        appointments_30d=int(last30_count or 0),
+        recent_appointments=[
+            AdminAppointmentOut(
+                id=row.id,
+                start_at=row.start_at,
+                end_at=row.end_at,
+                status=row.status,
+                source=row.source,
+                client_name=row.name,
+                client_phone=row.phone,
+                service_name=row.service_name,
+            )
+            for row in appt_rows
+        ],
+    )
 
 
 @router.post("/masters/{master_id}/block", response_model=OkOut)
