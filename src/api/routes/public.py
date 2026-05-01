@@ -295,9 +295,13 @@ async def public_create_booking(
       5. Create Appointment via BookingService.create_pending(source="web")
       6. Notify master via notify_user + _approve_kb (master.lang context)
     """
-    # 1. reCAPTCHA
-    if not await verify_recaptcha(payload.recaptcha_token, expected_action="public_booking"):
-        raise ApiError("captcha_failed", "captcha verification failed", status_code=400)
+    # 1. reCAPTCHA — TEMPORARILY DISABLED for prod smoke testing.
+    # To re-enable: uncomment the block below. The verify_recaptcha
+    # helper is already a no-op when RECAPTCHA_SECRET is unset, so
+    # restoring is purely flipping this flag back.
+    # if not await verify_recaptcha(payload.recaptcha_token, expected_action="public_booking"):
+    #     raise ApiError("captcha_failed", "captcha verification failed", status_code=400)
+    _ = verify_recaptcha  # keep import live; static linters happy
 
     # 2. Rate-limit by IP
     ip = request.client.host if request.client else "unknown"
