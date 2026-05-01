@@ -303,13 +303,17 @@ async def public_create_booking(
     #     raise ApiError("captcha_failed", "captcha verification failed", status_code=400)
     _ = verify_recaptcha  # keep import live; static linters happy
 
-    # 2. Rate-limit by IP
-    ip = request.client.host if request.client else "unknown"
-    redis = request.app.state.redis
-    if not await consume_token(
-        redis, f"rl:pubbk:ip:{ip}", limit=_RL_IP_LIMIT, window_sec=_RL_IP_WINDOW
-    ):
-        raise ApiError("rate_limited", "too many requests, try later", status_code=429)
+    # 2. Rate-limit — TEMPORARILY DISABLED for prod smoke testing.
+    # To re-enable: uncomment the IP-block and the phone-block below.
+    # _RL_IP_LIMIT/_RL_IP_WINDOW and _RL_PHONE_LIMIT/_RL_PHONE_WINDOW
+    # constants stay in place; only the consume_token guards are off.
+    _ = (request, consume_token)  # keep imports live; static linters happy
+    # ip = request.client.host if request.client else "unknown"
+    # redis = request.app.state.redis
+    # if not await consume_token(
+    #     redis, f"rl:pubbk:ip:{ip}", limit=_RL_IP_LIMIT, window_sec=_RL_IP_WINDOW
+    # ):
+    #     raise ApiError("rate_limited", "too many requests, try later", status_code=429)
 
     # 3. Resolve master + service
     master = await MasterRepository(session).by_slug(payload.master_slug)
@@ -319,14 +323,14 @@ async def public_create_booking(
     if service is None or not service.active:
         raise ApiError("not_found", "service not found", status_code=404)
 
-    # Phone-scoped rate-limit (after master lookup so we can scope by master_id)
-    if not await consume_token(
-        redis,
-        f"rl:pubbk:mp:{master.id}:{payload.client_phone}",
-        limit=_RL_PHONE_LIMIT,
-        window_sec=_RL_PHONE_WINDOW,
-    ):
-        raise ApiError("rate_limited", "too many bookings, try later", status_code=429)
+    # Phone-scoped rate-limit — also temporarily disabled.
+    # if not await consume_token(
+    #     redis,
+    #     f"rl:pubbk:mp:{master.id}:{payload.client_phone}",
+    #     limit=_RL_PHONE_LIMIT,
+    #     window_sec=_RL_PHONE_WINDOW,
+    # ):
+    #     raise ApiError("rate_limited", "too many bookings, try later", status_code=429)
 
     # 4. Upsert Client by (master_id, phone)
     client_repo = ClientRepository(session)
