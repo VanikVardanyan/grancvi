@@ -69,6 +69,14 @@ class Settings(BaseSettings):
     # become silent no-ops — the rest of the code stays the same.
     posthog_api_key: str | None = None
     posthog_host: str = "https://eu.i.posthog.com"
+    # reCAPTCHA v3 — public bookings spam protection. When secret is empty,
+    # the verify helper is a no-op (dev / test). Production: site key in
+    # the lander HTML, secret here.
+    recaptcha_site_key: str = ""
+    recaptcha_secret: str = ""
+    # Below this score the request is rejected. v3 returns 0..1, lower
+    # means more bot-like. 0.5 is Google's recommended default.
+    recaptcha_min_score: float = 0.5
 
     @classmethod
     def settings_customise_sources(

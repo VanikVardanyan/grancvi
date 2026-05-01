@@ -153,6 +153,10 @@ class Client(Base):
     )
     name: Mapped[str] = mapped_column(Text, nullable=False)
     phone: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Token issued on web-booking when phone has no associated tg_id yet.
+    # Bot's /start link_<token> handler binds Client.tg_id and clears
+    # this field. Nullable so existing clients without web-flow stay clean.
+    link_token: Mapped[str | None] = mapped_column(String(64), nullable=True)
     tg_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
@@ -161,7 +165,7 @@ class Client(Base):
 
 
 APPT_STATUSES = ("pending", "confirmed", "rejected", "cancelled", "completed", "no_show")
-APPT_SOURCES = ("client_request", "master_manual")
+APPT_SOURCES = ("client_request", "master_manual", "salon_manual", "web")
 APPT_CANCELLERS = ("client", "master", "system")
 
 

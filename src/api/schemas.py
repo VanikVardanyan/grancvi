@@ -323,6 +323,77 @@ class PublicSlugOut(BaseModel):
     is_public: bool = True
 
 
+class PublicMasterOut(BaseModel):
+    """Master profile for the public web-booking page."""
+
+    id: UUID
+    name: str
+    slug: str
+    specialty: str | None = None
+    phone: str | None = None
+    lang: str
+
+
+class PublicServiceOut(BaseModel):
+    """Active service of a master, public view."""
+
+    id: UUID
+    name: str
+    duration_min: int
+    price_amd: int | None = None
+
+
+class PublicSlotOut(BaseModel):
+    """A single bookable slot (start_at_utc)."""
+
+    start_at_utc: datetime
+
+
+class PublicMonthDayOut(BaseModel):
+    """One day in a month, with availability flag."""
+
+    date: str  # YYYY-MM-DD
+    has_capacity: bool
+
+
+class PublicMonthSlotsOut(BaseModel):
+    """Month-view: which days have any free slot."""
+
+    days: list[PublicMonthDayOut]
+
+
+class PublicBookingIn(BaseModel):
+    """Public booking creation payload."""
+
+    master_slug: str = Field(..., min_length=1, max_length=64)
+    service_id: UUID
+    start_at_utc: datetime
+    client_name: str = Field(..., min_length=1, max_length=200)
+    client_phone: str = Field(..., min_length=8, max_length=20)
+    recaptcha_token: str | None = None
+
+
+class PublicBookingOut(BaseModel):
+    """Returned to the lander after a successful POST."""
+
+    id: UUID
+    master_name: str
+    service_name: str
+    start_at: datetime
+    status: str
+    telegram_link_url: str
+
+
+class PublicBookingStatusOut(BaseModel):
+    """Status info for a public booking — for lander's localStorage refresh."""
+
+    id: UUID
+    status: str
+    master_name: str
+    service_name: str
+    start_at: datetime
+
+
 class SpecialtyOut(BaseModel):
     code: str
     name_ru: str

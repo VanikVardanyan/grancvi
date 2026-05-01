@@ -128,3 +128,21 @@ def test_resolve_lang_default_ignores_unknown_lang() -> None:
 
     assert _resolve_lang_default(saved_lang="zz") == "hy"
     assert _resolve_lang_default(saved_lang="") == "hy"
+
+
+def test_kind_for_link() -> None:
+    from src.app_bot.handlers import _kind_for
+
+    assert _kind_for("link_abc123") == "link"
+
+
+def test_inline_label_link_armenian() -> None:
+    from src.app_bot.handlers import _inline_label_for
+
+    assert _inline_label_for("link_abc123", "hy") == "Բացել իմ գրանցումը"
+
+
+def test_inline_label_link_russian() -> None:
+    from src.app_bot.handlers import _inline_label_for
+
+    assert _inline_label_for("link_abc123", "ru") == "Открыть мою запись"

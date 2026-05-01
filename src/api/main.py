@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from redis.asyncio import Redis as _Redis
 
 from src.api.errors import register_exception_handlers
 from src.api.routes import admin as admin_routes
@@ -64,6 +65,18 @@ app.include_router(search_routes.router)
 app.include_router(register_routes.router)
 app.include_router(specialties_routes.router)
 app.include_router(public_routes.router)
+
+
+@app.on_event("startup")
+async def _open_public_redis() -> None:
+    app.state.redis = _Redis.from_url(settings.redis_url, decode_responses=False)
+
+
+@app.on_event("shutdown")
+async def _close_public_redis() -> None:
+    redis = getattr(app.state, "redis", None)
+    if redis is not None:
+        await redis.aclose()
 
 
 @app.get("/v1/health")
