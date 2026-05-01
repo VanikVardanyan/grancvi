@@ -384,6 +384,16 @@ class PublicBookingOut(BaseModel):
     telegram_link_url: str
 
 
+class PublicBookingStatusOut(BaseModel):
+    """Status info for a public booking — for lander's localStorage refresh."""
+
+    id: UUID
+    status: str
+    master_name: str
+    service_name: str
+    start_at: datetime
+
+
 class SpecialtyOut(BaseModel):
     code: str
     name_ru: str

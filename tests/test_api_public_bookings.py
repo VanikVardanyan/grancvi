@@ -205,3 +205,67 @@ async def test_public_create_booking_404_unknown_slug(
         },
     )
     assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_public_booking_status_returns_current(session: AsyncSession) -> None:
+    """After booking, GET /v1/public/bookings/{id} returns its status + master + service."""
+    _install_session_override(session)
+    _install_bot_overrides()
+    master = Master(
+        tg_id=88020,
+        name="Status Anna",
+        slug="status-anna",
+        specialty_text="x",
+        lang="ru",
+        work_hours={
+            "mon": [["09:00", "20:00"]],
+            "tue": [["09:00", "20:00"]],
+            "wed": [["09:00", "20:00"]],
+            "thu": [["09:00", "20:00"]],
+            "fri": [["09:00", "20:00"]],
+            "sat": [["09:00", "20:00"]],
+        },
+        is_public=True,
+    )
+    session.add(master)
+    await session.flush()
+    svc = Service(master_id=master.id, name="Cut", duration_min=60, active=True)
+    session.add(svc)
+    await session.commit()
+
+    today = datetime.now(UTC)
+    days_to_mon = (7 - today.weekday()) % 7 or 7
+    monday = (today + timedelta(days=days_to_mon)).replace(
+        hour=11, minute=0, second=0, microsecond=0
+    )
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        create = await ac.post(
+            "/v1/public/bookings",
+            json={
+                "master_slug": "status-anna",
+                "service_id": str(svc.id),
+                "start_at_utc": monday.isoformat(),
+                "client_name": "Status",
+                "client_phone": "+37493144551",
+                "recaptcha_token": None,
+            },
+        )
+        assert create.status_code == 201, create.json()
+        booking_id = create.json()["id"]
+
+        status = await ac.get(f"/v1/public/bookings/{booking_id}")
+    assert status.status_code == 200
+    body = status.json()
+    assert body["status"] == "pending"
+    assert body["service_name"] == "Cut"
+    assert body["master_name"] == "Status Anna"
+
+
+@pytest.mark.asyncio
+async def test_public_booking_status_404_for_unknown(session: AsyncSession) -> None:
+    _install_session_override(session)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        r = await ac.get("/v1/public/bookings/00000000-0000-0000-0000-000000000000")
+    assert r.status_code == 404

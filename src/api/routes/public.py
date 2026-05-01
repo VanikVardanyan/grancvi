@@ -15,6 +15,7 @@ from src.api.errors import ApiError
 from src.api.schemas import (
     PublicBookingIn,
     PublicBookingOut,
+    PublicBookingStatusOut,
     PublicMasterOut,
     PublicMonthDayOut,
     PublicMonthSlotsOut,
@@ -23,7 +24,7 @@ from src.api.schemas import (
     PublicSlugOut,
 )
 from src.config import settings
-from src.db.models import Master, Salon, Specialty
+from src.db.models import Appointment, Master, Salon, Specialty
 from src.exceptions import SlotAlreadyTaken
 from src.repositories.clients import ClientRepository
 from src.repositories.masters import MasterRepository
@@ -348,4 +349,32 @@ async def public_create_booking(
         start_at=appt.start_at,
         status=appt.status,
         telegram_link_url=tg_url,
+    )
+
+
+@router.get("/bookings/{booking_id}", response_model=PublicBookingStatusOut)
+async def public_booking_status(
+    booking_id: UUID,
+    session: AsyncSession = Depends(get_session),
+) -> PublicBookingStatusOut:
+    """Status check by UUID (UUID acts as bearer token — non-guessable).
+
+    Used by the lander's localStorage to refresh appointment status on
+    return visits. Returns minimal info: no phone, no client_id.
+    """
+    from src.db.models import Service as ServiceModel
+
+    appt = await session.scalar(select(Appointment).where(Appointment.id == booking_id))
+    if appt is None:
+        raise ApiError("not_found", "booking not found", status_code=404)
+    master = await session.scalar(select(Master).where(Master.id == appt.master_id))
+    service = await session.scalar(select(ServiceModel).where(ServiceModel.id == appt.service_id))
+    if master is None or service is None:
+        raise ApiError("not_found", "booking not found", status_code=404)
+    return PublicBookingStatusOut(
+        id=appt.id,
+        status=appt.status,
+        master_name=master.name,
+        service_name=service.name,
+        start_at=appt.start_at,
     )
