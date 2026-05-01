@@ -53,6 +53,9 @@ _INLINE_LABELS: dict[tuple[str, str], str] = {
     ("hy", "salon_link"): "Գրանցվել",
     ("ru", "salon_link"): "Записаться",
     ("en", "salon_link"): "Book",
+    ("hy", "link"): "Բացել իմ գրանցումը",
+    ("ru", "link"): "Открыть мою запись",
+    ("en", "link"): "Open my booking",
     ("hy", "default"): "Բացել",
     ("ru", "default"): "Открыть",
     ("en", "default"): "Open",
@@ -78,6 +81,9 @@ _WELCOME_TEXTS: dict[tuple[str, str], str] = {
     ("hy", "salon_link"): "Բացիր հավելվածը՝ գրանցվելու համար.",
     ("ru", "salon_link"): "Открой приложение чтобы записаться.",
     ("en", "salon_link"): "Open the app to book.",
+    ("hy", "link"): "Բացիր հավելվածը՝ քո գրանցումը տեսնելու համար.",
+    ("ru", "link"): "Открой приложение, чтобы увидеть свою запись.",
+    ("en", "link"): "Open the app to see your booking.",
 }
 
 
@@ -94,6 +100,8 @@ def _kind_for(start_param: str | None) -> str:
         return "master_link"
     if start_param.startswith("salon_"):
         return "salon_link"
+    if start_param.startswith("link_"):
+        return "link"
     return "default"
 
 
@@ -175,6 +183,29 @@ async def handle_start(
         tg_id=user_tg_id,
         start_param=start_param,
     )
+    # Web-booking opt-in: bind tg_id to Client by one-shot token. The
+    # token came from the /v1/public/bookings response; tapping the
+    # success-page button opens this bot with start=link_<token>. We
+    # set Client.tg_id so future reminders go via Telegram and the
+    # appointment shows up in the TMA's MyBookings.
+    if start_param and start_param.startswith("link_"):
+        from src.db.models import Client as ClientModel
+
+        token = start_param[len("link_") :]
+        if token and user_tg_id is not None:
+            client = await session.scalar(
+                select(ClientModel).where(ClientModel.link_token == token)
+            )
+            if client is not None and (client.tg_id is None or client.tg_id == user_tg_id):
+                client.tg_id = user_tg_id
+                client.link_token = None
+                await session.commit()
+                log.info("link_token_bound", tg_id=user_tg_id, client_id=str(client.id))
+            elif client is not None:
+                log.warning("link_token_owned_by_another", tg_id=user_tg_id, owner=client.tg_id)
+            # If token not found in DB — silently ignore; user still
+            # gets the standard welcome flow + inline button below.
+
     if user_tg_id is not None:
         # Categorize the param so the funnel groups «scanned a master QR»
         # vs «came from CTA на лендинге» without dimension explosion.
@@ -190,6 +221,8 @@ async def handle_start(
             kind = "signup_master"
         elif start_param == "signup-salon":
             kind = "signup_salon"
+        elif start_param.startswith("link_"):
+            kind = "web_booking_link"
         else:
             kind = "other"
         track_event(
