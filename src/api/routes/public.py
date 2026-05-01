@@ -19,6 +19,7 @@ from src.api.schemas import (
     PublicMasterOut,
     PublicMonthDayOut,
     PublicMonthSlotsOut,
+    PublicSalonOut,
     PublicServiceOut,
     PublicSlotOut,
     PublicSlugOut,
@@ -128,6 +129,45 @@ async def public_master_by_slug(
         phone=master.phone if master.phone_public and master.phone else None,
         lang=master.lang,
     )
+
+
+@router.get("/salons/{slug}", response_model=PublicSalonOut)
+async def public_salon_by_slug(
+    slug: str,
+    lang: str = "hy",
+    session: AsyncSession = Depends(get_session),
+) -> PublicSalonOut:
+    """Public salon page: header + list of bookable masters under this
+    salon. Each master links out to /<master_slug> for actual booking.
+
+    Returns 404 if the salon doesn't exist or isn't public.
+    """
+    from src.api.schemas import PublicSalonMasterOut
+
+    salon = await session.scalar(select(Salon).where(Salon.slug == slug))
+    if salon is None or not salon.is_public:
+        raise ApiError("not_found", "salon not found", status_code=404)
+
+    masters_q = await session.execute(
+        select(Master)
+        .where(
+            Master.salon_id == salon.id,
+            Master.is_public.is_(True),
+            Master.blocked_at.is_(None),
+        )
+        .order_by(Master.name)
+    )
+    masters_rows = list(masters_q.scalars().all())
+    masters_out: list[PublicSalonMasterOut] = []
+    for m in masters_rows:
+        masters_out.append(
+            PublicSalonMasterOut(
+                slug=m.slug,
+                name=m.name,
+                specialty=await _resolve_specialty_text(session, m.specialty_text, lang),
+            )
+        )
+    return PublicSalonOut(slug=salon.slug, name=salon.name, masters=masters_out)
 
 
 @router.get("/masters/{slug}/services", response_model=list[PublicServiceOut])

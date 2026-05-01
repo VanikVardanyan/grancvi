@@ -334,6 +334,25 @@ class PublicMasterOut(BaseModel):
     lang: str
 
 
+class PublicSalonMasterOut(BaseModel):
+    """One master listed on the public salon page (`grancvi.am/<salon>`).
+
+    Each item links out to /<master_slug> for the actual booking flow.
+    """
+
+    slug: str
+    name: str
+    specialty: str | None = None
+
+
+class PublicSalonOut(BaseModel):
+    """Salon page payload — header + list of bookable masters."""
+
+    slug: str
+    name: str
+    masters: list[PublicSalonMasterOut]
+
+
 class PublicServiceOut(BaseModel):
     """Active service of a master, public view."""
 
