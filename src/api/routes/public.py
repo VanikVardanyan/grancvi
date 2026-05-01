@@ -1,15 +1,20 @@
 from __future__ import annotations
 
+import secrets
 from datetime import UTC, datetime
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, Query
+from aiogram import Bot
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.deps import get_session
+from src.api.deps import get_app_bot, get_bot, get_session
 from src.api.errors import ApiError
 from src.api.schemas import (
+    PublicBookingIn,
+    PublicBookingOut,
     PublicMasterOut,
     PublicMonthDayOut,
     PublicMonthSlotsOut,
@@ -17,10 +22,17 @@ from src.api.schemas import (
     PublicSlotOut,
     PublicSlugOut,
 )
+from src.config import settings
 from src.db.models import Master, Salon, Specialty
+from src.exceptions import SlotAlreadyTaken
+from src.repositories.clients import ClientRepository
 from src.repositories.masters import MasterRepository
 from src.repositories.services import ServiceRepository
 from src.services.booking import BookingService
+from src.strings import set_current_lang, strings
+from src.utils.client_notify import notify_user
+from src.utils.ratelimit import consume_token
+from src.utils.recaptcha import verify_recaptcha
 from src.utils.time import now_utc
 
 router = APIRouter(prefix="/v1/public", tags=["public"])
@@ -184,3 +196,156 @@ async def public_master_slots_day(
     svc = BookingService(session)
     slots = await svc.get_free_slots(master, service, day, now=now_utc())
     return [PublicSlotOut(start_at_utc=_ensure_utc(s)) for s in slots]
+
+
+# Rate-limit windows
+_RL_IP_LIMIT = 5
+_RL_IP_WINDOW = 60 * 60  # 1 hour
+_RL_PHONE_LIMIT = 3
+_RL_PHONE_WINDOW = 60 * 60
+
+
+def _approve_kb(appointment_id: UUID) -> object:
+    """Approve / Reject inline buttons. Same shape as bookings._approve_kb,
+    inlined to avoid cross-route import. Caller MUST set the lang
+    contextvar before invoking — strings.APPT_BTN_* read it on render.
+    """
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
+    from src.callback_data.approval import ApprovalCallback
+
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=strings.APPT_BTN_CONFIRM,
+                    callback_data=ApprovalCallback(
+                        action="confirm", appointment_id=appointment_id
+                    ).pack(),
+                ),
+                InlineKeyboardButton(
+                    text=strings.APPT_BTN_REJECT,
+                    callback_data=ApprovalCallback(
+                        action="reject", appointment_id=appointment_id
+                    ).pack(),
+                ),
+            ],
+        ]
+    )
+
+
+@router.post("/bookings", response_model=PublicBookingOut, status_code=201)
+async def public_create_booking(
+    payload: PublicBookingIn,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    bot: Bot = Depends(get_bot),
+    app_bot: Bot | None = Depends(get_app_bot),
+) -> PublicBookingOut:
+    """Public web-booking. No auth — only reCAPTCHA + rate-limit defend.
+
+    Flow:
+      1. reCAPTCHA verify (no-op if not configured)
+      2. Rate-limit by IP and by (master, phone)
+      3. Resolve master + service
+      4. Upsert Client by (master_id, phone). Issue link_token if no
+         tg_id and no existing token.
+      5. Create Appointment via BookingService.create_pending(source="web")
+      6. Notify master via notify_user + _approve_kb (master.lang context)
+    """
+    # 1. reCAPTCHA
+    if not await verify_recaptcha(payload.recaptcha_token, expected_action="public_booking"):
+        raise ApiError("captcha_failed", "captcha verification failed", status_code=400)
+
+    # 2. Rate-limit by IP
+    ip = request.client.host if request.client else "unknown"
+    redis = request.app.state.redis
+    if not await consume_token(
+        redis, f"rl:pubbk:ip:{ip}", limit=_RL_IP_LIMIT, window_sec=_RL_IP_WINDOW
+    ):
+        raise ApiError("rate_limited", "too many requests, try later", status_code=429)
+
+    # 3. Resolve master + service
+    master = await MasterRepository(session).by_slug(payload.master_slug)
+    if master is None or not _master_bookable(master):
+        raise ApiError("not_found", "master not found", status_code=404)
+    service = await ServiceRepository(session).get(payload.service_id, master_id=master.id)
+    if service is None or not service.active:
+        raise ApiError("not_found", "service not found", status_code=404)
+
+    # Phone-scoped rate-limit (after master lookup so we can scope by master_id)
+    if not await consume_token(
+        redis,
+        f"rl:pubbk:mp:{master.id}:{payload.client_phone}",
+        limit=_RL_PHONE_LIMIT,
+        window_sec=_RL_PHONE_WINDOW,
+    ):
+        raise ApiError("rate_limited", "too many bookings, try later", status_code=429)
+
+    # 4. Upsert Client by (master_id, phone)
+    client_repo = ClientRepository(session)
+    client = await client_repo.upsert_by_phone(
+        master_id=master.id,
+        phone=payload.client_phone,
+        name=payload.client_name.strip(),
+        tg_id=None,  # web flow — no tg_id yet; never overwrites existing
+    )
+    # Issue link_token only if no tg_id linked AND no existing token.
+    if client.tg_id is None and client.link_token is None:
+        client.link_token = secrets.token_urlsafe(16)
+        await session.flush()
+
+    # 5. Create appointment
+    booking_svc = BookingService(session)
+    try:
+        appt = await booking_svc.create_pending(
+            master=master,
+            client=client,
+            service=service,
+            start_at=payload.start_at_utc,
+            source="web",
+        )
+    except SlotAlreadyTaken as exc:
+        raise ApiError("slot_taken", "slot is no longer available", status_code=409) from exc
+
+    # 6. Notify master in their lang
+    set_current_lang(master.lang)
+    tz = ZoneInfo(master.timezone)
+    local = appt.start_at.astimezone(tz)
+    text = strings.APPT_NOTIFY_MASTER.format(
+        name=client.name,
+        phone=client.phone or "—",
+        service=service.name,
+        duration=service.duration_min,
+        date=local.strftime("%d.%m.%Y"),
+        time=local.strftime("%H:%M"),
+        weekday=strings.WEEKDAY_SHORT[local.weekday()],
+    )
+    sent = await notify_user(
+        app_bot=app_bot,
+        fallback_bot=bot,
+        chat_id=master.tg_id,
+        text=text,
+        reply_markup=_approve_kb(appt.id),
+    )
+    if sent is not None:
+        appt.master_notify_chat_id = sent.chat_id
+        appt.master_notify_msg_id = sent.message_id
+        appt.master_notify_via = sent.via
+        await session.commit()
+
+    # Build telegram_link_url. Prefer link_<token> for fresh web clients;
+    # fallback to master_<slug> if there's no token (existing client).
+    if client.link_token:
+        tg_url = f"https://t.me/{settings.app_bot_username}?start=link_{client.link_token}"
+    else:
+        tg_url = f"https://t.me/{settings.app_bot_username}?start=master_{master.slug}"
+
+    return PublicBookingOut(
+        id=appt.id,
+        master_name=master.name,
+        service_name=service.name,
+        start_at=appt.start_at,
+        status=appt.status,
+        telegram_link_url=tg_url,
+    )

@@ -80,6 +80,7 @@ class BookingService:
         client: Client,
         service: Service,
         start_at: datetime,
+        source: str = "client_request",
         now: datetime | None = None,
     ) -> Appointment:
         """Create a client-requested appointment in `pending` state.
@@ -99,7 +100,7 @@ class BookingService:
                 start_at=start_at,
                 end_at=end_at,
                 status="pending",
-                source="client_request",
+                source=source,
                 decision_deadline=deadline,
             )
             await self._session.commit()

@@ -165,7 +165,7 @@ class Client(Base):
 
 
 APPT_STATUSES = ("pending", "confirmed", "rejected", "cancelled", "completed", "no_show")
-APPT_SOURCES = ("client_request", "master_manual")
+APPT_SOURCES = ("client_request", "master_manual", "salon_manual", "web")
 APPT_CANCELLERS = ("client", "master", "system")
 
 

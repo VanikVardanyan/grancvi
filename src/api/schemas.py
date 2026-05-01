@@ -362,6 +362,28 @@ class PublicMonthSlotsOut(BaseModel):
     days: list[PublicMonthDayOut]
 
 
+class PublicBookingIn(BaseModel):
+    """Public booking creation payload."""
+
+    master_slug: str = Field(..., min_length=1, max_length=64)
+    service_id: UUID
+    start_at_utc: datetime
+    client_name: str = Field(..., min_length=1, max_length=200)
+    client_phone: str = Field(..., min_length=8, max_length=20)
+    recaptcha_token: str | None = None
+
+
+class PublicBookingOut(BaseModel):
+    """Returned to the lander after a successful POST."""
+
+    id: UUID
+    master_name: str
+    service_name: str
+    start_at: datetime
+    status: str
+    telegram_link_url: str
+
+
 class SpecialtyOut(BaseModel):
     code: str
     name_ru: str
