@@ -114,6 +114,7 @@ def _ensure_utc(dt: datetime) -> datetime:
 @router.get("/masters/{slug}", response_model=PublicMasterOut)
 async def public_master_by_slug(
     slug: str,
+    lang: str = "hy",
     session: AsyncSession = Depends(get_session),
 ) -> PublicMasterOut:
     master = await MasterRepository(session).by_slug(slug)
@@ -123,7 +124,7 @@ async def public_master_by_slug(
         id=master.id,
         name=master.name,
         slug=master.slug,
-        specialty=master.specialty_text or None,
+        specialty=await _resolve_specialty_text(session, master.specialty_text, lang),
         phone=master.phone if master.phone_public and master.phone else None,
         lang=master.lang,
     )
