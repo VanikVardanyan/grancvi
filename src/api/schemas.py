@@ -323,6 +323,45 @@ class PublicSlugOut(BaseModel):
     is_public: bool = True
 
 
+class PublicMasterOut(BaseModel):
+    """Master profile for the public web-booking page."""
+
+    id: UUID
+    name: str
+    slug: str
+    specialty: str | None = None
+    phone: str | None = None
+    lang: str
+
+
+class PublicServiceOut(BaseModel):
+    """Active service of a master, public view."""
+
+    id: UUID
+    name: str
+    duration_min: int
+    price_amd: int | None = None
+
+
+class PublicSlotOut(BaseModel):
+    """A single bookable slot (start_at_utc)."""
+
+    start_at_utc: datetime
+
+
+class PublicMonthDayOut(BaseModel):
+    """One day in a month, with availability flag."""
+
+    date: str  # YYYY-MM-DD
+    has_capacity: bool
+
+
+class PublicMonthSlotsOut(BaseModel):
+    """Month-view: which days have any free slot."""
+
+    days: list[PublicMonthDayOut]
+
+
 class SpecialtyOut(BaseModel):
     code: str
     name_ru: str
