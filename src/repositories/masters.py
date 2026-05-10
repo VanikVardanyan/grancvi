@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC
+from datetime import UTC, datetime
 from typing import Any, cast
 
 from sqlalchemy import bindparam, select
@@ -97,8 +97,6 @@ class MasterRepository:
         return list(result.all())
 
     async def update_slug(self, master_id: Any, slug: str) -> None:
-        from datetime import UTC, datetime
-
         master = await self._session.get(Master, master_id)
         if master is None:
             return
@@ -127,9 +125,13 @@ class MasterRepository:
         master.name = name
 
     async def set_blocked(self, master_id: Any, *, blocked: bool) -> None:
-        from datetime import datetime
-
         master = await self._session.get(Master, master_id)
         if master is None:
             return
         master.blocked_at = datetime.now(UTC) if blocked else None
+
+    async def set_avatar_uploaded_at(self, master_id: Any, ts: datetime | None) -> None:
+        master = await self._session.get(Master, master_id)
+        if master is None:
+            return
+        master.avatar_uploaded_at = ts
