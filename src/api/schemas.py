@@ -332,6 +332,7 @@ class PublicMasterOut(BaseModel):
     specialty: str | None = None
     phone: str | None = None
     lang: str
+    avatar_url: str | None = None
 
 
 class PublicSalonMasterOut(BaseModel):
@@ -343,6 +344,7 @@ class PublicSalonMasterOut(BaseModel):
     slug: str
     name: str
     specialty: str | None = None
+    avatar_url: str | None = None
 
 
 class PublicSalonOut(BaseModel):

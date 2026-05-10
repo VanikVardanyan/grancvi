@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from redis.asyncio import Redis as _Redis
 
 from src.api.errors import register_exception_handlers
@@ -54,6 +57,11 @@ app.add_middleware(
 )
 
 register_exception_handlers(app)
+app.mount(
+    "/static/avatars",
+    StaticFiles(directory=settings.avatars_dir, check_dir=False),
+    name="avatars",
+)
 app.include_router(me_routes.router)
 app.include_router(masters_routes.router)
 app.include_router(master_routes.router)
@@ -69,6 +77,7 @@ app.include_router(public_routes.router)
 
 @app.on_event("startup")
 async def _open_public_redis() -> None:
+    Path(settings.avatars_dir).mkdir(parents=True, exist_ok=True)
     app.state.redis = _Redis.from_url(settings.redis_url, decode_responses=False)
 
 

@@ -40,6 +40,12 @@ from src.utils.time import now_utc
 router = APIRouter(prefix="/v1/public", tags=["public"])
 
 
+def _avatar_url(master: Master) -> str | None:
+    if master.avatar_uploaded_at is None:
+        return None
+    return f"/static/avatars/{master.id}.jpg?v={int(master.avatar_uploaded_at.timestamp())}"
+
+
 async def _resolve_specialty_text(session: AsyncSession, raw: str | None, lang: str) -> str | None:
     """Convert a comma-separated mix of specialty codes and free-form
     text into a single human-readable string in `lang` (ru/hy).
@@ -128,6 +134,7 @@ async def public_master_by_slug(
         specialty=await _resolve_specialty_text(session, master.specialty_text, lang),
         phone=master.phone if master.phone_public and master.phone else None,
         lang=master.lang,
+        avatar_url=_avatar_url(master),
     )
 
 
@@ -165,6 +172,7 @@ async def public_salon_by_slug(
                 slug=m.slug,
                 name=m.name,
                 specialty=await _resolve_specialty_text(session, m.specialty_text, lang),
+                avatar_url=_avatar_url(m),
             )
         )
     return PublicSalonOut(slug=salon.slug, name=salon.name, masters=masters_out)
