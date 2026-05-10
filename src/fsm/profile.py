@@ -8,3 +8,4 @@ class ProfileEdit(StatesGroup):
     waiting_name = State()
     waiting_specialty = State()
     waiting_slug = State()
+    waiting_avatar = State()
