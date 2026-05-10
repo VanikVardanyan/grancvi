@@ -6,12 +6,9 @@ from uuid import uuid4
 
 import pytest
 from PIL import Image
-from pillow_heif import register_heif_opener
 
 from src.exceptions import BadImage
 from src.services.avatars import AvatarService, process_image
-
-register_heif_opener()
 
 
 def _jpeg_bytes(width: int, height: int, color: tuple[int, int, int] = (10, 100, 200)) -> bytes:

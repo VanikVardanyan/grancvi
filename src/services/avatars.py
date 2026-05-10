@@ -4,6 +4,7 @@ import io
 import os
 import uuid
 from pathlib import Path
+from typing import Final
 
 from PIL import Image, ImageOps, UnidentifiedImageError
 from pillow_heif import register_heif_opener
@@ -13,8 +14,8 @@ from src.exceptions import BadImage
 register_heif_opener()
 
 
-_TARGET_SIZE = 256
-_JPEG_QUALITY = 85
+_TARGET_SIZE: Final = 256
+_JPEG_QUALITY: Final = 85
 
 
 def process_image(raw: bytes) -> bytes:
