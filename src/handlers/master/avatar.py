@@ -122,6 +122,14 @@ async def _persist_avatar(
     await session.commit()
 
 
+async def _explain_bad_upload(message: Message) -> None:
+    """Reply with the right error string for a None result from `_download_photo_bytes`."""
+    if message.document and not (message.document.mime_type or "").startswith("image/"):
+        await message.answer(strings.AVATAR_NEED_PHOTO)
+    else:
+        await message.answer(strings.AVATAR_TOO_LARGE)
+
+
 @router.message(MasterRegister.waiting_avatar, F.photo | F.document)
 async def onboarding_avatar_received(
     message: Message,
@@ -131,10 +139,7 @@ async def onboarding_avatar_received(
 ) -> None:
     raw = await _download_photo_bytes(message)
     if raw is None:
-        if message.document and not (message.document.mime_type or "").startswith("image/"):
-            await message.answer(strings.AVATAR_NEED_PHOTO)
-            return
-        await message.answer(strings.AVATAR_TOO_LARGE)
+        await _explain_bad_upload(message)
         return
     try:
         await _persist_avatar(raw=raw, master=master, session=session)
@@ -231,10 +236,7 @@ async def profile_avatar_received(
 ) -> None:
     raw = await _download_photo_bytes(message)
     if raw is None:
-        if message.document and not (message.document.mime_type or "").startswith("image/"):
-            await message.answer(strings.AVATAR_NEED_PHOTO)
-            return
-        await message.answer(strings.AVATAR_TOO_LARGE)
+        await _explain_bad_upload(message)
         return
     try:
         await _persist_avatar(raw=raw, master=master, session=session)
