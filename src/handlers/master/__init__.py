@@ -4,6 +4,7 @@ from aiogram import Router
 
 from src.handlers.master.add_manual import router as add_manual_router
 from src.handlers.master.approve import router as approve_router
+from src.handlers.master.avatar import router as avatar_router
 from src.handlers.master.calendar import router as calendar_router
 from src.handlers.master.cancel import router as cancel_router
 from src.handlers.master.client_page import router as client_page_router
@@ -38,5 +39,6 @@ router.include_router(my_link_router)
 router.include_router(new_invite_router)
 router.include_router(my_invites_router)
 router.include_router(profile_router)
+router.include_router(avatar_router)
 
 __all__ = ["router"]
