@@ -30,6 +30,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    volumes:
+      - avatars_data:/app/data/avatars
 
   app_bot:
     restart: always
@@ -38,3 +40,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    volumes:
+      - avatars_data:/app/data/avatars
+
+volumes:
+  avatars_data:

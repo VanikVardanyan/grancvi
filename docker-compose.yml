@@ -38,6 +38,8 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
     restart: unless-stopped
+    volumes:
+      - avatars_data:/app/data/avatars
 
   # Runs @grancviWebBot (TMA launcher + notifications + APScheduler for
   # reminders and pending-expiry) and also applies Alembic migrations
@@ -55,6 +57,9 @@ services:
       DATABASE_URL: postgresql+asyncpg://botik:botik@postgres:5432/botik
       REDIS_URL: redis://redis:6379/0
     restart: unless-stopped
+    volumes:
+      - avatars_data:/app/data/avatars
 
 volumes:
   pg_data:
+  avatars_data:
