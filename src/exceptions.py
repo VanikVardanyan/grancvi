@@ -45,3 +45,11 @@ class InviteAlreadyUsed(Exception):
 
 class MasterBlocked(Exception):
     """Raised when a blocked master attempts a master-scope action."""
+
+
+class BadImage(Exception):
+    """Raised when uploaded avatar bytes are not a valid image."""
+
+
+class AvatarTooLarge(Exception):
+    """Raised when uploaded avatar exceeds the size cap."""

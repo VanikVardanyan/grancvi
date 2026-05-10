@@ -77,6 +77,10 @@ class Settings(BaseSettings):
     # Below this score the request is rejected. v3 returns 0..1, lower
     # means more bot-like. 0.5 is Google's recommended default.
     recaptcha_min_score: float = 0.5
+    # Local filesystem directory for master avatar JPEGs. Mounted via the
+    # avatars_data Docker volume in compose. Override in dev via env if you
+    # want to point at a host path, e.g. AVATARS_DIR=/tmp/avatars.
+    avatars_dir: str = "/app/data/avatars"
 
     @classmethod
     def settings_customise_sources(
