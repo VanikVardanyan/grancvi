@@ -93,6 +93,9 @@ class Master(Base):
         nullable=True,
     )
     onboarded_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
+    avatar_uploaded_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
 
 
 class Service(Base):
