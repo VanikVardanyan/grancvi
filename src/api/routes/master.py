@@ -30,7 +30,14 @@ from src.api.schemas import (
 )
 from src.config import settings
 from src.db.models import Appointment, Client, Master, MasterBlackout, Service
-from src.exceptions import BadImage, InvalidSlug, InvalidState, NotFound, ReservedSlug, SlotAlreadyTaken
+from src.exceptions import (
+    BadImage,
+    InvalidSlug,
+    InvalidState,
+    NotFound,
+    ReservedSlug,
+    SlotAlreadyTaken,
+)
 from src.repositories.appointments import AppointmentRepository
 from src.repositories.clients import ClientRepository
 from src.repositories.masters import MasterRepository
@@ -720,9 +727,8 @@ async def delete_blackout(
 _MAX_AVATAR_BYTES = 10 * 1024 * 1024
 
 
-def _avatar_url(master: Master) -> str:
-    assert master.avatar_uploaded_at is not None
-    return f"/static/avatars/{master.id}.jpg?v={int(master.avatar_uploaded_at.timestamp())}"
+def _avatar_url(master: Master, ts: datetime) -> str:
+    return f"/static/avatars/{master.id}.jpg?v={int(ts.timestamp())}"
 
 
 @router.post("/avatar", response_model=MeAvatarOut)
@@ -734,7 +740,7 @@ async def upload_my_avatar(
     """Upload (or replace) the master's avatar.
 
     Multipart `file` is expected to be a JPEG/PNG/WebP/HEIC photo
-    under 10 MB. We center-crop, resize to 256×256 JPEG, write
+    under 10 MB. We center-crop, resize to 256x256 JPEG, write
     atomically to disk, and stamp `avatar_uploaded_at`.
     """
     raw = await file.read()
@@ -749,7 +755,7 @@ async def upload_my_avatar(
     await MasterRepository(session).set_avatar_uploaded_at(master.id, ts)
     await session.commit()
     master.avatar_uploaded_at = ts
-    return MeAvatarOut(avatar_url=_avatar_url(master))
+    return MeAvatarOut(avatar_url=_avatar_url(master, ts))
 
 
 @router.delete("/avatar", response_model=OkOut)
