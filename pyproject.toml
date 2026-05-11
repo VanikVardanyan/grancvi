@@ -23,6 +23,7 @@ dependencies = [
     "posthog>=3.7",
     "pillow>=10.3",
     "pillow-heif>=0.16",
+    "python-multipart>=0.0.9",
 ]
 
 [dependency-groups]
