@@ -5,7 +5,7 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from aiogram import Bot
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Query, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,20 +23,24 @@ from src.api.schemas import (
     MasterScheduleIn,
     MasterScheduleOut,
     MasterServiceOut,
+    MeAvatarOut,
     OkOut,
     ServiceCreateIn,
     ServiceUpdateIn,
 )
+from src.config import settings
 from src.db.models import Appointment, Client, Master, MasterBlackout, Service
-from src.exceptions import InvalidSlug, InvalidState, NotFound, ReservedSlug, SlotAlreadyTaken
+from src.exceptions import BadImage, InvalidSlug, InvalidState, NotFound, ReservedSlug, SlotAlreadyTaken
 from src.repositories.appointments import AppointmentRepository
 from src.repositories.clients import ClientRepository
 from src.repositories.masters import MasterRepository
+from src.services.avatars import AvatarService
 from src.services.booking import BookingService
 from src.services.reminders import ReminderService
 from src.services.slug import SlugService
 from src.strings import strings
 from src.utils.client_notify import clear_master_notification, notify_user
+from src.utils.time import now_utc
 
 router = APIRouter(prefix="/v1/master/me", tags=["master"])
 
@@ -711,3 +715,50 @@ async def delete_blackout(
     await session.delete(row)
     await session.commit()
     return OkOut(ok=True)
+
+
+_MAX_AVATAR_BYTES = 10 * 1024 * 1024
+
+
+def _avatar_url(master: Master) -> str:
+    assert master.avatar_uploaded_at is not None
+    return f"/static/avatars/{master.id}.jpg?v={int(master.avatar_uploaded_at.timestamp())}"
+
+
+@router.post("/avatar", response_model=MeAvatarOut)
+async def upload_my_avatar(
+    file: UploadFile = File(...),
+    master: Master = Depends(require_master),
+    session: AsyncSession = Depends(get_session),
+) -> MeAvatarOut:
+    """Upload (or replace) the master's avatar.
+
+    Multipart `file` is expected to be a JPEG/PNG/WebP/HEIC photo
+    under 10 MB. We center-crop, resize to 256×256 JPEG, write
+    atomically to disk, and stamp `avatar_uploaded_at`.
+    """
+    raw = await file.read()
+    if len(raw) > _MAX_AVATAR_BYTES:
+        raise ApiError("avatar_too_large", "max 10 MB", status_code=413)
+    svc = AvatarService(directory=settings.avatars_dir)
+    try:
+        svc.save(master.id, raw)
+    except BadImage as exc:
+        raise ApiError("bad_image", "invalid image", status_code=400) from exc
+    ts = now_utc()
+    await MasterRepository(session).set_avatar_uploaded_at(master.id, ts)
+    await session.commit()
+    master.avatar_uploaded_at = ts
+    return MeAvatarOut(avatar_url=_avatar_url(master))
+
+
+@router.delete("/avatar", response_model=OkOut)
+async def delete_my_avatar(
+    master: Master = Depends(require_master),
+    session: AsyncSession = Depends(get_session),
+) -> OkOut:
+    """Remove the master's avatar (file + DB timestamp)."""
+    AvatarService(directory=settings.avatars_dir).delete(master.id)
+    await MasterRepository(session).set_avatar_uploaded_at(master.id, None)
+    await session.commit()
+    return OkOut()

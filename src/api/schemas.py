@@ -580,3 +580,9 @@ class ServiceUpdateIn(BaseModel):
     price_amd: int | None = Field(default=None, ge=0)
     active: bool | None = None
     preset_code: str | None = Field(default=None, max_length=64)
+
+
+class MeAvatarOut(BaseModel):
+    """Response body for POST /v1/master/me/avatar."""
+
+    avatar_url: str
