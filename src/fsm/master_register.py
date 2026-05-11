@@ -10,4 +10,3 @@ class MasterRegister(StatesGroup):
     waiting_specialty = State()
     waiting_slug_confirm = State()
     waiting_custom_slug = State()
-    waiting_avatar = State()

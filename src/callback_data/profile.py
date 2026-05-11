@@ -6,8 +6,4 @@ from aiogram.filters.callback_data import CallbackData
 
 
 class ProfileFieldCallback(CallbackData, prefix="pf"):
-    field: Literal["name", "specialty", "slug", "avatar"]
-
-
-class AvatarActionCallback(CallbackData, prefix="av"):
-    action: Literal["replace", "delete", "back", "skip"]
+    field: Literal["name", "specialty", "slug"]

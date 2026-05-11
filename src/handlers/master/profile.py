@@ -42,12 +42,6 @@ def profile_menu_kb() -> InlineKeyboardMarkup:
                     callback_data=ProfileFieldCallback(field="slug").pack(),
                 )
             ],
-            [
-                InlineKeyboardButton(
-                    text=strings.PROFILE_BTN_AVATAR,
-                    callback_data=ProfileFieldCallback(field="avatar").pack(),
-                )
-            ],
         ]
     )
 

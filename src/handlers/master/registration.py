@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from aiogram import Router
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message
+from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.callback_data.registration import SlugConfirmCallback, SpecialtyHintCallback
@@ -40,23 +40,6 @@ _HINT_MAP = {
     "cosmetologist": "REGISTER_SPECIALTY_HINT_COSMETOLOGIST",
     "custom": "REGISTER_SPECIALTY_HINT_CUSTOM",
 }
-
-
-def _onboarding_skip_kb_local() -> InlineKeyboardMarkup:
-    from aiogram.types import InlineKeyboardButton
-
-    from src.callback_data.profile import AvatarActionCallback
-
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text=strings.REGISTER_AVATAR_SKIP_BTN,
-                    callback_data=AvatarActionCallback(action="skip").pack(),
-                )
-            ]
-        ]
-    )
 
 
 @router.callback_query(SpecialtyHintCallback.filter(), MasterRegister.waiting_specialty)
@@ -194,11 +177,6 @@ async def _finalize(
             await out_message.answer(strings.REGISTER_SLUG_TAKEN)
         return
 
+    await state.clear()
     if out_message is not None:
-        await state.set_state(MasterRegister.waiting_avatar)
-        await out_message.answer(
-            strings.REGISTER_ASK_AVATAR,
-            reply_markup=_onboarding_skip_kb_local(),
-        )
-    else:
-        await state.clear()
+        await out_message.answer(strings.REGISTER_DONE, reply_markup=main_menu())
