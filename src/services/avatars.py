@@ -30,8 +30,8 @@ def process_image(raw: bytes) -> bytes:
         raise BadImage(str(exc)) from exc
 
     try:
-        img = Image.open(io.BytesIO(raw))
-        img = ImageOps.exif_transpose(img)
+        opened: Image.Image = Image.open(io.BytesIO(raw))
+        img: Image.Image = ImageOps.exif_transpose(opened) or opened
         if img.mode != "RGB":
             img = img.convert("RGB")
         side = min(img.size)

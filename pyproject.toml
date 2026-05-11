@@ -57,7 +57,7 @@ plugins = ["pydantic.mypy"]
 exclude = ["migrations/", "build/", "dist/"]
 
 [[tool.mypy.overrides]]
-module = ["apscheduler.*", "aiogram_i18n.*", "fluent_compiler.*"]
+module = ["apscheduler.*", "aiogram_i18n.*", "fluent_compiler.*", "pillow_heif.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
