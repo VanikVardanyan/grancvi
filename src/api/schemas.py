@@ -31,6 +31,7 @@ class MasterOut(BaseModel):
     is_public: bool
     timezone: str
     redirect_to: MasterRedirectOut | None = None
+    avatar_url: str | None = None
 
 
 class SalonPublicMasterOut(BaseModel):
@@ -541,6 +542,7 @@ class MasterProfileOut(BaseModel):
     slug_next_change_at: datetime | None = None
     salon_id: UUID | None = None
     salon_name: str | None = None
+    avatar_url: str | None = None
 
 
 class MasterProfileIn(BaseModel):

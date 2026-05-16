@@ -168,6 +168,7 @@ _SLUG_COOLDOWN = timedelta(days=30)
 
 def _profile_out(m: Master, salon_name: str | None = None) -> MasterProfileOut:
     next_change = m.slug_changed_at + _SLUG_COOLDOWN if m.slug_changed_at is not None else None
+    avatar_url = _avatar_url(m, m.avatar_uploaded_at) if m.avatar_uploaded_at is not None else None
     return MasterProfileOut(
         id=m.id,
         name=m.name,
@@ -181,6 +182,7 @@ def _profile_out(m: Master, salon_name: str | None = None) -> MasterProfileOut:
         slug_next_change_at=next_change,
         salon_id=m.salon_id,
         salon_name=salon_name,
+        avatar_url=avatar_url,
     )
 
 
