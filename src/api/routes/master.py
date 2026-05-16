@@ -46,6 +46,7 @@ from src.services.booking import BookingService
 from src.services.reminders import ReminderService
 from src.services.slug import SlugService
 from src.strings import strings
+from src.utils.avatar import avatar_url_for
 from src.utils.client_notify import clear_master_notification, notify_user
 from src.utils.time import now_utc
 
@@ -168,7 +169,7 @@ _SLUG_COOLDOWN = timedelta(days=30)
 
 def _profile_out(m: Master, salon_name: str | None = None) -> MasterProfileOut:
     next_change = m.slug_changed_at + _SLUG_COOLDOWN if m.slug_changed_at is not None else None
-    avatar_url = _avatar_url(m, m.avatar_uploaded_at) if m.avatar_uploaded_at is not None else None
+    avatar_url = avatar_url_for(m)
     return MasterProfileOut(
         id=m.id,
         name=m.name,
@@ -729,10 +730,6 @@ async def delete_blackout(
 _MAX_AVATAR_BYTES = 10 * 1024 * 1024
 
 
-def _avatar_url(master: Master, ts: datetime) -> str:
-    return f"/static/avatars/{master.id}.jpg?v={int(ts.timestamp())}"
-
-
 @router.post("/avatar", response_model=MeAvatarOut)
 async def upload_my_avatar(
     file: UploadFile = File(...),
@@ -757,7 +754,9 @@ async def upload_my_avatar(
     await MasterRepository(session).set_avatar_uploaded_at(master.id, ts)
     await session.commit()
     master.avatar_uploaded_at = ts
-    return MeAvatarOut(avatar_url=_avatar_url(master, ts))
+    url = avatar_url_for(master)
+    assert url is not None  # just set avatar_uploaded_at above
+    return MeAvatarOut(avatar_url=url)
 
 
 @router.delete("/avatar", response_model=OkOut)
