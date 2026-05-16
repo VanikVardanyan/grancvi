@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.api.deps import get_session
 from src.api.main import app
-from src.db.models import Master, Salon
+from src.db.models import Salon
 from src.repositories.masters import MasterRepository
 
 

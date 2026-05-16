@@ -77,7 +77,7 @@ app.include_router(public_routes.router)
 
 @app.on_event("startup")
 async def _open_public_redis() -> None:
-    Path(settings.avatars_dir).mkdir(parents=True, exist_ok=True)
+    Path(settings.avatars_dir).mkdir(parents=True, exist_ok=True)  # noqa: ASYNC240 — one-shot startup mkdir, not a hot path
     app.state.redis = _Redis.from_url(settings.redis_url, decode_responses=False)
 
 
