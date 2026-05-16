@@ -77,6 +77,9 @@ async def test_by_slug_master_exposes_avatar_url_field(
     session.add(master)
     await session.flush()
     await session.commit()
+    # Route is unauthenticated, but still needs the test session bound so
+    # it queries the schema/rows created above (not the real engine).
+    _install_overrides(session, tg_id=92011)
 
     r = await api_client.get("/v1/masters/by-slug/bs-url-92011")
     assert r.status_code == 200, r.text
