@@ -21,6 +21,7 @@ from src.db.models import Salon
 from src.repositories.masters import MasterRepository
 from src.repositories.services import ServiceRepository
 from src.services.booking import BookingService
+from src.utils.avatar import avatar_url_for
 from src.utils.time import now_utc
 
 router = APIRouter(prefix="/v1/masters", tags=["masters"])
@@ -65,6 +66,7 @@ async def get_master_by_slug(
         is_public=master.is_public,
         timezone=master.timezone,
         redirect_to=redirect,
+        avatar_url=avatar_url_for(master),
     )
 
 

@@ -32,18 +32,13 @@ from src.repositories.masters import MasterRepository
 from src.repositories.services import ServiceRepository
 from src.services.booking import BookingService
 from src.strings import set_current_lang, strings
+from src.utils.avatar import avatar_url_for
 from src.utils.client_notify import notify_user
 from src.utils.ratelimit import consume_token
 from src.utils.recaptcha import verify_recaptcha
 from src.utils.time import now_utc
 
 router = APIRouter(prefix="/v1/public", tags=["public"])
-
-
-def _avatar_url(master: Master) -> str | None:
-    if master.avatar_uploaded_at is None:
-        return None
-    return f"/static/avatars/{master.id}.jpg?v={int(master.avatar_uploaded_at.timestamp())}"
 
 
 async def _resolve_specialty_text(session: AsyncSession, raw: str | None, lang: str) -> str | None:
@@ -134,7 +129,7 @@ async def public_master_by_slug(
         specialty=await _resolve_specialty_text(session, master.specialty_text, lang),
         phone=master.phone if master.phone_public and master.phone else None,
         lang=master.lang,
-        avatar_url=_avatar_url(master),
+        avatar_url=avatar_url_for(master),
     )
 
 
@@ -172,7 +167,7 @@ async def public_salon_by_slug(
                 slug=m.slug,
                 name=m.name,
                 specialty=await _resolve_specialty_text(session, m.specialty_text, lang),
-                avatar_url=_avatar_url(m),
+                avatar_url=avatar_url_for(m),
             )
         )
     return PublicSalonOut(slug=salon.slug, name=salon.name, masters=masters_out)
