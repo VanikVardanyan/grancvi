@@ -19,8 +19,10 @@ from apscheduler.triggers.cron import CronTrigger
 
 from src.app_bot.approval import router as approval_router
 from src.app_bot.handlers import router as app_bot_router
+from src.app_bot.survey import router as survey_router
 from src.config import settings
 from src.db.base import SessionMaker
+from src.fsm_storage import build_fsm_storage
 from src.middlewares.db import DbSessionMiddleware
 from src.scheduler.jobs import expire_pending_appointments, send_due_reminders
 from src.scheduler.setup import build_scheduler
@@ -59,8 +61,9 @@ async def main() -> None:
         sys.exit(1)
 
     bot = Bot(token=settings.app_bot_token)
-    dp = Dispatcher()
+    dp = Dispatcher(storage=build_fsm_storage())
     dp.update.middleware(DbSessionMiddleware(SessionMaker))
+    dp.include_router(survey_router)
     dp.include_router(app_bot_router)
     dp.include_router(approval_router)
 
