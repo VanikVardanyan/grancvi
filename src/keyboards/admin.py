@@ -23,6 +23,7 @@ def admin_menu() -> ReplyKeyboardMarkup:
                 KeyboardButton(text=strings.ADMIN_MENU_INVITES),
                 KeyboardButton(text=strings.ADMIN_MENU_MODERATION),
             ],
+            [KeyboardButton(text=strings.ADMIN_MENU_SURVEY)],
             [KeyboardButton(text=strings.ADMIN_MENU_BACK)],
         ],
         resize_keyboard=True,

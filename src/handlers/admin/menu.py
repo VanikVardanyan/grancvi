@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from aiogram import F, Router
+from aiogram import Bot, F, Router
 from aiogram.filters import CommandStart, Filter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
@@ -11,6 +11,7 @@ from src.handlers.admin.invites_admin import cmd_admin_invites
 from src.handlers.admin.masters import cmd_admin_masters
 from src.handlers.admin.moderation import cmd_admin_moderation
 from src.handlers.admin.stats import cmd_admin_stats
+from src.handlers.admin.survey import cmd_admin_survey
 from src.keyboards.admin import admin_menu
 from src.keyboards.common import main_menu
 from src.strings import get_bundle, strings
@@ -85,6 +86,15 @@ async def handle_admin_moderation(
     if not is_admin:
         return
     await cmd_admin_moderation(message=message, session=session)
+
+
+@router.message(F.text.in_({_RU.ADMIN_MENU_SURVEY, _HY.ADMIN_MENU_SURVEY}))
+async def handle_admin_survey(
+    message: Message, session: AsyncSession, bot: Bot, is_admin: bool = False
+) -> None:
+    if not is_admin:
+        return
+    await cmd_admin_survey(message=message, session=session, bot=bot)
 
 
 @router.message(F.text.in_({_RU.ADMIN_MENU_BACK, _HY.ADMIN_MENU_BACK}))

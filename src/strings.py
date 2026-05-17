@@ -373,6 +373,21 @@ _RU: dict[str, Any] = {
     "ADMIN_MASTER_DETAIL_SPECIALTY": "Специальность",
     "ADMIN_MASTER_DETAIL_STATUS": "Статус",
     "ADMIN_MASTER_USAGE": "Использование: /master <slug>",
+    # --- Survey ---
+    "ADMIN_MENU_SURVEY": "📋 Опрос",
+    "ADMIN_SURVEY_SENDING_FMT": "Отправляю опрос {n} мастерам…",
+    "ADMIN_SURVEY_SENT_FMT": "Готово! Опрос отправлен {n} мастерам.",
+    "ADMIN_SURVEY_NO_MASTERS": "Нет активных мастеров для рассылки.",
+    "ADMIN_SURVEY_QUESTION": (
+        "👋 Привет! Как вы оцениваете наше приложение?\n\n"
+        "Нажмите цифру от 1 до 5:\n"
+        "1 — очень плохо · 5 — отлично"
+    ),
+    "ADMIN_SURVEY_ASK_COMMENT_FMT": "Спасибо, оценка {rating} ✅\n\nЧто вы хотели бы улучшить? Напишите в ответ или пропустите.",
+    "ADMIN_SURVEY_SKIP_BTN": "Пропустить",
+    "ADMIN_SURVEY_DONE": "Спасибо за ваш отзыв! 🙏",
+    "ADMIN_SURVEY_NO_COMMENT": "— без комментария —",
+    "ADMIN_SURVEY_REPORT_FMT": "📊 Отзыв от {name} (tg_id: {tg_id})\nОценка: {rating}/5\nКомментарий: {comment}",
     # --- Epic 10.1: salon main menu ---
     "SALON_WELCOME_BACK": "С возвращением, салон. Что дальше?",
     "SALON_MENU_MY_MASTERS": "👥 Мои мастера",
@@ -740,6 +755,21 @@ _HY: dict[str, Any] = {
     "ADMIN_MASTER_DETAIL_SPECIALTY": "Մասնագիտություն",
     "ADMIN_MASTER_DETAIL_STATUS": "Կարգավիճակ",
     "ADMIN_MASTER_USAGE": "Օգտագործում՝ /master <slug>",
+    # --- Survey ---
+    "ADMIN_MENU_SURVEY": "📋 Հարցում",
+    "ADMIN_SURVEY_SENDING_FMT": "Ուղարկում եմ հարցումը {n} վարպետների…",
+    "ADMIN_SURVEY_SENT_FMT": "Պատրաստ! Հարցումն ուղարկվեց {n} վարպետների։",
+    "ADMIN_SURVEY_NO_MASTERS": "Ակտիվ վարպետներ չկան հարցման համար։",
+    "ADMIN_SURVEY_QUESTION": (
+        "👋 Բարև! Ինչպե՞ս եք գնահատում մեր հավելվածը։\n\n"
+        "Սեղմեք 1-ից 5 թիվը.\n"
+        "1 — շատ վատ · 5 — հիանալի"
+    ),
+    "ADMIN_SURVEY_ASK_COMMENT_FMT": "Շնորհակալություն, {rating} գնահատական ✅\n\nԻնչ կցանկանայիք բարելավել? Գրեք կամ բաց թողեք։",
+    "ADMIN_SURVEY_SKIP_BTN": "Բաց թողնել",
+    "ADMIN_SURVEY_DONE": "Շնորհակալություն ձեր կարծիքի համար! 🙏",
+    "ADMIN_SURVEY_NO_COMMENT": "— առանց մեկնաբանության —",
+    "ADMIN_SURVEY_REPORT_FMT": "📊 Կարծիք {name}-ից (tg_id: {tg_id})\nԳնահատական՝ {rating}/5\nՄեկնաբանություն՝ {comment}",
     # --- Epic 10.1: salon main menu ---
     "SALON_WELCOME_BACK": "Բարի վերադարձ, սրահ։",
     "SALON_MENU_MY_MASTERS": "👥 Իմ վարպետները",

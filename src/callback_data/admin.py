@@ -18,3 +18,11 @@ class BlockCallback(CallbackData, prefix="blk"):
 
 class AdminNewSalonCallback(CallbackData, prefix="ans"):
     pass
+
+
+class SurveyRatingCallback(CallbackData, prefix="svy"):
+    rating: int
+
+
+class SurveySkipCallback(CallbackData, prefix="svys"):
+    pass
