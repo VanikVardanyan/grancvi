@@ -13,7 +13,7 @@ router = Router(name="master_my_link")
 
 
 def _master_link(master: Master) -> str:
-    return f"https://t.me/{settings.bot_username}?start=master_{master.slug}"
+    return f"https://t.me/{settings.app_bot_username}?start=master_{master.slug}"
 
 
 async def cmd_mylink(*, message: Message, master: Master) -> None:

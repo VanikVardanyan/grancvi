@@ -21,7 +21,7 @@ async def cmd_new_invite(
 ) -> None:
     svc = InviteService(session)
     invite = await svc.create_invite(actor_tg_id=master.tg_id)
-    link = f"https://t.me/{settings.bot_username}?start=invite_{invite.code}"
+    link = f"https://t.me/{settings.app_bot_username}?start=invite_{invite.code}"
     text = strings.INVITE_CREATED_FMT.format(
         code=invite.code,
         link=link,
@@ -43,7 +43,7 @@ async def handle_new_invite_cmd(
         actor_tg = message.from_user.id if message.from_user else 0
         svc = InviteService(session)
         invite = await svc.create_invite(actor_tg_id=actor_tg)
-        link = f"https://t.me/{settings.bot_username}?start=invite_{invite.code}"
+        link = f"https://t.me/{settings.app_bot_username}?start=invite_{invite.code}"
         await message.answer(
             strings.INVITE_CREATED_FMT.format(
                 code=invite.code,

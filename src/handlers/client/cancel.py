@@ -46,7 +46,7 @@ async def handle_cancel(
             log.warning("cancel_kb_strip_failed", appointment_id=str(appt.id))
 
     if callback.message is not None and hasattr(callback.message, "answer"):
-        link = f"https://t.me/{settings.bot_username}?start=master_{master.slug}"
+        link = f"https://t.me/{settings.app_bot_username}?start=master_{master.slug}"
         kb = InlineKeyboardMarkup(
             inline_keyboard=[[InlineKeyboardButton(text=strings.CLIENT_BOOK_AGAIN_BTN, url=link)]]
         )

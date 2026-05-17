@@ -80,7 +80,7 @@ async def cb_admin_new_salon(
     invite = await repo.create(created_by_tg_id=tg_id, kind="salon_owner")
     await session.commit()
 
-    link = f"https://t.me/{settings.bot_username}?start=invite_{invite.code}"
+    link = f"https://t.me/{settings.app_bot_username}?start=invite_{invite.code}"
     tz = ZoneInfo("Asia/Yerevan")
     expires_local = invite.expires_at.astimezone(tz).strftime("%d.%m.%Y %H:%M")
 

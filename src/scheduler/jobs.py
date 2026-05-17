@@ -193,7 +193,7 @@ async def expire_pending_appointments(
 
             tz = ZoneInfo(master.timezone)
             local = appt.start_at.astimezone(tz)
-            link = f"https://t.me/{settings.bot_username}?start=master_{master.slug}"
+            link = f"https://t.me/{settings.app_bot_username}?start=master_{master.slug}"
             text = strings.REMINDER_PENDING_EXPIRED.format(
                 date=local.strftime("%d.%m"),
                 time=local.strftime("%H:%M"),

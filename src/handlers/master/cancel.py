@@ -113,7 +113,7 @@ async def cb_master_cancel(
     if client is not None and client.tg_id is not None and service is not None:
         tz = ZoneInfo(master.timezone)
         local = appt.start_at.astimezone(tz)
-        link = f"https://t.me/{settings.bot_username}?start=master_{master.slug}"
+        link = f"https://t.me/{settings.app_bot_username}?start=master_{master.slug}"
         text = strings.CLIENT_APPT_CANCELLED_BY_MASTER.format(
             date=local.strftime("%d.%m.%Y"),
             time=local.strftime("%H:%M"),

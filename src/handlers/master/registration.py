@@ -90,7 +90,7 @@ async def _accept_specialty(
     await state.set_state(MasterRegister.waiting_slug_confirm)
     if message is not None:
         await message.answer(
-            strings.REGISTER_SLUG_CONFIRM_FMT.format(slug=slug, username=settings.bot_username),
+            strings.REGISTER_SLUG_CONFIRM_FMT.format(slug=slug, username=settings.app_bot_username),
             reply_markup=slug_confirm_kb(),
         )
 

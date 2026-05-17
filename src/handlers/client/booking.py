@@ -258,7 +258,7 @@ async def handle_phone(
 
 
 def _book_again_kb(master: Master) -> InlineKeyboardMarkup:
-    link = f"https://t.me/{settings.bot_username}?start=master_{master.slug}"
+    link = f"https://t.me/{settings.app_bot_username}?start=master_{master.slug}"
     return InlineKeyboardMarkup(
         inline_keyboard=[[InlineKeyboardButton(text=strings.CLIENT_BOOK_AGAIN_BTN, url=link)]]
     )
