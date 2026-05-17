@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.callback_data.admin import SurveyRatingCallback, SurveySkipCallback
 from src.config import settings
-from src.fsm.survey import SurveyFeedback
+from src.fsm.survey import SurveyAdmin, SurveyFeedback
 from src.repositories.masters import MasterRepository
 from src.strings import strings
 
@@ -52,12 +52,27 @@ def _skip_kb() -> InlineKeyboardMarkup:
 @router.message(Command("survey"))
 async def handle_survey_cmd(
     message: Message,
-    session: AsyncSession,
-    bot: Bot,
+    state: FSMContext,
 ) -> None:
     tg_id = message.from_user.id if message.from_user else 0
     if tg_id not in settings.admin_tg_ids:
         return
+    await state.set_state(SurveyAdmin.waiting_text)
+    await message.answer(strings.ADMIN_SURVEY_ASK_TEXT)
+
+
+@router.message(SurveyAdmin.waiting_text)
+async def handle_survey_text(
+    message: Message,
+    state: FSMContext,
+    session: AsyncSession,
+    bot: Bot,
+) -> None:
+    text = message.text or ""
+    if not text:
+        await message.answer(strings.ADMIN_SURVEY_ASK_TEXT)
+        return
+    await state.clear()
     repo = MasterRepository(session)
     masters = await repo.list_all()
     active = [m for m in masters if m.blocked_at is None and m.tg_id is not None]
@@ -70,7 +85,7 @@ async def handle_survey_cmd(
         try:
             await bot.send_message(
                 master.tg_id,
-                strings.ADMIN_SURVEY_QUESTION,
+                text,
                 reply_markup=_rating_kb(),
             )
             sent += 1

@@ -375,6 +375,7 @@ _RU: dict[str, Any] = {
     "ADMIN_MASTER_USAGE": "Использование: /master <slug>",
     # --- Survey ---
     "ADMIN_MENU_SURVEY": "📋 Опрос",
+    "ADMIN_SURVEY_ASK_TEXT": "Введите текст сообщения для рассылки (мастера увидят его перед кнопками оценки):",
     "ADMIN_SURVEY_SENDING_FMT": "Отправляю опрос {n} мастерам…",
     "ADMIN_SURVEY_SENT_FMT": "Готово! Опрос отправлен {n} мастерам.",
     "ADMIN_SURVEY_NO_MASTERS": "Нет активных мастеров для рассылки.",
@@ -757,6 +758,7 @@ _HY: dict[str, Any] = {
     "ADMIN_MASTER_USAGE": "Օգտագործում՝ /master <slug>",
     # --- Survey ---
     "ADMIN_MENU_SURVEY": "📋 Հարցում",
+    "ADMIN_SURVEY_ASK_TEXT": "Մուտքագրեք հաղորդագրության տեքստը (վարպետները կտեսնեն այն գնահատման կոճակներից առաջ).",
     "ADMIN_SURVEY_SENDING_FMT": "Ուղարկում եմ հարցումը {n} վարպետների…",
     "ADMIN_SURVEY_SENT_FMT": "Պատրաստ! Հարցումն ուղարկվեց {n} վարպետների։",
     "ADMIN_SURVEY_NO_MASTERS": "Ակտիվ վարպետներ չկան հարցման համար։",
