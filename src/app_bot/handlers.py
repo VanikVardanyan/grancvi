@@ -56,7 +56,7 @@ _INLINE_LABELS: dict[tuple[str, str], str] = {
     ("hy", "link"): "Բացել իմ գրանցումը",
     ("ru", "link"): "Открыть мою запись",
     ("en", "link"): "Open my booking",
-    ("hy", "default"): "Բացել",
+    ("hy", "default"): "Սկսել",
     ("ru", "default"): "Открыть",
     ("en", "default"): "Open",
 }
