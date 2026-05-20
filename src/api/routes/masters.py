@@ -67,6 +67,7 @@ async def get_master_by_slug(
         timezone=master.timezone,
         redirect_to=redirect,
         avatar_url=avatar_url_for(master),
+        address=master.address,
     )
 
 

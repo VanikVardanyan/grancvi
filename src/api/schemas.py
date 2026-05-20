@@ -32,6 +32,7 @@ class MasterOut(BaseModel):
     timezone: str
     redirect_to: MasterRedirectOut | None = None
     avatar_url: str | None = None
+    address: str | None = None
 
 
 class SalonPublicMasterOut(BaseModel):
