@@ -44,6 +44,11 @@ class Settings(BaseSettings):
     bot_token: str
     bot_username: str = "GrancviBot"
     app_bot_token: str = ""  # @grancviWebBot — TMA launcher; empty until provisioned
+    # Second TMA token for the dev environment (@grancviwebdevbot serving
+    # https://dev-app.grancvi.am). When set, the auth dependency accepts
+    # initData signed with either prod or dev token — lets the dev frontend
+    # hit the same backend without spinning up a separate API instance.
+    app_bot_token_dev: str = ""
     app_bot_username: str = "grancviWebBot"
     # Public TMA URL — used in WebAppInfo buttons sent by the bot.
     tma_url: str = "https://app.grancvi.am"
@@ -55,6 +60,7 @@ class Settings(BaseSettings):
     api_cors_origins: list[str] = Field(
         default_factory=lambda: [
             "https://app.grancvi.am",
+            "https://dev-app.grancvi.am",
             "https://grancvi.am",
             "http://localhost:5173",
             "http://127.0.0.1:5173",

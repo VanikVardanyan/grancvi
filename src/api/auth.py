@@ -60,14 +60,34 @@ def parse_and_validate_init_data(
     return user
 
 
+def validate_with_any_token(raw: str, tokens: list[str]) -> dict[str, Any]:
+    """Validate initData against the first matching token. Used by the auth
+    dependency to accept either prod or dev TMA bot signatures.
+    """
+    if not tokens:
+        raise InvalidInitData("no tokens configured")
+    last_exc: InvalidInitData = InvalidInitData("no tokens configured")
+    for token in tokens:
+        try:
+            return parse_and_validate_init_data(raw, bot_token=token)
+        except InvalidInitData as exc:
+            last_exc = exc
+    raise last_exc
+
+
 async def require_tg_user(
     x_telegram_init_data: str = Header(..., alias="X-Telegram-Init-Data"),
 ) -> dict[str, Any]:
-    """FastAPI dependency: extract & validate user from X-Telegram-Init-Data header."""
-    if not settings.app_bot_token:
+    """FastAPI dependency: extract & validate user from X-Telegram-Init-Data header.
+
+    Accepts initData signed by either the prod TMA bot (`app_bot_token`) or
+    the dev TMA bot (`app_bot_token_dev`), if the latter is configured.
+    """
+    tokens = [t for t in (settings.app_bot_token, settings.app_bot_token_dev) if t]
+    if not tokens:
         raise HTTPException(status_code=503, detail="app_bot_token not configured")
     try:
-        return parse_and_validate_init_data(x_telegram_init_data, bot_token=settings.app_bot_token)
+        return validate_with_any_token(x_telegram_init_data, tokens)
     except InvalidInitData as exc:
         raise HTTPException(status_code=401, detail=str(exc)) from exc
 

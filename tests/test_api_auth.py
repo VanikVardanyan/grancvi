@@ -10,7 +10,11 @@ from urllib.parse import urlencode
 import pytest
 import pytest_asyncio
 
-from src.api.auth import InvalidInitData, parse_and_validate_init_data
+from src.api.auth import (
+    InvalidInitData,
+    parse_and_validate_init_data,
+    validate_with_any_token,
+)
 
 
 @pytest_asyncio.fixture(autouse=True)
@@ -79,3 +83,40 @@ def test_wrong_token_rejected() -> None:
     raw = _sign(data, token)
     with pytest.raises(InvalidInitData):
         parse_and_validate_init_data(raw, bot_token="other:xyz")
+
+
+def test_validate_with_any_token_accepts_prod() -> None:
+    prod, dev = "prod:111", "dev:222"
+    data = {
+        "auth_date": str(int(time.time())),
+        "user": json.dumps({"id": 1, "first_name": "P"}),
+    }
+    raw = _sign(data, prod)
+    user = validate_with_any_token(raw, [prod, dev])
+    assert user["id"] == 1
+
+
+def test_validate_with_any_token_accepts_dev() -> None:
+    prod, dev = "prod:111", "dev:222"
+    data = {
+        "auth_date": str(int(time.time())),
+        "user": json.dumps({"id": 2, "first_name": "D"}),
+    }
+    raw = _sign(data, dev)
+    user = validate_with_any_token(raw, [prod, dev])
+    assert user["id"] == 2
+
+
+def test_validate_with_any_token_rejects_unknown() -> None:
+    data = {
+        "auth_date": str(int(time.time())),
+        "user": json.dumps({"id": 3}),
+    }
+    raw = _sign(data, "stranger:999")
+    with pytest.raises(InvalidInitData):
+        validate_with_any_token(raw, ["prod:111", "dev:222"])
+
+
+def test_validate_with_any_token_empty_list_rejected() -> None:
+    with pytest.raises(InvalidInitData):
+        validate_with_any_token("anything", [])
