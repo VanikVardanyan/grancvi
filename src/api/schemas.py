@@ -90,6 +90,8 @@ class RegisterMasterSelfIn(BaseModel):
     specialty: str = Field(..., min_length=1, max_length=200)
     slug: str | None = Field(default=None, max_length=32)
     lang: str = Field(default="ru", pattern="^(ru|hy|en)$")
+    # Optional free-text address shown on the master's public page.
+    address: str | None = Field(default=None, max_length=300)
 
 
 class RegisterMasterIn(BaseModel):
@@ -214,6 +216,7 @@ class MeMasterProfileOut(BaseModel):
     slug: str
     specialty: str | None = None
     is_public: bool
+    address: str | None = None
 
 
 class MeSalonProfileOut(BaseModel):
@@ -334,6 +337,7 @@ class PublicMasterOut(BaseModel):
     phone: str | None = None
     lang: str
     avatar_url: str | None = None
+    address: str | None = None
 
 
 class PublicSalonMasterOut(BaseModel):
@@ -543,6 +547,7 @@ class MasterProfileOut(BaseModel):
     salon_id: UUID | None = None
     salon_name: str | None = None
     avatar_url: str | None = None
+    address: str | None = None
 
 
 class MasterProfileIn(BaseModel):
@@ -554,6 +559,7 @@ class MasterProfileIn(BaseModel):
     timezone: str | None = Field(default=None, max_length=64)
     lang: str | None = Field(default=None, pattern="^(ru|hy)$")
     is_public: bool | None = None
+    address: str | None = Field(default=None, max_length=300)
 
 
 class MasterServiceOut(BaseModel):

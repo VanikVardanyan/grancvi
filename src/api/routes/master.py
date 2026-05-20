@@ -184,6 +184,7 @@ def _profile_out(m: Master, salon_name: str | None = None) -> MasterProfileOut:
         salon_id=m.salon_id,
         salon_name=salon_name,
         avatar_url=avatar_url,
+        address=m.address,
     )
 
 
@@ -291,6 +292,11 @@ async def update_my_profile(
         master.lang = payload.lang
     if payload.is_public is not None:
         master.is_public = payload.is_public
+    if payload.address is not None:
+        # Blank string clears the field — matches how the API treats
+        # phone (empty input == "no value", not "set to literal space").
+        cleaned = payload.address.strip()
+        master.address = cleaned or None
 
     await session.commit()
     return await _profile_out_with_salon(master, session)

@@ -174,6 +174,12 @@ async def register_master_self(
     except SlugTaken as exc:
         raise ApiError("slug_taken", "slug already taken", status_code=409) from exc
 
+    # Optional address picked up at registration. Stored as-is; blank
+    # strings collapse to NULL so we don't render "  " on the public page.
+    if payload.address is not None:
+        cleaned = payload.address.strip()
+        master.address = cleaned or None
+
     # If the user is a salon owner, auto-link the new master to their
     # salon — they show up in the salon catalog without a separate step.
     if existing_salon is not None:

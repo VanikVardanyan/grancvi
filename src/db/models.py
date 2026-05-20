@@ -96,6 +96,10 @@ class Master(Base):
     avatar_uploaded_at: Mapped[datetime | None] = mapped_column(
         TIMESTAMP(timezone=True), nullable=True
     )
+    # Free-text address shown on the master's public page. Optional; we
+    # don't geocode or validate format — masters fill it however they
+    # want (street + building, neighbourhood, or directions).
+    address: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class Service(Base):

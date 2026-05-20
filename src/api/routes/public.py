@@ -130,6 +130,7 @@ async def public_master_by_slug(
         phone=master.phone if master.phone_public and master.phone else None,
         lang=master.lang,
         avatar_url=avatar_url_for(master),
+        address=master.address,
     )
 
 

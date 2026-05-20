@@ -39,6 +39,7 @@ async def me(
             slug=master.slug,
             specialty=master.specialty_text or None,
             is_public=master.is_public,
+            address=master.address,
         )
         if master is not None
         else None
