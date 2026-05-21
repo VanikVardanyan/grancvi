@@ -105,7 +105,7 @@ def test_inline_label_invite() -> None:
 def test_inline_label_no_param() -> None:
     from src.app_bot.handlers import _inline_label_for
 
-    assert _inline_label_for(None, "hy") == "Բացել"
+    assert _inline_label_for(None, "hy") == "Սկսել"
     assert _inline_label_for(None, "ru") == "Открыть"
 
 
